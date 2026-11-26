@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -74,8 +75,13 @@ func htmxHeader() http.Header {
 	return h
 }
 
-// checkSVGs asserts that body holds at least minCount <svg> elements and
-// that each one is well-formed XML.
+// svgClassRe finds the class attribute of an <svg> start tag.
+var svgClassRe = regexp.MustCompile(`\sclass="([^"]*)"`)
+
+// checkSVGs asserts that body holds at least minCount <svg> elements, that
+// each one is well-formed XML, and that each svg.hp is a chart: the client
+// treats every svg.hp as one (docs/spec.md §6.4), so a decoration such as
+// a legend swatch must not carry the class hp.
 func checkSVGs(t *testing.T, name, body string, minCount int) {
 	t.Helper()
 	n := 0
@@ -91,6 +97,11 @@ func checkSVGs(t *testing.T, name, body string, minCount int) {
 		svg := rest[i : i+j+len("</svg>")]
 		if err := wellFormed(svg); err != nil {
 			t.Errorf("%s: svg #%d is not well-formed XML: %v", name, n+1, err)
+		}
+		tag := svg[:strings.Index(svg, ">")+1]
+		if m := svgClassRe.FindStringSubmatch(tag); len(m) == 2 && slices.Contains(strings.Fields(m[1]), "hp") &&
+			!strings.Contains(tag, ` data-hp="1"`) {
+			t.Errorf("%s: svg #%d has the class hp but is not a chart: %.120s", name, n+1, tag)
 		}
 		rest = rest[i+j:]
 		n++
@@ -190,6 +201,18 @@ func TestPageOpensNoStream(t *testing.T) {
 	}
 }
 
+// TestFilterFormSync checks that a filter change made while a request is in
+// flight replaces it. htmx's default ("queue first") drops every change
+// after the queued one, so on a slow link the charts would show an earlier
+// filter than the form.
+func TestFilterFormSync(t *testing.T) {
+	page := get(t, newTestServer(t).routes(), "/", nil).Body
+	want := `hx-get="/" hx-trigger="change, submit" hx-target="#charts" hx-swap="innerMorph" hx-indicator="#charts" hx-sync="this:replace"`
+	if !strings.Contains(page, want) {
+		t.Errorf("the filter form lacks %s", want)
+	}
+}
+
 // TestFocusReturn checks that the links that remove themselves name where
 // keyboard focus goes (app.js moves it there after the swap).
 func TestFocusReturn(t *testing.T) {
@@ -277,7 +300,8 @@ func TestPTagFollowsBuckets(t *testing.T) {
 }
 
 // TestSSE reads the throughput stream over a real HTTP connection and
-// expects at least two messages with distinct ids, each a whole chart.
+// expects at least two messages with distinct ids, each a whole chart,
+// the first carrying the retry delay.
 func TestSSE(t *testing.T) {
 	s := newTestServer(t)
 	var calls atomic.Int64
@@ -303,7 +327,7 @@ func TestSSE(t *testing.T) {
 		t.Fatalf("Content-Type %q, want text/event-stream", ct)
 	}
 
-	type message struct{ id, data string }
+	type message struct{ id, data, retry string }
 	var msgs []message
 	var cur message
 	sc := bufio.NewScanner(res.Body)
@@ -316,6 +340,8 @@ func TestSSE(t *testing.T) {
 				msgs = append(msgs, cur)
 			}
 			cur = message{}
+		case strings.HasPrefix(line, "retry: "):
+			cur.retry = strings.TrimPrefix(line, "retry: ")
 		case strings.HasPrefix(line, "id: "):
 			cur.id = strings.TrimPrefix(line, "id: ")
 		case strings.HasPrefix(line, "data: "):
@@ -328,6 +354,11 @@ func TestSSE(t *testing.T) {
 	cancel()
 	if len(msgs) < 2 {
 		t.Fatalf("got %d messages, want at least 2 (scan error: %v)", len(msgs), sc.Err())
+	}
+	// docs/spec.md §4.5: a server SHOULD send retry:. hx-sse 4.0.2 applies
+	// it only on a message that carries data, so the first one must have it.
+	if msgs[0].retry != "2000" {
+		t.Errorf("first message retry %q, want 2000", msgs[0].retry)
 	}
 	ids := map[string]bool{}
 	for i, m := range msgs {

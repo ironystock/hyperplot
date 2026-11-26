@@ -543,6 +543,14 @@ func (s *server) throughputStream(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
+	// retry: sets how long hx-sse waits before it reconnects a stream that
+	// dropped (docs/spec.md §4.5 SHOULD); without it hx-sse falls back to
+	// 500 ms. hx.Stream repeats the field on the first message, because
+	// hx-sse 4.0.2 ignores a retry that arrives on its own.
+	if err := stream.Retry(2 * time.Second); err != nil {
+		s.streamEnded(err)
+		return
+	}
 	last := stream.LastEventID()
 	// send renders and sends the current second. A render error skips the
 	// frame and keeps the stream open: returning would make the client

@@ -41,8 +41,15 @@
   <h1>Service overview</h1>
   <p class="lede">Simulated traffic for one API in three regions. Every chart is SVG rendered on the server and kept live by htmx 4.</p>
 
+  {{- /*
+    Filters (docs/htmx.md, pattern 3): one request re-renders everything in
+    #charts. hx-sync="this:replace" makes a change during a request abort
+    it and send the form as it is now, so the last change wins. htmx's
+    default queues one request and drops later ones, which on a slow link
+    leaves the charts showing an earlier filter than the form.
+  */}}
   <form id="filters" class="filters" action="/" method="get"
-        hx-get="/" hx-trigger="change, submit" hx-target="#charts" hx-swap="innerMorph" hx-indicator="#charts">
+        hx-get="/" hx-trigger="change, submit" hx-target="#charts" hx-swap="innerMorph" hx-indicator="#charts" hx-sync="this:replace">
     <fieldset>
       <legend>Range</legend>
       <div class="seg">
@@ -75,7 +82,15 @@
 {{- end}}
 
 {{define "swatch" -}}
-<svg class="hp swatch" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect class="hp-s{{.}}" width="10" height="10" rx="2" fill="currentColor"/></svg>
+{{- /*
+  A region's color key, in the slot its series uses in every chart. The
+  root class is hp-spark, not hp: the extension and docs/spec.md §6.4 treat
+  every svg.hp as a chart, so a decoration marked hp would be hovered,
+  focused and styled as one. hx-plot.css declares the --hp-series-N tokens
+  on .hp-spark as well, so hp-sN still picks the series color, and it
+  follows the theme.
+*/ -}}
+<svg class="hp-spark swatch" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect class="hp-s{{.}}" width="10" height="10" rx="2" fill="currentColor"/></svg>
 {{- end}}
 
 {{define "charts" -}}
