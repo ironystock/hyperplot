@@ -631,10 +631,10 @@ func TestTooltipContentWraps(t *testing.T) {
 func TestActivePointIndicatorsContrast(t *testing.T) {
 	css := Stylesheet()
 	normal, _, _ := strings.Cut(css, "@media (forced-colors:active){")
-	th := DefaultTheme()
-	tokens := map[string]map[string]string{
-		"light": {"text": th.Light.Text, "text-muted": th.Light.TextMuted, "surface": th.Light.Surface},
-		"dark":  {"text": th.Dark.Text, "text-muted": th.Dark.TextMuted, "surface": th.Dark.Surface},
+	tokens := map[string]map[string]string{}
+	for name, th := range map[string]Theme{"default": DefaultTheme(), "trace": TraceTheme()} {
+		tokens[name+" light"] = map[string]string{"text": th.Light.Text, "text-muted": th.Light.TextMuted, "surface": th.Light.Surface}
+		tokens[name+" dark"] = map[string]string{"text": th.Dark.Text, "text-muted": th.Dark.TextMuted, "surface": th.Dark.Surface}
 	}
 	declRe := regexp.MustCompile(`(?:^|;)([a-z-]+):([^;]*)`)
 	for _, sel := range []string{".hp .hp-crosshair", ".hp .hp-band-hl", ".hp .hp-brush"} {
@@ -701,6 +701,45 @@ func contrastRatio(a, b [3]float64) float64 {
 	}
 	la, lb := lum(a), lum(b)
 	return (math.Max(la, lb) + 0.05) / (math.Min(la, lb) + 0.05)
+}
+
+// TestTraceTheme checks the branded palette's own promises: every value
+// survives Theme.CSS unchanged (none is replaced by a default), series
+// and inks keep 3:1 and 4.5:1 against their surface, no series is red or
+// a status color, and slot 1 is the brand color in both modes.
+func TestTraceTheme(t *testing.T) {
+	th := TraceTheme()
+	css := th.CSS()
+	status := map[string]bool{"#0aac23": true, "#fbb315": true, "#f18a59": true, "#dc3c3d": true, "#db0018": true}
+	for mode, pl := range map[string]Palette{"light": th.Light, "dark": th.Dark} {
+		bg := hexRGB(t, pl.Surface)
+		for _, c := range append([]string{pl.Surface, pl.Text, pl.TextMuted, pl.Grid, pl.Axis}, pl.Series[:]...) {
+			if !strings.Contains(css, c) {
+				t.Errorf("%s %s is missing from the CSS (replaced by a default?)", mode, c)
+			}
+		}
+		for _, ink := range []string{pl.Text, pl.TextMuted} {
+			if r := contrastRatio(hexRGB(t, ink), bg); r < 4.5 {
+				t.Errorf("%s ink %s: %.2f:1 on %s, want 4.5:1", mode, ink, r, pl.Surface)
+			}
+		}
+		for i, c := range pl.Series {
+			if r := contrastRatio(hexRGB(t, c), bg); r < 3 {
+				t.Errorf("%s series %d %s: %.2f:1 on %s, want 3:1", mode, i+1, c, r, pl.Surface)
+			}
+			if status[strings.ToLower(c)] {
+				t.Errorf("%s series %d is %s, a status or signal-red color", mode, i+1, c)
+			}
+			// Red: the hue sits near 0°, the red channel dominates and
+			// it is saturated. The mark's spot owns red; data never does.
+			if rgb := hexRGB(t, c); rgb[0] > 150 && rgb[1] < 0.45*rgb[0] && rgb[2] < 0.45*rgb[0] {
+				t.Errorf("%s series %d %s is red", mode, i+1, c)
+			}
+		}
+	}
+	if th.Light.Series[0] != "#a88d00" || th.Dark.Series[0] != "#fae431" {
+		t.Error("slot 1 must stay the brand color: #a88d00 on paper, the phosphor #fae431 on glass")
+	}
 }
 
 func TestRefetchDimIsDelayed(t *testing.T) {

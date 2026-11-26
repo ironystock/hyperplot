@@ -75,6 +75,50 @@ func DefaultTheme() Theme {
 	}
 }
 
+// TraceTheme returns hyperplot's own branded palette, "Trace": a phosphor
+// trace on an oscilloscope's dark glass. It is opt-in; [DefaultTheme] stays
+// the default. Use it with [Theme.CSS] in place of [Stylesheet], or as
+// [Chart.Theme] for standalone SVG.
+//
+// Slot 1 is the brand color in both modes: the phosphor #fae431 on the dark
+// glass, and #a88d00, the nearest yellow that keeps 3:1 contrast, on the
+// light paper. No slot is red: in the identity, red belongs only to the
+// spot in the mark, and a red series reads as an alarm.
+//
+// Validated like the default theme. Every series color has at least 3:1
+// contrast against its surface, and adjacent slots stay distinguishable
+// under protanopia, deuteranopia and tritanopia. One deliberate exception:
+// the dark phosphor is lighter than the usual lightness band, so slot 1
+// leads every chart. As with the default theme, charts that need more
+// than three series without direct labels should fold the rest into
+// "Other".
+func TraceTheme() Theme {
+	return Theme{
+		Light: Palette{
+			Surface:   "#fbfaf6", // paper
+			Text:      "#101818", // ink, 17.2:1
+			TextMuted: "#525d5e", // 6.5:1
+			Grid:      "#e3e1db",
+			Axis:      "#b3b1aa",
+			Series: [8]string{
+				"#a88d00", "#239cbe", "#940080", "#df7100",
+				"#3080c5", "#904900", "#4936b6", "#008a2a",
+			},
+		},
+		Dark: Palette{
+			Surface:   "#111a1a", // glass
+			Text:      "#efecd6", // 14.9:1
+			TextMuted: "#a3b3a6", // 8.1:1
+			Grid:      "#253432",
+			Axis:      "#455755",
+			Series: [8]string{
+				"#fae431", "#00aed4", "#ad368a", "#e77c00",
+				"#3f8ed3", "#995602", "#6054d4", "#24ae56",
+			},
+		},
+	}
+}
+
 // Stylesheet returns the CSS of the default theme. Serve it once per page,
 // or embed it in a <style> element; charts render legibly without it, but
 // in monochrome.
