@@ -16,7 +16,7 @@ concurrency:
 
 env:
   GOFUMPT_VERSION: v0.12.0
-  GOLANGCI_LINT_VERSION: v2.13
+  GOLANGCI_LINT_VERSION: v2.15.0
   # Pinned so a new release cannot fail every build with no code change;
   # keep in step with STATICCHECK_VERSION in the Makefile.
   STATICCHECK_VERSION: "2026.2.2"
@@ -75,6 +75,9 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
+          # Build it with this job's Go: a prebuilt binary made with an older
+          # Go cannot read the standard library's export data from a newer one.
+          install-mode: goinstall
 
   test:
     name: Test (${{ matrix.os }}, Go ${{ matrix.go }})

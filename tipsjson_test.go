@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // stdTips mirrors the tooltip payload for encoding with encoding/json.
@@ -34,6 +35,17 @@ func stdRows(rows []tipRow) []stdTipRow {
 	return out
 }
 
+// fffdEscape is the six-byte JSON escape for U+FFFD, built from parts so the
+// source holds no escape sequence an editor might turn into the character.
+var fffdEscape = []byte(`\u` + "fffd")
+
+// normFFFD spells every raw U+FFFD as its JSON escape. encoding/json writes
+// the replacement for invalid UTF-8 as the escape before Go 1.27 and as the
+// raw character from Go 1.27 on; both decode to the same string.
+func normFFFD(b []byte) []byte {
+	return bytes.ReplaceAll(b, []byte(string(utf8.RuneError)), fffdEscape)
+}
+
 func TestTipsJSONMatchesEncodingJSON(t *testing.T) {
 	rows := []tipRow{
 		{"Mar 3, 2026 14:00", []tipEntry{{1, "p50", "42 ms"}, {2, `<b>"x"</b> & \ y`, missing}}},
@@ -45,7 +57,7 @@ func TestTipsJSONMatchesEncodingJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := ax.appendJSON(nil); !bytes.Equal(got, want) {
+	if got := ax.appendJSON(nil); !bytes.Equal(normFFFD(got), normFFFD(want)) {
 		t.Errorf("axis payload:\n got %s\nwant %s", got, want)
 	}
 
@@ -58,7 +70,7 @@ func TestTipsJSONMatchesEncodingJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := xy.appendJSON(nil); !bytes.Equal(got, want) {
+	if got := xy.appendJSON(nil); !bytes.Equal(normFFFD(got), normFFFD(want)) {
 		t.Errorf("xy payload:\n got %s\nwant %s", got, want)
 	}
 	empty := tipsXY{}
@@ -83,7 +95,7 @@ func FuzzJSONString(f *testing.F) {
 		if back != stdBack {
 			t.Fatalf("%q decodes to %q, encoding/json gives %q", s, back, stdBack)
 		}
-		if !strings.ContainsAny(s, "\xef\xbf\xbe\xef\xbf\xbf") && !bytes.Equal(got, want) {
+		if !strings.ContainsAny(s, "\xef\xbf\xbe\xef\xbf\xbf") && !bytes.Equal(normFFFD(got), normFFFD(want)) {
 			t.Fatalf("%q: got %s, encoding/json %s", s, got, want)
 		}
 		if strings.ContainsAny(string(got), "<>&\xef\xbf\xbe\xef\xbf\xbf") {
