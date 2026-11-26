@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces a chart, and a 304 is never
+     swapped. The array replaces htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Polling with ptag · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx and hx-ptag load in order and without defer (a deferred htmx
+     4.0.2 can start before a deferred extension has loaded). hx-ptag is
+     the only htmx extension this page needs. hx-plot.js may defer: htmx
+     waits for DOMContentLoaded, which runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Polling with ptag</h1>
+  <p class="lede">The chart asks the server for itself every two seconds. The data moves on every ten, so most answers are an empty <code>304 Not Modified</code> and nothing is swapped. Open devtools' Network panel to watch.</p>
+  <section aria-labelledby="connections-heading">
+    <h2 id="connections-heading">Open connections</h2>
+    {{- /*
+      hx-get + hx-trigger="every 2s": poll the chart's own URL.
+      hx-swap="innerMorph": the new <svg> keeps id="connections", so htmx
+      morphs it in place and hx-plot.js slides the line.
+      hx-ptag: the tag of the chart the page was rendered with. The ptag
+      extension sends it as the HX-PTag header on the first poll, so even
+      that one is a 304 if the data has not changed (docs/spec.md §4.5).
+      After that the extension remembers the HX-PTag of each response.
+    */}}
+    <div class="chart" hx-get="/charts/connections" hx-trigger="every 2s"
+         hx-swap="innerMorph" hx-ptag="{{.Tag}}">{{.Chart}}</div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+{{- /* data-theme pins the palette: "light" or "dark". Without it the
+       stylesheet follows prefers-color-scheme. Only these two values ever
+       reach the attribute; the server drops anything else. */}}
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Theming · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<!-- The palette is the only thing that changes between the two
+     stylesheets: hyperplot.Stylesheet() or brandTheme().CSS(). The charts'
+     markup is the same in both. -->
+<link rel="stylesheet" href="{{.Stylesheet}}">
+<link rel="stylesheet" href="/static/app.css">
+<!-- hx-plot.js without htmx (docs/spec.md §6.10): its tooltip, .hp-tip,
+     takes the same --hp-* tokens as the charts. -->
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Theming</h1>
+  <p class="lede">One set of charts, two palettes, light and dark. Switching is a plain link: the server picks the stylesheet and writes <code>data-theme</code> on <code>&lt;html&gt;</code>.</p>
+  <div class="switches">
+    <nav aria-label="Color scheme"><span class="label">Scheme</span>
+      {{- range .Themes}} <a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+    <nav aria-label="Palette"><span class="label">Palette</span>
+      {{- range .Palettes}} <a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+  </div>
+  {{- range .Figures}}
+  <section aria-labelledby="{{.ID}}-heading">
+    <h2 id="{{.ID}}-heading">{{.Title}}</h2>
+    {{.SVG}}
+    <details><summary>View as table</summary>{{.Table}}</details>
+  </section>
+  {{- end}}
+</main>
+</body>
+</html>

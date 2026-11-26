@@ -1,0 +1,19 @@
+/* Page layout for this recipe. The boxes are what the charts fit. */
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+h2 { font-size: 1rem; margin: 0 0 .25rem }
+.lede { margin: 0 0 1.5rem; color: GrayText }
+.note { margin: 0 0 .75rem; font-size: .875rem; color: GrayText }
+
+/* Three columns on a wide window, one on a narrow one: either way each box
+   is a width the server did not guess. */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px }
+.box { border: 1px dashed color-mix(in srgb, CanvasText 30%, transparent); border-radius: 6px }
+/* An inline <svg> sits on the text baseline and leaves a gap under it;
+   display: block removes it, so the box is exactly as tall as the chart. */
+.box .hp { display: block }
+
+/* The "both" box: CSS sets its height, so its reported hp-h is stable. */
+.box-tall { height: 300px; overflow: hidden }

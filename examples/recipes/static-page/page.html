@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Static charts · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- No htmx on this page (and so no htmx-config meta): hx-plot.js alone.
+     When it runs and finds no htmx, it starts in standalone mode
+     (docs/spec.md §6.10) and enhances every inline chart. defer is fine:
+     nothing else waits for it. -->
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Static charts</h1>
+  <p class="lede">Rendered once by the server, with no htmx on the page. Hover a chart, or press Tab to focus it and read it with the arrow keys. Reload for the next minute.</p>
+  {{- range .}}
+  <section aria-labelledby="{{.ID}}-heading">
+    <h2 id="{{.ID}}-heading">{{.Title}}</h2>
+    {{.SVG}}
+    <details><summary>View as table</summary>{{.Table}}</details>
+  </section>
+  {{- end}}
+</main>
+</body>
+</html>

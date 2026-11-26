@@ -1,0 +1,31 @@
+/* Page styles for this recipe. The chart colors come from hx-plot.css or
+   brand.css; this file styles the page and defines the brand color that
+   brand.css refers to as var(--brand). */
+:root {
+  --brand: #0b6bcb;       /* slot 1 of the brand palette, light */
+  --brand-dark: #5aa2ec;  /* and dark */
+  color-scheme: light dark;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+/* The page follows the same switch as the charts: data-theme wins, and
+   without it the system setting does. color-scheme also flips Canvas,
+   CanvasText and the form controls. */
+:root[data-theme="light"] { color-scheme: light }
+:root[data-theme="dark"] { color-scheme: dark }
+
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+h2 { font-size: 1.1rem; margin: 2rem 0 .5rem }
+.lede { margin: 0 0 1rem; color: GrayText }
+summary { cursor: pointer; margin-top: .5rem }
+.hp-table { margin-top: .5rem }
+
+.switches { display: flex; flex-wrap: wrap; gap: .5rem 2rem }
+.switches .label { color: GrayText; margin-right: .25rem }
+.switches a { color: var(--brand); padding: .125rem .375rem; border-radius: 4px }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .switches a { color: var(--brand-dark) } }
+:root[data-theme="dark"] .switches a { color: var(--brand-dark) }
+/* The current choice is bold and not underlined, which survives forced
+   colors, where background colors are replaced. */
+.switches a[aria-current] { font-weight: 700; text-decoration: none; background: color-mix(in srgb, currentColor 12%, transparent) }
