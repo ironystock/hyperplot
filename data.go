@@ -18,11 +18,14 @@ type Values interface {
 // Floats is a column of numbers, plotted on a linear scale.
 type Floats []float64
 
-// Times is a column of instants, plotted on a time scale.
+// Times is a column of instants, plotted on a time scale. They must fall
+// in years 1 to 9999 in UTC, the years an RFC 3339 row key can write.
 type Times []time.Time
 
 // Categories is a column of labels, plotted on a band scale in order of
-// first appearance across the chart's marks.
+// first appearance across the chart's marks. Bytes that are not valid
+// UTF-8 read as U+FFFD, so labels that differ only in such bytes are the
+// same category.
 type Categories []string
 
 // Len returns the number of values.

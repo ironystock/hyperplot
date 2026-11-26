@@ -1,6 +1,7 @@
 package hyperplot
 
 import (
+	"encoding/json"
 	"math"
 	"strconv"
 	"strings"
@@ -50,6 +51,18 @@ func FuzzRender(f *testing.F) {
 	// EST) and in Lord Howe's repeated half hour.
 	f.Add("fall back", "dst", 1793515200.0, 1793515201.0, 1793515202.0, uint8(1), uint32(8*5+96*(128+256*1)))
 	f.Add("lord howe", "dst", 1775315700.0, 1775316600.0, 1775317500.0, uint8(1), uint32(8*6+96*(128+256*2)))
+	// Two points an hour apart with one wall time, 1:40 AM EDT and EST
+	// (both with the nanoseconds of b).
+	f.Add("repeat", "dst", 1793511600.0, 1793515200.0, 2793515200.0, uint8(1), uint32(8*3+96*(128+256*1)))
+	// Times in years -249 and 0, which RFC 3339 cannot write as keys.
+	f.Add("n", "c", -7e10, -7e10, -7e10, uint8(1), uint32(16))
+	f.Add("n", "c", -6.2e10, -6.2e10, -6.2e10, uint8(1), uint32(16))
+	// A time domain under a microsecond wide (5 s + 5 ns to 5 s + 1 µs).
+	f.Add("us", "span", 5.2, 5.7, 1000.0, uint8(1), uint32(2*8))
+	// Categories "x\xfe1" and "x\xff1", which the metadata writes alike,
+	// on a line and on bars.
+	f.Add("x\xfe1", "x\xff", 1.0, 2.0, 3.0, uint8(2), uint32(2*8))
+	f.Add("x\xfe1", "x\xff", 1.0, 2.0, 3.0, uint8(11), uint32(2*8))
 	f.Fuzz(func(t *testing.T, name, cat string, a, b, c float64, flags uint8, shape uint32) {
 		vals := [3]float64{a, b, c}
 		at := func(i int) float64 { return vals[i%3] + float64(i/3) }
@@ -186,8 +199,39 @@ func FuzzRender(f *testing.F) {
 				t.Fatalf("inputs %s: output contains a non-finite number\n%s", inputs(), out)
 			}
 		}
-		if _, err := ch.Table(); err != nil {
+		table, err := ch.Table()
+		if err != nil {
 			t.Fatalf("inputs %s: Table failed where Render succeeded: %v", inputs(), err)
+		}
+		// The wire spec's MUSTs hold for any input: the geometry
+		// attributes parse, every row has a key in the x domain, the table
+		// has a row per key, no raw CR, no transform where the slide moves
+		// things, and every id is unique (speccheck_test.go).
+		if v := checkSpec(out, []byte(table)); len(v) > 0 {
+			t.Fatalf("inputs %s: spec violations:\n%s\n%s\n%s", inputs(), strings.Join(v, "\n"), out, table)
+		}
+		// Distinct times read differently in tooltips, keyboard readings
+		// and table rows (Axis.TimeValueFormat), also in the hour a zone
+		// repeats when its clocks go back.
+		if xKind == 1 {
+			const open, end = `<metadata class="hp-tips">`, `</metadata>`
+			s := string(out)
+			if i := strings.Index(s, open); i >= 0 {
+				var tips wireTipsPayload
+				body, _, _ := strings.Cut(s[i+len(open):], end)
+				if err := json.Unmarshal([]byte(body), &tips); err != nil {
+					t.Fatalf("inputs %s: %v", inputs(), err)
+				}
+				if tips.Mode == "x" {
+					seen := map[string]string{}
+					for _, r := range tips.Rows {
+						if k, ok := seen[*r.T]; ok && k != *r.K {
+							t.Fatalf("inputs %s: rows %s and %s both read %q", inputs(), k, *r.K, *r.T)
+						}
+						seen[*r.T] = *r.K
+					}
+				}
+			}
 		}
 		// Ticks lie inside the domain, so their labels sit over the plot
 		// (an hour early in a repeated DST hour, they ran off the chart).

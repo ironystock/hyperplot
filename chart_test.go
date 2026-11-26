@@ -172,10 +172,10 @@ func TestDefaultsAndRoot(t *testing.T) {
 	c := &Chart{Title: "Latency", Marks: []Mark{Line{X: Floats{1, 2}, Y: []float64{1, 2}}}}
 	b := string(mustRender(t, c))
 	// Title, Description, X.Label, Y.Label, then kind:name per series.
-	id := "hp-" + hash8("Latency\x00\x00\x00\x00Line:\x00")
+	id := defaultID("Latency\x00\x00\x00\x00Line:\x00")
 	for _, want := range []string{
 		`<svg xmlns="http://www.w3.org/2000/svg" id="` + id + `" class="hp" viewBox="0 0 640 320" width="640" height="320" role="img"`,
-		`aria-labelledby="` + id + `-title ` + id + `-desc" tabindex="0" data-hp=""`,
+		`aria-labelledby="` + id + `-title" aria-describedby="` + id + `-desc" tabindex="0" data-hp="1" data-hp-plot="`,
 		`font-size="12"`,
 		`<title id="` + id + `-title">Latency</title>`,
 		`<clipPath id="` + id + `-clip">`,

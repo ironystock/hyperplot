@@ -20,6 +20,7 @@ type stdTips struct {
 
 type stdTipRow struct {
 	T string  `json:"t"`
+	K string  `json:"k"`
 	V [][]any `json:"v"`
 }
 
@@ -30,7 +31,7 @@ func stdRows(rows []tipRow) []stdTipRow {
 		for j, e := range r.v {
 			v[j] = []any{e.slot, e.name, e.value}
 		}
-		out[i] = stdTipRow{r.t, v}
+		out[i] = stdTipRow{r.t, r.k, v}
 	}
 	return out
 }
@@ -48,9 +49,9 @@ func normFFFD(b []byte) []byte {
 
 func TestTipsJSONMatchesEncodingJSON(t *testing.T) {
 	rows := []tipRow{
-		{"Mar 3, 2026 14:00", []tipEntry{{1, "p50", "42 ms"}, {2, `<b>"x"</b> & \ y`, missing}}},
-		{"tab\tnew\nline\r\x00\x1f\b\f\xe2\x80\xa8\xe2\x80\xa9\x7f", []tipEntry{{8, "日本語 \U0001F600", "−1.5"}}},
-		{"bad \xff utf8", nil},
+		{"Mar 3, 2026 14:00", "2026-03-03T14:00:00Z", []tipEntry{{1, "p50", "42 ms"}, {2, `<b>"x"</b> & \ y`, missing}}},
+		{"tab\tnew\nline\r\x00\x1f\b\f\xe2\x80\xa8\xe2\x80\xa9\x7f", "<k>&\x01\t\xe2\x80\xa8", []tipEntry{{8, "日本語 \U0001F600", "−1.5"}}},
+		{"bad \xff utf8", "", nil},
 	}
 	ax := tipsAxis{mode: "x", xs: []float64{0, 1.5, 123.25, -4, 1e6}, bw: 0, top: 8, bottom: 298.5, rows: rows}
 	want, err := json.Marshal(stdTips{ax.mode, ax.xs, ax.bw, ax.top, ax.bottom, stdRows(ax.rows)})

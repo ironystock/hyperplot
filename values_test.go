@@ -213,8 +213,15 @@ func TestSubMillisecondTimes(t *testing.T) {
 		if len(p.xTicks) < 2 {
 			t.Errorf("step %v: %d x ticks", step, len(p.xTicks))
 		}
+		// The domain's ends are epoch-ms numbers data-hp-x can write
+		// exactly (timeWire): rounded outward by up to a float64 step
+		// (about 0.24 µs), so 100 ns data no longer fills the whole plot,
+		// but it stays evenly spaced and spans most of it.
 		s := p.series[0]
-		want := (p.r - p.l) / 9
+		want := (s.px[len(s.px)-1] - s.px[0]) / 9
+		if want*9 < (p.r-p.l)*2/3 {
+			t.Errorf("step %v: the data spans %v of the plot's %v px", step, want*9, p.r-p.l)
+		}
 		for i := 1; i < len(s.px); i++ {
 			if gap := s.px[i] - s.px[i-1]; math.Abs(gap-want) > 1e-6 {
 				t.Errorf("step %v: gap %d is %v px, want %v", step, i, gap, want)

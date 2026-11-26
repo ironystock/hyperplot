@@ -129,6 +129,33 @@ func TestNice(t *testing.T) {
 	}
 }
 
+// TestNiceContainsDomain checks that rounding in the step arithmetic never
+// moves a nice bound inside the original domain. FuzzRender found
+// [-0.2222222222222222, -0.19999999999999998] niced to [-0.24, -0.2],
+// which left the largest value outside the scale.
+func TestNiceContainsDomain(t *testing.T) {
+	for _, d := range [][2]float64{
+		{-0.2222222222222222, -0.19999999999999998},
+		{0.1, 0.30000000000000004},
+		{-0.30000000000000004, -0.1},
+		{0.7000000000000001, 1.4000000000000001},
+	} {
+		for count := 1; count <= 20; count++ {
+			for _, rev := range []bool{false, true} {
+				d0, d1 := d[0], d[1]
+				if rev {
+					d0, d1 = d1, d0
+				}
+				n := NewLinear(d0, d1, 0, 1).Nice(count).Domain
+				lo, hi := math.Min(n[0], n[1]), math.Max(n[0], n[1])
+				if lo > d[0] || hi < d[1] || (n[0] > n[1]) != rev {
+					t.Errorf("Nice(%v..%v, %d) = %v, which does not contain the domain", d0, d1, count, n)
+				}
+			}
+		}
+	}
+}
+
 func TestLinearMapInvert(t *testing.T) {
 	s := NewLinear(0, 100, 300, 0) // vertical axis: larger values higher
 	if got := s.Map(25); got != 225 {
@@ -768,6 +795,74 @@ func TestTimeFormatterFor(t *testing.T) {
 				t.Errorf("FormatterFor(6, %v)(%v) = %q, want %q", tt.times, tt.probe, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestTimeFormatRepeatedWallClock checks that full labels tell apart the
+// two instants of a wall time that a zone shows twice, and leave every
+// other time alone.
+func TestTimeFormatRepeatedWallClock(t *testing.T) {
+	zone := func(name string) *time.Location {
+		loc, err := time.LoadLocation(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return loc
+	}
+	ny, berlin, moscow, lordHowe := newYork(t), zone("Europe/Berlin"), zone("Europe/Moscow"), zone("Australia/Lord_Howe")
+	utc := func(s string) time.Time {
+		v, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	tests := []struct {
+		loc  *time.Location
+		at   string
+		want string
+	}{
+		// New York goes back from 2:00 EDT to 1:00 EST at 06:00Z.
+		{ny, "2026-11-01T04:59:00Z", "Nov 1, 2026 12:59 AM"},
+		{ny, "2026-11-01T05:00:00Z", "Nov 1, 2026 1:00 AM EDT"},
+		{ny, "2026-11-01T05:30:00Z", "Nov 1, 2026 1:30 AM EDT"},
+		{ny, "2026-11-01T06:00:00Z", "Nov 1, 2026 1:00 AM EST"},
+		{ny, "2026-11-01T06:30:00Z", "Nov 1, 2026 1:30 AM EST"},
+		{ny, "2026-11-01T06:59:00Z", "Nov 1, 2026 1:59 AM EST"},
+		{ny, "2026-11-01T07:00:00Z", "Nov 1, 2026 2:00 AM"},
+		// Going forward repeats nothing.
+		{ny, "2026-03-08T06:59:00Z", "Mar 8, 2026 1:59 AM"},
+		{ny, "2026-03-08T07:00:00Z", "Mar 8, 2026 3:00 AM"},
+		{berlin, "2026-10-25T00:30:00Z", "Oct 25, 2026 2:30 AM CEST"},
+		{berlin, "2026-10-25T01:30:00Z", "Oct 25, 2026 2:30 AM CET"},
+		{berlin, "2026-10-25T02:00:00Z", "Oct 25, 2026 3:00 AM"},
+		// Half an hour back: Lord Howe repeats 1:30 to 2:00.
+		{lordHowe, "2026-04-04T14:45:00Z", "Apr 5, 2026 1:45 AM +11"},
+		{lordHowe, "2026-04-04T15:15:00Z", "Apr 5, 2026 1:45 AM +1030"},
+		{lordHowe, "2026-04-04T14:15:00Z", "Apr 5, 2026 1:15 AM"},
+		// Moscow went from UTC+4 to UTC+3 in 2014 as MSK on both sides.
+		{moscow, "2014-10-25T21:30:00Z", "Oct 26, 2014 1:30 AM UTC+04:00"},
+		{moscow, "2014-10-25T22:30:00Z", "Oct 26, 2014 1:30 AM UTC+03:00"},
+		{time.UTC, "2026-11-01T05:30:00Z", "Nov 1, 2026 5:30 AM"},
+	}
+	for _, tt := range tests {
+		at := utc(tt.at)
+		s := Time{Domain: [2]time.Time{at.Add(-time.Hour), at.Add(time.Hour)}, Range: [2]float64{0, 600}, Location: tt.loc}
+		if got := s.FormatterFor(6, slices.Values([]time.Time{at}))(at); got != tt.want {
+			t.Errorf("%s in %v: FormatterFor = %q, want %q", tt.at, tt.loc, got, tt.want)
+		}
+		if got := s.Format(at, 6); got != tt.want {
+			t.Errorf("%s in %v: Format = %q, want %q", tt.at, tt.loc, got, tt.want)
+		}
+	}
+	// Coarser labels too: a midnight that a zone shows twice (São Paulo
+	// went back from 00:00 to 23:00 on 2019-02-16, so 23:00 repeats).
+	sp := zone("America/Sao_Paulo")
+	a, b := utc("2019-02-17T01:00:00Z"), utc("2019-02-17T02:00:00Z") // 23:00 -02, 23:00 -03
+	s := Time{Domain: [2]time.Time{a, b}, Range: [2]float64{0, 600}, Location: sp}
+	f := s.FormatterFor(6, slices.Values([]time.Time{a, b}))
+	if la, lb := f(a), f(b); la == lb {
+		t.Errorf("São Paulo: both instants read %q", la)
 	}
 }
 

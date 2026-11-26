@@ -20,10 +20,11 @@ type tipEntry struct {
 	name, value string
 }
 
-// tipRow is one tooltip: a heading and one entry per series.
+// tipRow is one tooltip: a heading, the key of its x value
+// (docs/spec.md §4.3) and one entry per series.
 type tipRow struct {
-	t string
-	v []tipEntry
+	t, k string
+	v    []tipEntry
 }
 
 // tipsAxis is the payload for modes "x" and "band".
@@ -207,7 +208,7 @@ func (p *plan) tipsBand() tipsAxis {
 	idx := p.pointIndex()
 	for ci, cat := range p.cats {
 		t.xs[ci] = r2(p.bandCenter(ci))
-		t.rows[ci] = tipRow{cat, p.entries(idx, xkey{s: cat})}
+		t.rows[ci] = tipRow{cat, cat, p.entries(idx, xkey{s: cat})}
 	}
 	return t
 }
@@ -220,7 +221,11 @@ type xcol struct {
 	px float64
 }
 
-// xColumns returns the distinct plotted x values in axis order.
+// xColumns returns the distinct plotted x values in axis order. Points
+// outside the x domain (the overscan point of a sliding window) are drawn,
+// clipped, but have no column: the pointer, which has no horizontal bound
+// in mode x, could otherwise land on data that is not visible
+// (docs/spec.md §3.5).
 func (p *plan) xColumns(idx []pointIdx) []xcol {
 	n := 0
 	for _, s := range p.series {
@@ -230,7 +235,7 @@ func (p *plan) xColumns(idx []pointIdx) []xcol {
 	seen := make(map[xkey]bool, n)
 	for si, s := range p.series {
 		for i := range s.y {
-			if math.IsNaN(s.hi[i]) {
+			if math.IsNaN(s.hi[i]) || !p.xInDomain(s, i) {
 				continue
 			}
 			k, _ := keyOf(s.x, i)
@@ -258,7 +263,7 @@ func (p *plan) tipsX() tipsAxis {
 	t := tipsAxis{mode: "x", xs: make([]float64, len(cols)), top: r2(p.t), bottom: r2(p.b), rows: make([]tipRow, len(cols))}
 	for ci, c := range cols {
 		t.xs[ci] = r2(c.px)
-		t.rows[ci] = tipRow{p.xValue(c.s, c.i), p.entries(idx, c.k)}
+		t.rows[ci] = tipRow{p.xValue(c.s, c.i), c.k.rowKey(p.xk), p.entries(idx, c.k)}
 	}
 	return t
 }
@@ -267,7 +272,8 @@ func (p *plan) tipsXY() tipsXY {
 	var t tipsXY
 	for _, s := range p.series {
 		for i := range s.y {
-			if math.IsNaN(s.pyHi[i]) {
+			k, ok := keyOf(s.x, i)
+			if math.IsNaN(s.pyHi[i]) || !ok || !p.xInDomain(s, i) {
 				continue
 			}
 			// A label heads the row, followed by the x value, which is
@@ -277,7 +283,7 @@ func (p *plan) tipsXY() tipsXY {
 				head = s.labels[i] + " · " + head
 			}
 			t.pts = append(t.pts, [2]float64{r2(s.px[i]), r2(s.pyHi[i])})
-			t.rows = append(t.rows, tipRow{head, []tipEntry{{s.slot, tipName(s.label), p.yValue(s.y[i])}}})
+			t.rows = append(t.rows, tipRow{head, k.rowKey(p.xk), []tipEntry{{s.slot, tipName(s.label), p.yValue(s.y[i])}}})
 		}
 	}
 	return t

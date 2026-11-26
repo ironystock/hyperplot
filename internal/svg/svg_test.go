@@ -83,9 +83,10 @@ func FuzzNum(f *testing.F) {
 func TestWriterEscapes(t *testing.T) {
 	var w Writer
 	w.Open("svg", A("xmlns", "http://www.w3.org/2000/svg"), A("data-x", `a"b<c>&d`+"\n"), A("empty", ""))
-	w.Elem("text", "1 < 2 & \"ok\"\x00\x1b", N("x", 1.234))
+	w.Elem("text", "1 < 2 & \"ok\"\x00\x1b\r\n\t", N("x", 1.234), A("data-y", "\r\t"))
 	w.Close("svg")
-	want := `<svg xmlns="http://www.w3.org/2000/svg" data-x="a&quot;b&lt;c&gt;&amp;d&#10;"><text x="1.23">1 &lt; 2 &amp; "ok"</text></svg>`
+	want := `<svg xmlns="http://www.w3.org/2000/svg" data-x="a&quot;b&lt;c&gt;&amp;d&#10;">` +
+		`<text x="1.23" data-y="&#13;&#9;">1 &lt; 2 &amp; "ok"&#13;` + "\n\t</text></svg>"
 	if got := w.String(); got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
@@ -159,6 +160,10 @@ func FuzzWellFormed(f *testing.F) {
 				text += string(tok)
 			}
 		}
+		// No raw CR byte, ever (docs/spec.md §3.6).
+		if bytes.IndexByte(w.Bytes(), '\r') >= 0 {
+			t.Errorf("raw CR in output for %q: %q", s, w.Bytes())
+		}
 		// Valid, XML-legal input must round-trip exactly.
 		if utf8.ValidString(s) && allXMLChars(s) {
 			if attr != s || text != s {
@@ -170,8 +175,8 @@ func FuzzWellFormed(f *testing.F) {
 
 func allXMLChars(s string) bool {
 	for _, r := range s {
-		if !xmlChar(r) || r == '\r' {
-			return false // XML normalizes \r in text, so exclude it
+		if !xmlChar(r) {
+			return false
 		}
 	}
 	return true

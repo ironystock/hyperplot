@@ -127,8 +127,11 @@ func appendEscaped(dst []byte, s string, attr bool) []byte {
 			dst = append(dst, "&gt;"...)
 		case r == '"' && attr:
 			dst = append(dst, "&quot;"...)
-		case (r == '\n' || r == '\r' || r == '\t') && attr:
-			// Preserve whitespace in attributes through normalization.
+		case r == '\r' || (r == '\n' || r == '\t') && attr:
+			// Preserve whitespace in attributes through normalization. A
+			// CR is written as a reference in text too: a parser reads a
+			// raw CR as LF, and it would split an SSE data: line, so the
+			// output never holds a raw CR byte (docs/spec.md §3.6).
 			dst = append(dst, "&#"...)
 			dst = strconv.AppendInt(dst, int64(r), 10)
 			dst = append(dst, ';')

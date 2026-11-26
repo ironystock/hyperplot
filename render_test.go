@@ -411,6 +411,7 @@ func TestBandLabelsTruncateToTheirBand(t *testing.T) {
 
 func TestTable(t *testing.T) {
 	c := &Chart{
+		ID:    "t",
 		Title: "Latency",
 		X:     Axis{Label: "Quarter"},
 		Y:     Axis{Unit: " ms"},
@@ -423,17 +424,17 @@ func TestTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `<table class="hp-table"><caption>Latency</caption>` +
+	want := `<table class="hp-table" id="t-table"><caption>Latency</caption>` +
 		`<thead><tr><th scope="col">Quarter</th><th scope="col">a</th><th scope="col">&lt;b&gt;</th></tr></thead>` +
 		// A missing value shows a dash but is read as "no data": screen
 		// readers skip a bare en dash at their default punctuation level.
-		`<tbody><tr><th scope="row">Q1</th><td>1.5 ms</td><td><span aria-hidden="true">–</span><span class="hp-sr"> no data</span></td></tr>` +
-		`<tr><th scope="row">Q2</th><td>2 ms</td><td>3 ms</td></tr></tbody></table>`
+		`<tbody><tr id="t-r-` + hash8("Q1") + `"><th scope="row">Q1</th><td>1.5 ms</td><td><span aria-hidden="true">–</span><span class="hp-sr"> no data</span></td></tr>` +
+		`<tr id="t-r-` + hash8("Q2") + `"><th scope="row">Q2</th><td>2 ms</td><td>3 ms</td></tr></tbody></table>`
 	if string(got) != want {
 		t.Errorf("Table:\n got %s\nwant %s", got, want)
 	}
 
-	scatter := &Chart{Marks: []Mark{
+	scatter := &Chart{ID: "s", Marks: []Mark{
 		Dot{Name: "a", X: Floats{1}, Y: []float64{2}, Labels: []string{"p"}},
 		Dot{Name: "b", X: Floats{3}, Y: []float64{4}},
 	}}
@@ -443,19 +444,20 @@ func TestTable(t *testing.T) {
 	}
 	for _, s := range []string{
 		`<caption>Chart data</caption>`, `<th scope="col">Label</th><th scope="col">Series</th><th scope="col">X</th><th scope="col">Y</th>`,
-		`<tr><td>p</td><td>a</td><th scope="row">1</th><td>2</td></tr>`, `<tr><td></td><td>b</td><th scope="row">3</th><td>4</td></tr>`,
+		`<tr id="s-r-` + hash8("a") + "-" + hash8("1") + `"><td>p</td><td>a</td><th scope="row">1</th><td>2</td></tr>`,
+		`<tr id="s-r-` + hash8("b") + "-" + hash8("3") + `"><td></td><td>b</td><th scope="row">3</th><td>4</td></tr>`,
 	} {
 		if !strings.Contains(string(got), s) {
 			t.Errorf("scatter table lacks %s\n%s", s, got)
 		}
 	}
 
-	mixed := &Chart{Marks: []Mark{
+	mixed := &Chart{ID: "m", Marks: []Mark{
 		Line{Name: "l", X: Floats{1, 2}, Y: []float64{1, 2}},
 		Dot{Name: "d", X: Floats{2}, Y: []float64{5}, Labels: []string{"peak"}},
 	}}
 	got, _ = mixed.Table()
-	if !strings.Contains(string(got), `<tr><td>peak</td><th scope="row">2</th><td>2</td><td>5</td></tr>`) {
+	if !strings.Contains(string(got), `<tr id="m-r-`+hash8("2")+`"><td>peak</td><th scope="row">2</th><td>2</td><td>5</td></tr>`) {
 		t.Errorf("dot labels should fill the first column:\n%s", got)
 	}
 	if _, err := (&Chart{Width: 1}).Table(); err == nil {
@@ -509,7 +511,7 @@ func TestSparkline(t *testing.T) {
 			"basic",
 			Sparkline{Values: []float64{3, 1, 4, 1, 5}, Label: "Load"},
 			"Load: first 3, min 1, max 5, last 5",
-			[]string{`viewBox="0 0 120 28"`, `class="hp hp-spark"`, `class="hp-s1"`, `class="hp-line"`, `class="hp-end"`},
+			[]string{`viewBox="0 0 120 28"`, `<svg xmlns="http://www.w3.org/2000/svg" class="hp-spark" `, `class="hp-s1"`, `class="hp-line"`, `class="hp-end"`},
 		},
 		{
 			"area",
@@ -561,6 +563,34 @@ func TestSparkline(t *testing.T) {
 	}
 }
 
+// TestSparklineIsNotAChart checks that a sparkline does not claim to be
+// a chart: spec.md §1 and §6.4 make every svg.hp a chart, which must meet
+// §3.2 (id, data-hp, tabindex, title and desc), and a sparkline has none
+// of that. The stylesheet must still give it the palette and the halo on
+// its end dot.
+func TestSparklineIsNotAChart(t *testing.T) {
+	b, err := Sparkline{Values: []float64{1, 2, 3}, Label: "p50"}.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := parseDOM(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root.hasClass("hp") || !root.hasClass("hp-spark") {
+		t.Errorf("sparkline root class = %q, want hp-spark and not hp", root.get("class"))
+	}
+	if len(query(root, "svg.hp")) != 0 {
+		t.Error("a sparkline matches svg.hp")
+	}
+	css := DefaultTheme().CSS()
+	for _, want := range []string{".hp,.hp-spark,.hp-tip,.hp-table{--hp-surface:", ".hp-spark{", ".hp-spark .hp-end{"} {
+		if !strings.Contains(css, want) && !strings.Contains(css, strings.TrimSuffix(want, "{")+",") {
+			t.Errorf("the stylesheet lacks %q", want)
+		}
+	}
+}
+
 // TestSparklineOutputs checks that WriteTo, HTML and Component all write
 // what Render does, so templates need no conversion of their own.
 func TestSparklineOutputs(t *testing.T) {
@@ -596,7 +626,7 @@ func TestSparklineOutputs(t *testing.T) {
 func TestThemeCSS(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		".hp,.hp-tip,.hp-table{--hp-surface:#ffffff;",
+		".hp,.hp-spark,.hp-tip,.hp-table{--hp-surface:#ffffff;",
 		"--hp-series-1:#257de0;", "--hp-series-8:#ec4647;",
 		`@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .hp,`,
 		`:root[data-theme="dark"] .hp,`, "--hp-series-1:#338ced;",
@@ -607,7 +637,11 @@ func TestThemeCSS(t *testing.T) {
 		"@media (forced-colors:active)", "CanvasText",
 		".hp-table{", "tabular-nums", ".hp-sr{position:absolute;",
 		".hp .hp-label,.hp .hp-rule-label{paint-order:stroke;stroke:var(--hp-surface)",
-		".hp{color:var(--hp-text);max-width:100%;height:auto;overflow:visible}",
+		".hp{color:var(--hp-text);max-width:100%;height:auto;overflow:visible;touch-action:pan-y pinch-zoom}",
+		// Spec 1 (docs/spec.md §3.4, §6.6): the touch scrub, the brush.
+		".hp .hp-brush{fill:currentColor;fill-opacity:.1;",
+		`:is([hx-plot\:brush],[data-hx-plot\:brush]) .hp{cursor:crosshair}`,
+		".hp .hp-brush{fill:Highlight;fill-opacity:.25;stroke:Highlight}",
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("stylesheet lacks %s", want)
