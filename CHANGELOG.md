@@ -139,11 +139,57 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
   `examples/basic` stays identical to the README quick start, and that
   every relative link and anchor in the Markdown files resolves. `make check`
   runs the same lint, hygiene, golden-file and client checks as CI.
+- More examples, indexed in [examples/README.md](examples/README.md):
+  Level 3 servers in standard-library Python (`examples/python`) and in
+  Node with `node:` built-ins only (`examples/node`), with the same pages
+  and URLs; two more Go demos, `examples/sensors` (SSE sparkline tiles,
+  select, brush, threshold rules, a live alerts table) and
+  `examples/builds` (polling with content tags, a scatter with brush,
+  stacked bars with select, a filter form); a chart gallery,
+  `examples/gallery`, with every mark and variant beside the Go code that
+  drew it, in light and dark, which `-out DIR` writes as static files; and
+  ten one-pattern Go recipes under `examples/recipes`
+  ([index](examples/recipes/README.md)): polling-ptag, sse-stream,
+  filters-form, select-drilldown and brush-zoom, one per htmx guide
+  pattern and linked from it, and static-page, sizing, theming,
+  sparkline-table and standalone-svg, with preview SVGs their tests keep
+  current and `make golden` rewrites.
+- A real-browser test of every example,
+  `client/browser/examples.browser.mjs` (in `npm run test:browser`,
+  `make browser` and the CI browser job, which now sets up Python): it
+  starts each Go, Python and Node example on a free port and opens it in
+  one Chrome, and fails on a console error or CSP violation, a failed
+  request, a chart that does not draw, a live chart that does not update
+  or a gesture with no answer. The harness gains `buildGo` and
+  `startServer` for any example server.
+- The example dashboard's stream sends `retry: 2000`, as the htmx guide
+  recommends. The Go spec checks (`checkSpec`) reject a chart reference to
+  anything outside the chart (`href`, `src`, `url(…)`), like hpcheck, and
+  hpcheck checks every `svg.hp` in an HTML file as a chart.
+- `tools/hpcheck`, a conformance checker for servers in any language: one
+  standard-library Python file that runs the universal spec checks and
+  each fixture's `checks.json` on a renderer's output, and checks a running
+  server's content tags, `hp-w`, gesture parameters and SSE frames over
+  HTTP. Every failure names its spec section.
+- The Python and Node example tests and the checker's tests run in
+  `make test`, `make check` and CI (`make py`, `make nodeex`; a Python
+  job on 3.10 and current 3.x, and the Node examples on the client job's
+  Node 22 and 24). `make conformance` and a CI conformance job run the
+  checker on the Python and Node fixture renderers' output, on the
+  gallery's static export, and on the dashboard, Python and Node servers. Docs tests fail when a directory of
+  examples or tools gains Python or Node tests, a fixture renderer or a
+  checker config that the Makefile's `test` and `check` targets or CI
+  never run (matching the commands, not comments or names), and when any
+  file mentions an example or tool path that does not exist. Further docs
+  tests fail when an example page's htmx tags differ from the dashboard's
+  pinned, SRI-hashed ones, when an example is missing from the examples
+  indexes or the browser test, and when `make golden` would not rewrite a
+  `preview/` directory. `.gitignore` covers `__pycache__/` and the `out/`
+  directory the fixture renderers and the gallery export write to.
 - A roadmap in `docs/DESIGN.md` listing known gaps: horizontal and
   time-axis bars, a log scale, small multiples, annotations, a locale
   option, browser tests in Firefox and WebKit (the tween has never run in
-  a real Safari), a Python example server and checker, and publishing to
-  pkg.go.dev and npm.
+  a real Safari), and publishing to pkg.go.dev and npm.
 - The htmx guide covers error pages that the handler never writes (proxy,
   timeout and middleware errors, which htmx 4 swaps and `hx-ptag` then pins
   in place), `Vary` for URLs that serve a page or a fragment, and autosized
@@ -205,6 +251,9 @@ published.
   and in half-hour-offset zones they dropped the minutes. Labels now keep
   the minutes and add the zone to wall-clock times that repeat. Back after
   a keyboard zoom no longer drops focus to `<body>`.
+- Example dashboard: its legend swatches were `<svg class="hp">`, which
+  the spec reserves for charts, so a checker read twelve broken charts;
+  they are `hp-spark` now.
 - `hx.Brush.TimesIn` read a `datetime-local` wall time in an hour the zone
   skips an hour early (02:10 in New York's gap was 01:10 EST), so a range
   across the gap came back reversed; in zones east of UTC, a repeated wall

@@ -36,7 +36,12 @@ You need:
   client has no runtime dependencies, and its unit tests need nothing
   installed. The real-browser tests (`make browser`) also need Chrome and
   the dev dependencies (`npm ci` in `client/`), and `npm run size` fetches
-  terser through `npx`.
+  terser through `npx`. The Node example (`examples/node`) needs Node 22
+  or later and nothing installed.
+- **Python 3.10 or later**, standard library only, for the Python example
+  and the conformance checker (`make py`, `make conformance`). Make calls
+  `python3`; where the interpreter is `python` (often on Windows), run
+  `make test PYTHON=python`.
 - **Tools** used by `make lint` and the git hooks:
 
   ```sh
@@ -68,19 +73,22 @@ directly; each target is a one-line wrapper).
 
 | Target | What it does |
 |---|---|
-| `make test` | `go test ./...` and the client tests |
+| `make test` | `go test ./...`, then `client`, `py`, `nodeex` and `conformance` |
 | `make client` | The client tests: `node --test`, run inside `client/` |
-| `make browser` | The real-browser tests in `client/browser/` (needs Chrome and `npm ci` in `client/`) |
+| `make py` | The Python example's and the checker's tests (`unittest`) |
+| `make nodeex` | The Node example's tests: `node --test`, run inside `examples/node/` |
+| `make conformance` | `tools/hpcheck` on the Python and Node fixture output, on the gallery's static export, and on the dashboard, Python and Node servers (each started on a free port and stopped) |
+| `make browser` | The real-browser tests in `client/browser/`, including one that opens every example (needs Chrome, Python and `npm ci` in `client/`) |
 | `make race` | `go test -race ./...` |
 | `make hygiene` | LF line endings only, zero dependencies, `go mod tidy -diff` |
 | `make lint` | `hygiene`, gofumpt check, `go vet`, `staticcheck`, `golangci-lint run` |
 | `make fmt` | `gofumpt -w .` |
 | `make fuzz` | Runs every `Fuzz*` target for `FUZZTIME` (default 30s each) |
-| `make golden` | Regenerates golden SVG files in `testdata/` |
+| `make golden` | Regenerates golden SVG files in `testdata/` and the examples' `preview/` SVGs |
 | `make bench` | Benchmarks with `-benchmem` |
 | `make cover` | Coverage profile plus `cover.html` |
 | `make demo` | Runs the live dashboard example on http://localhost:8080 |
-| `make check` | `lint`, `race` (failing if tests touch `testdata/`), one run of every benchmark, the client tests and the browser tests (needs Chrome and `npm ci` in `client/`): the CI checks on one OS and one Go version, minus fuzzing |
+| `make check` | `lint`, `race` (failing if tests touch `testdata/`), one run of every benchmark, `client`, `py`, `nodeex`, `conformance` and the browser tests (needs Chrome and `npm ci` in `client/`): the CI checks on one OS and one Go version, minus fuzzing |
 
 `make check` can't reproduce CI's matrix (Linux, Windows and macOS, with Go
 1.24.x and stable). If you use language or library features, build with Go
@@ -139,6 +147,10 @@ change as the API.
 `client/browser/*.browser.mjs` drive an installed Chrome through
 `playwright-core`, a dev-only dependency that downloads no browser. Most of
 them build and run the example dashboard, so they need Go as well.
+`examples.browser.mjs` opens every example in turn, so it also needs
+Python 3.10+ (set `PYTHON` when it isn't `python3`, or `python` on
+Windows) and Node; when you add an example, add it to that file's list
+(`go test ./docs` fails until you do).
 
 ```sh
 cd client
@@ -171,8 +183,9 @@ Each golden file is also parsed with `encoding/xml` to check it is
 well-formed. When you intentionally change the output:
 
 1. Make your change.
-2. Regenerate: `make golden` (which runs `go test . -run Golden -update`).
-3. **Review the diff** of every changed file: `git diff --text testdata/`.
+2. Regenerate: `make golden` (which runs `go test . -run Golden -update`,
+   then rewrites the `preview/` SVGs of the examples that have them).
+3. **Review the diff** of every changed file: `git diff --text testdata/ examples/`.
    Golden diffs are collapsed on GitHub by `.gitattributes`, so reviewers rely
    on you to have looked. Open the changed SVGs in a browser, in light and dark
    mode, and check them by eye.

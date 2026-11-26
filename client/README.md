@@ -189,10 +189,12 @@ mux.HandleFunc("GET /charts/latency", func(w http.ResponseWriter, r *http.Reques
 |---|---|---|
 | [hyperplot](https://github.com/ironystock/hyperplot) (the reference) | Go | 3 |
 | [the server guide's example](../docs/implementing-a-server.md) (line charts on a time axis) | Python, standard library | 3 |
+| [`examples/python`](../examples/python/) (lines, grouped bars, SSE) | Python, standard library | 3 |
+| [`examples/node`](../examples/node/) (lines, grouped bars, SSE) | Node, `node:` built-ins | 3 |
 
 To add yours, check it against the
-[conformance fixtures](../testdata/conformance/README.md) and open a pull
-request.
+[conformance fixtures](../testdata/conformance/README.md) with
+[hpcheck](../tools/hpcheck/README.md) and open a pull request.
 
 ## Attributes
 

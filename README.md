@@ -423,13 +423,39 @@ in three cumulative levels, so you can start small:
 - [`testdata/conformance/`](testdata/conformance/README.md) has
   language-neutral fixtures: chart inputs, reference output, and assertions
   any server's output can be checked against.
+- [`tools/hpcheck`](tools/hpcheck/README.md) checks them for you: one
+  standard-library Python file that runs the fixtures' assertions on your
+  renderer's output and the spec's wire rules against your running server.
+- [`examples/python`](examples/python/) and [`examples/node`](examples/node/)
+  are complete Level 3 servers with no dependencies, built on Python's and
+  Node's standard libraries.
+
+## Examples
+
+Every example runs from the repository root with one command and has a
+README that says what to try. The [examples index](examples/README.md)
+lists them all.
+
+| Kind | Examples | Start with |
+|---|---|---|
+| Servers in other languages | [Python](examples/python/) and [Node](examples/node/), standard library only, with the same pages and URLs | `python3 examples/python/server.py` (`python` on Windows) |
+| Go demos | the [dashboard](examples/dashboard/) (every pattern on one page), [sensors](examples/sensors/) (SSE sparkline tiles, select, brush, alerts) and [builds](examples/builds/) (polling, scatter with brush, stacked bars with select, filters) | `go run ./examples/dashboard` |
+| Chart gallery | the [gallery](examples/gallery/): every mark and variant, each beside the Go code that drew it, in light and dark; `-out` writes it as static files | `go run ./examples/gallery` |
+| Go recipes | [ten recipes](examples/recipes/README.md), one pattern each: polling with ptag, SSE, filters, select, brush, a static page, sizing, theming, a sparkline table, standalone SVG files | `go run ./examples/recipes/polling-ptag` |
+
+Each has its own tests, and a [browser test](client/browser/examples.browser.mjs)
+opens every one in Chrome and checks that its charts draw, that live ones
+update and gesture ones answer their gesture, with no console error under
+a strict Content Security Policy.
 
 ## Status
 
 Pre-release. Built and tested: the extension (`hx-plot.js` 0.2.0 and its
-brush and tween companions), spec version 1 with its fixtures, and the Go
-reference server at Level 3 (renderer, `scale`, `hx`, the `client` package
-and the example dashboard). Nothing is on npm and no Go version is tagged.
+brush and tween companions), spec version 1 with its fixtures and the
+`hpcheck` checker, the Go reference server at Level 3 (renderer, `scale`,
+`hx`, the `client` package), and the [examples](examples/README.md),
+including Level 3 servers in Python and Node that pass the checker.
+Nothing is on npm and no Go version is tagged.
 
 Known gaps, all on the [roadmap](docs/DESIGN.md#roadmap):
 
@@ -464,9 +490,14 @@ spec.
   client are built, with the current status and the [roadmap](docs/DESIGN.md#roadmap).
 - [Architecture decision records](docs/adr/README.md): why it is built this
   way, including [why the extension is the product](docs/adr/0005-htmx-community-first.md).
-- [Example dashboard](examples/dashboard/): polling, SSE, filters,
-  drill-down and brush-to-zoom on one page, run with `make demo`.
-  [`examples/basic`](examples/basic/) is the Go quick start.
+- [Examples](examples/README.md): servers in Python and Node, three Go
+  demos (the [dashboard](examples/dashboard/), run with `make demo`, has
+  polling, SSE, filters, drill-down and brush-to-zoom on one page), a
+  chart gallery, and ten [Go recipes](examples/recipes/README.md) that
+  each show one pattern. [`examples/basic`](examples/basic/) is the Go
+  quick start.
+- [hpcheck](tools/hpcheck/README.md): the conformance checker for a server
+  in any language.
 - Go API reference on [pkg.go.dev](https://pkg.go.dev/github.com/ironystock/hyperplot)
   (available once a version is tagged).
 

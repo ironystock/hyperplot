@@ -7,7 +7,9 @@ sliding windows. The HTML is the same whatever your server is written in;
 the handlers here use the Go reference server (`hyperplot` and its `hx`
 package). If your server is in another language, read the HTML and the
 explanations, and take the wire details from the [spec](spec.md) and the
-[server guide](implementing-a-server.md).
+[server guide](implementing-a-server.md). The numbered patterns all run in
+the [examples](../examples/README.md), and the Python and Node examples
+serve the same kind of HTML without Go.
 
 It assumes you have rendered a static chart already (see the
 [README](../README.md#quick-start)). The facts about htmx here are for
@@ -154,7 +156,9 @@ choose, set `data-theme` on the root element:
 ```
 
 Switching the attribute recolors every chart instantly, with no request: the
-SVG doesn't change, only the CSS custom properties do.
+SVG doesn't change, only the CSS custom properties do. The
+[theming recipe](../examples/recipes/theming/) switches it with plain links
+and adds a custom palette from `Theme.CSS()`.
 
 ## Reference: attributes, headers, parameters and events
 
@@ -244,6 +248,9 @@ Polling is the simplest live pattern and works through any proxy. With the
 `hx-ptag` extension, an unchanged chart costs one `304 Not Modified` with no
 body, and htmx skips the swap entirely.
 
+Runnable alone: the [polling-ptag recipe](../examples/recipes/polling-ptag/), in one
+Go file.
+
 ```html
 <div id="latency-wrap"
      hx-get="/charts/latency"
@@ -323,6 +330,9 @@ Server-sent events push a new chart the moment data changes, over one
 long-lived HTTP response. Each unnamed `data:` message is swapped into the
 element with its `hx-swap` style, and the extension treats it like any
 other swap.
+
+Runnable alone: the [sse-stream recipe](../examples/recipes/sse-stream/), with
+`retry:`, `Last-Event-ID` and the stream opened at the chart's real width.
 
 ```html
 <div hx-sse:connect="/stream/throughput" hx-swap="innerMorph">
@@ -499,6 +509,9 @@ stream.Event("errors-changed", nil)
 Filters re-render every chart for a new slice of data. The server does all the
 work; morphing animates the transition.
 
+Runnable alone: the [filters-form recipe](../examples/recipes/filters-form/), which
+also shows pattern 4 and `Slot`.
+
 ```html
 <form hx-get="/dashboard" hx-trigger="change" hx-target="#charts" hx-swap="innerMorph">
   <label>Region
@@ -637,6 +650,10 @@ One response can update a chart and the KPI tiles around it. The main content
 is swapped into the target as usual; each `<hx-partial>` element is then
 swapped into its own target.
 
+Runnable alone: the [filters-form recipe](../examples/recipes/filters-form/) updates a
+summary line this way; the [brush-zoom recipe](../examples/recipes/brush-zoom/) its
+zoom status and form.
+
 ```html
 <div class="tiles">
   <div class="tile">p99 <strong id="kpi-p99">212 ms</strong> <span id="spark-p99">…</span></div>
@@ -682,6 +699,9 @@ on any ancestor turns it into a request, and the extension adds the
 selection as parameters: `hp-chart`, `hp-x` (the row's key) and, when the
 pointer was on a series, `hp-series`.
 
+Runnable alone: the [select-drilldown recipe](../examples/recipes/select-drilldown/),
+with a plain link per bar and a live region.
+
 ```html
 <section hx-get="/detail" hx-trigger="htmx:plot:select" hx-target="#detail">
   <div hx-get="/charts/latency" hx-trigger="every 2s, htmx:plot:resize"
@@ -725,6 +745,9 @@ key ([spec §5.5](spec.md#55-equivalents-in-plain-html)). `Chart.Table`
 doesn't write these links yet.
 
 ## Pattern 6: brush to zoom
+
+Runnable alone: the [brush-zoom recipe](../examples/recipes/brush-zoom/), with a
+from/to form that zooms without a pointer.
 
 With `hx-plot-brush.js` loaded, a drag across a chart inside an
 `hx-plot:brush` element (or Shift+Arrow keys from a keyboard point, then
@@ -834,6 +857,9 @@ builds the same page in Python.
 
 ## Pattern 7: sliding windows
 
+Runnable: the [polling-ptag](../examples/recipes/polling-ptag/) and
+[sse-stream](../examples/recipes/sse-stream/) recipes slide this way.
+
 A live time series usually shows a moving window: the last hour, say. When
 the window moves, the extension compares the old and new frames' x domains
 (the `data-hp-x` attribute) and slides the content by the difference, the
@@ -879,7 +905,9 @@ Every chart has a `viewBox`, and the stylesheet sets
 `.hp { max-width: 100%; height: auto }`, so charts always scale to fit. Scaling
 also scales the text, though: a 640 px chart squeezed to 320 px has 6 px
 labels. Autosize re-renders the chart for the space it actually has, so text
-stays at its real size and tick counts adapt.
+stays at its real size and tick counts adapt. The
+[sizing recipe](../examples/recipes/sizing/) shows CSS scaling, autosize and
+`hx-plot:autosize="both"` side by side.
 
 ```html
 <div class="chart-box" hx-get="/charts/latency" hx-trigger="load, htmx:plot:resize"
@@ -947,6 +975,9 @@ The renderer embeds preformatted tooltip rows in a
 `<metadata class="hp-tips">` element as JSON. The extension reads it on
 hover. The browser never formats numbers: what the tooltip shows is exactly
 what the server's formatter and `Axis.Unit` produced.
+
+The [static-page recipe](../examples/recipes/static-page/) shows all of this on a page
+without htmx, and the [gallery](../examples/gallery/) on every kind of chart.
 
 - **Hover**: a crosshair (line and area charts), a band highlight (bar
   charts) or the nearest point within 12 px, marked by a ring (scatter
@@ -1224,5 +1255,6 @@ data; determinism then lets you compare whole responses.
       plain HTML equivalents and a polite live region.
 
 See the [example dashboard](../examples/dashboard/) for all of these
-patterns in one runnable Go program, and the
+patterns in one runnable Go program, the [other examples](../examples/README.md)
+for servers in Python and Node, more demos and one-pattern recipes, and the
 [server guide](implementing-a-server.md) for a smaller page in Python.

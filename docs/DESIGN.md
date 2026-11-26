@@ -61,6 +61,16 @@ github.com/ironystock/hyperplot   (module root, Go ≥ 1.24)
 ├── internal/textwidth/  text width estimation
 ├── examples/dashboard/  runnable live demo: go run ./examples/dashboard
 ├── examples/basic/      the README quick start: go run ./examples/basic
+├── examples/sensors/,   two more live Go demos (SSE tiles; polling, filters, gestures)
+│   examples/builds/
+├── examples/gallery/    every mark and variant beside the Go code that drew it
+│                        (-out DIR writes it as static files)
+├── examples/recipes/    one Go pattern each: polling-ptag, sse-stream, filters-form,
+│                        select-drilldown, brush-zoom (live); static-page, sizing,
+│                        theming, sparkline-table, standalone-svg (static)
+├── examples/python/,    Level 3 servers in Python and Node, standard library only
+│   examples/node/       (not Go packages; see "Testing standards")
+├── tools/hpcheck/       conformance checker for servers in any language (Python)
 ├── testdata/            golden SVG files (testdata/preview/: standalone copies;
 │                        testdata/conformance/: wire-spec fixtures for every language)
 └── docs/                spec.md (wire spec), DESIGN.md (this file), adr/, htmx.md guide,
@@ -78,8 +88,9 @@ version on pkg.go.dev and no package on npm. Known gaps and planned work are
 listed under [Roadmap](#roadmap).
 
 **Rev 2 (spec 1) is built, and the two reported bugs are fixed; the client
-size budget, `examples/python/` and the release steps are open** (Roadmap,
-"Rev 2: open" and "Releasing").
+size budget and the release steps are open** (Roadmap, "Rev 2: open" and
+"Releasing"). Servers in Python and Node and the checker `tools/hpcheck/`
+now show the spec without Go (Roadmap, "Rev 2: open", item 2).
 [spec.md](spec.md), [ADR 0005](adr/0005-htmx-community-first.md) and the
 fixtures in `testdata/conformance/` were revised after a design review by
 three critics (findings and resolutions in the rev-2 workspace notes); the
@@ -191,6 +202,28 @@ the client side: the core is over its size budget (see "Size budget").
   pitfalls under "htmx 4 integration" below.
 - `examples/basic/`: the README quick start. `docs/quickstart_test.go` fails
   when the two differ (other than the example's package comment).
+- `examples/sensors/` (SSE tiles, select, brush, threshold rules, a live
+  alerts table) and `examples/builds/` (polling with `hx-ptag`, a scatter
+  with brush, stacked bars with select, a filter form): done, each with a
+  `main_test.go` in the dashboard's style. `examples/gallery/` shows every
+  mark and variant (23 cards) beside the source of the function that drew
+  it, parsed from the embedded `charts.go` with `go/parser` at startup and
+  looked up by the function actually called, so code and chart cannot
+  drift; `-out DIR` writes it as static files with a `<meta>` CSP.
+  `examples/recipes/` holds ten one-file Go recipes: five live patterns
+  (polling-ptag, sse-stream, filters-form, select-drilldown, brush-zoom,
+  htmx guide patterns 1 to 6) and five static ones (static-page, sizing,
+  theming, sparkline-table, standalone-svg, each with preview SVGs its test
+  keeps current and `make golden` rewrites). `examples/README.md` and
+  `examples/recipes/README.md` index them (`docs/examples_test.go` fails
+  when one is missing), and `client/browser/examples.browser.mjs` opens
+  every example in Chrome.
+- `examples/python/` and `examples/node/`: Level 3 servers on each
+  language's standard library, with the same URLs, tested by `unittest`
+  and `node --test` (see "Testing standards").
+- `tools/hpcheck/`: the conformance checker in standard-library Python
+  (universal checks, fixture assertions, live server checks), with its own
+  `unittest` suite that mutates valid charts to prove each check fails.
 - `docs/`: `snippets_test.go` and `config_test.go` check the documentation's
   samples (see "Testing standards").
 
@@ -1597,6 +1630,35 @@ Python.
   fixtures (including `brushAcrossSwap` and the anchored elements of a real
   slide) and the `client` cases of `params.json`. `fakedom.mjs` parses the
   reference SVGs with a small XML parser.
+- Example servers in other languages: `python3 -m unittest discover
+  examples/python` from the root (`make py`, Python 3.10+, standard library
+  only) and `node --test` inside `examples/node` (`make nodeex`). `go test
+  ./...` never sees them, but they test against files this repository owns
+  (spec Appendix B, `testdata/conformance/`, `client/`), so `make test`,
+  `make check` and CI run both, and the checker's own tests
+  (`python3 -m unittest discover tools/hpcheck`, also in `make py`).
+  `make conformance` (in `make test`, `make check` and a CI job) runs the
+  checker on what those tests never read: the files the Python and Node
+  fixture renderers write (`hpcheck fixtures --out DIR --require
+  line-time,empty,bars-band,escaping,collisions`), the gallery's `-out`
+  export (`hpcheck file`, every chart kind against the universal rules),
+  and the dashboard, Python and Node servers through their `hpcheck.json` configs
+  (`hpcheck server --spawn`). `docs/wiring_test.go` fails if a directory
+  of examples or tools has Python or Node tests, a fixture renderer or a
+  checker config that `make test`, `make check` or CI does not run. It
+  matches the commands that run them (the recipes reachable from each
+  entry point, through prerequisites and `$(MAKE)` calls, and the
+  workflow's `run:` lines, `working-directory` included), not mentions,
+  so a comment, help text or step name that names a directory does not
+  count. `docs/paths_test.go` fails if any file mentions an example
+  or tool path (run lines and comments included) that does not exist.
+- **Example indexes and pins** (`docs/examples_test.go`): every example
+  page loads htmx and its extensions with exactly the dashboard's tags
+  (version, SRI hash, crossorigin, never deferred); `examples/README.md`
+  and `examples/recipes/README.md` link every example and promise none
+  that is missing; the browser test starts every example but `basic`; and
+  `make golden` rewrites every `preview/` directory, whose packages define
+  `-update` and `TestPreview`.
 - **Real-browser tests**: `client/browser/*.browser.mjs`, run with
   `npm run test:browser` in `client/` (`make browser`) after `npm ci`. They
   use `playwright-core` (a dev-only dependency, chosen over
@@ -1651,9 +1713,30 @@ Python.
   detail at the detail container's width, and the window links.
   `dashboard-a11y.browser.mjs` runs the dashboard at `-speed 60`: a
   focused window link keeps its window (its id) as windows slide, and the
-  page reflows at 320 CSS px without sideways scrolling. The CI job
-  "Browser tests" runs the whole suite on ubuntu-latest with its
-  preinstalled Chrome (`CHROME_BIN`), after `npm ci` in `client/`;
+  page reflows at 320 CSS px without sideways scrolling.
+  `examples.browser.mjs` opens every example in one Chrome, one at a time:
+  `harness.buildGo` builds all the Go examples with one `go build`, and
+  `harness.startServer` runs each (or the Python and Node servers, with
+  `PYTHON` and `node`) on `127.0.0.1:0` and reads the port from its
+  "listening on" line. Each page must answer 200, draw exactly the number
+  of charts its entry declares, each with a size (a chart is
+  `svg.hp[data-hp]` or a sparkline, `svg.hp-spark[role="img"]`; the
+  `aria-hidden` color-key swatches do not count), log no console error (a
+  CSP violation is one), fail no request and answer no 4xx or 5xx. Every
+  page but sparkline-table (declared `kbd: false`, and checked to load
+  none) must load `hx-plot.js`, and Home on a chart must announce a row.
+  `docs/csp_test.go` pins every example's policy to the dashboard's (or
+  it with `script-src 'self'` or `'none'`), since each example's own test
+  compares the header with its own constant. Live examples (run at `-speed 30` where they take
+  it) must show new data on their own, compared by the hover payload's
+  rows so a resize does not count; the others answer one gesture or
+  feature: a brush zooms and pushes the URL, Enter on a bar opens the
+  detail, a filter change redraws, autosize draws at the `hp-w` it sent,
+  polls get `304`, `?theme=dark` changes the palette, and standalone-svg's
+  files render opened directly and as `<img>`. `examples/basic` listens
+  on :8080 only and is left out. The CI job "Browser tests" runs the
+  whole suite on ubuntu-latest with its preinstalled Chrome
+  (`CHROME_BIN`) and setup-python's Python, after `npm ci` in `client/`;
   `make check` runs it too.
 - Documentation samples: `docs/snippets_test.go` compiles every Go code block in
   `README.md`, `docs/htmx.md`, `client/README.md` and the `hx` package doc
@@ -1686,7 +1769,9 @@ Python.
   (`TestConformanceParams`, including `timesIn` through `Brush.TimesIn`).
 - **Spec checks on every chart**: `checkSpec` (`speccheck_test.go`) checks
   the MUSTs of spec.md that hold whatever the data: the root contract and
-  first children, no `style`/`on*`/`script`, no `transform` on the root or
+  first children, no `style`/`on*`/`script`, no external references
+  (`href`/`src` only to `#…`, every `url(…)` to an id in the chart, the
+  same lists as `tools/hpcheck`), no `transform` on the root or
   in the slid groups, ids unique and in the `{id}-*` namespace, series
   groups and slots, bar ids under their series key, geometry attributes in
   the canonical number form with `d0 < d1`, one hover group and payload,
@@ -1704,14 +1789,14 @@ Python.
   `FuzzRender` accepts; `TestSpecCheckCatchesViolations` mutates a valid
   chart and table to prove each check can fail. In `client/`,
   `conformance.test.mjs` runs every `client` expectation and the `client`
-  cases of `params.json`. Planned (Roadmap, "Rev 2: open", item 2): a Python example
-  server (`examples/python/`, standard library only) checked against the
-  `server` assertions by a standard-library Python script in the same
-  directory, run in CI when Python is available, as the evidence that the
-  spec needs no Go. Until then the evidence is the server guide's Python
-  (`docs/implementing-a-server.md`), which was run through the assertions
-  of `line-time` and `empty` and against the extension in Chrome by hand;
-  no test keeps it working.
+  cases of `params.json`. The evidence that the spec needs no Go is
+  `tools/hpcheck/`, the same checks in standard-library Python, run by
+  `make conformance` on the Python and Node examples' fixture output and
+  servers (see "Example servers in other languages" above and Roadmap,
+  "Rev 2: open", item 2). The server guide's Python
+  (`docs/implementing-a-server.md`) was run through the assertions of
+  `line-time` and `empty` and against the extension in Chrome by hand;
+  `docs/wire_test.go` runs its helpers on edge cases.
 - **Client size (rev 2)**: `npm run size` in `client/` (see "Size budget").
 
 ## Conventions
@@ -1860,14 +1945,21 @@ open" below.
    "Size budget" for the options). Once it passes: terser as an
    exact-version devDependency, `make size`, and a size step in the CI
    client job, as approved (see "Releasing").
-2. **`examples/python/`**: a standard-library Python server (Level 2 at
-   least) using the helpers of spec.md Appendix B, with a Python checker
-   that runs every fixture's `checks.json` (`server` assertions: the
-   README's selector subset, `forbid.where`, `unique`, byte-level `raw`),
-   run in CI when Python is available. It can start from the server
-   guide's code, whose output was checked by hand with a copy of the Go
-   assertion code, and only for `line-time` and `empty` (the guide draws
-   line charts on a time axis only). ADR 0005's confirmation names it.
+2. **`examples/python/`**: **done**, and more than planned. The Python
+   example is a Level 3 server on the standard library (lines, grouped
+   bars, SSE, select, brush) using a verbatim copy of spec.md Appendix B,
+   which its tests compare with the spec; `examples/node/` is the same
+   server on Node's built-ins. The checker is its own tool,
+   `tools/hpcheck/` (one standard-library Python file), rather than a
+   script in the example's directory: it runs every fixture's
+   `checks.json` and the universal checks of `checkSpec` on any renderer's
+   output, and checks a running server over HTTP. Both examples' fixture
+   output passes `line-time`, `empty`, `bars-band`, `escaping` and
+   `collisions`, and both servers, like the dashboard, pass the server
+   checks (`make conformance`, also a CI job that has not run on GitHub
+   yet). Left out: neither renderer draws `scatter-xy` (dots on a linear
+   axis), so the checker skips it for them. ADR 0005's confirmation names
+   this item.
 3. **Stable right margin.** Reserve half the widest x tick label on time
    and linear axes whether or not a tick sits at the plot's end, so the
    plot width stops changing as ticks move (spec.md §4.4 SHOULD). Today the
@@ -2001,8 +2093,6 @@ open" below.
 - Smaller SSE messages. Each throughput message is a whole chart plus its
   data table, roughly 40–60 KB per second at the 1h range; a production page
   would send fewer points or update the table less often.
-- The stream sends no `retry:` field, so reconnects use hx-sse's 500 ms
-  default; it could show `Stream.Retry` as the guide recommends.
 - Layout: grid rows stretch to the tallest card, so the throughput and
   scatter cards have empty space at the bottom next to the requests card
   (more with a detail open). `align-items: start` would trade that for
@@ -2016,3 +2106,23 @@ open" below.
 - At 390 CSS px the requests chart's band labels lose their "AM"/"PM"
   ("6:06…"); the tooltip, the table and the window links keep the full
   label. Shorter labels at narrow widths would fix it.
+
+**Other examples**
+
+- Browser coverage is a smoke test. `examples.browser.mjs` opens every
+  example but `basic` (fixed port) and checks one update or gesture each;
+  only the dashboard has gesture-by-gesture browser tests. The sensors'
+  select and brush, the builds' brush and filters, and the Python and
+  Node gestures are tested over HTTP only.
+- The recipes are longer than one pattern needs: the live recipes'
+  `main.go` files run 228 to 390 lines and the static ones 153 to 264,
+  mostly the deliberately repeated server setup and the comments at each
+  htmx attribute.
+- The Python and Node renderers draw no dots on a linear x axis, so the
+  checker skips the `scatter-xy` fixture for them.
+- The Node example's zoom URL (`HX-Push-Url: /?from=…&to=…`) drops the
+  `theme` parameter, so reloading a zoomed page returns to the system
+  theme.
+- `examples/python/test_wire.py` skips its `America/New_York` cases when
+  Python has no time zone database (Windows without `tzdata`); CI on Linux
+  runs them.
