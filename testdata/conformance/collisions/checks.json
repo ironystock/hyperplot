@@ -1,0 +1,42 @@
+{
+  "fixture": "collisions",
+  "about": "Key collisions (docs/spec.md, Appendix A). Two series named p50 must still get distinct ids, and so must two categories whose hashes collide. Keys are assigned in order; a key already taken in the same set is replaced by hash(s + \"#\" + n) for the smallest free n >= 1: the second p50 gets hash(\"p50#1\") = 4e3e42de and Q1312382 gets hash(\"Q1312382#1\") = eb6f4726. Table rows of a band chart share the categories' keys.",
+  "level": 2,
+  "input": "input.json",
+  "reference": { "chart": "chart.svg", "table": "table.html" },
+  "forbid": {
+    "elements": ["script", "foreignObject"], "attrs": ["style"], "attrPrefixes": ["on"],
+    "where": [
+      { "sel": "svg", "attrs": ["transform"] },
+      { "sel": "g.hp-marks", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-labels", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-axis-x", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-hover", "attrs": ["transform"], "deep": true },
+      { "sel": "rect.hp-band-hl", "attrs": ["transform"] }
+    ]
+  },
+  "server": [
+    { "sel": "svg", "count": 1, "attrs": { "id": "co", "data-hp": "1", "data-hp-x": "band" } },
+    { "sel": "g.hp-marks > g.hp-series", "count": 2, "attrs": { "data-hp-series": "p50" } },
+    { "sel": "g.hp-series#co-s-2e119f3a", "count": 1, "should": true },
+    { "sel": "g.hp-series#co-s-4e3e42de", "count": 1, "should": true },
+    { "sel": "g.hp-series > path.hp-bar", "count": 4, "should": true },
+    { "sel": "path#co-b-2e119f3a-e0864ec2", "count": 1, "should": true },
+    { "sel": "path#co-b-2e119f3a-eb6f4726", "count": 1, "should": true },
+    { "sel": "path#co-b-4e3e42de-e0864ec2", "count": 1, "should": true },
+    { "sel": "path#co-b-4e3e42de-eb6f4726", "count": 1, "should": true },
+    {
+      "sel": "g.hp-hover > metadata.hp-tips", "count": 1,
+      "tips": { "mode": "band", "count": 2, "k": ["Q1149599", "Q1312382"], "names": ["p50"] }
+    },
+    { "sel": "g.hp-hover > metadata.hp-tips", "count": 1, "tips": { "slots": [[1, "p50"], [2, "p50"]] }, "should": true },
+    { "in": "table", "sel": "table.hp-table", "count": 1, "attrs": { "id": "co-table" } },
+    { "in": "table", "sel": "tbody > tr", "count": 2 },
+    { "in": "table", "sel": "tbody > tr#co-r-e0864ec2", "count": 1, "should": true },
+    { "in": "table", "sel": "tbody > tr#co-r-eb6f4726", "count": 1, "should": true }
+  ],
+  "unique": [
+    { "sel": "[id]", "attr": "id", "note": "every id in the chart is distinct" },
+    { "in": "table", "sel": "[id]", "attr": "id" }
+  ]
+}

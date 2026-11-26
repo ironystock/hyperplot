@@ -1,0 +1,50 @@
+{
+  "spec": 1,
+  "about": "Two frames of a 30-minute sliding window with 5-minute points and a fixed y domain. frame-b is frame-a one point later, and also carries the last point before its window (14:00, overscan), which is drawn but is not in the metadata.",
+  "frames": {
+    "frame-a": {
+      "id": "sl",
+      "title": "Window",
+      "width": 240,
+      "height": 120,
+      "animate": true,
+      "x": { "timeDomain": ["2026-03-03T14:00:00Z", "2026-03-03T14:30:00Z"] },
+      "y": { "domain": [0, 100] },
+      "marks": [
+        {
+          "type": "line",
+          "name": "p99",
+          "x": {
+            "times": [
+              "2026-03-03T14:00:00Z", "2026-03-03T14:05:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:15:00Z",
+              "2026-03-03T14:20:00Z", "2026-03-03T14:25:00Z", "2026-03-03T14:30:00Z"
+            ]
+          },
+          "y": [10, 40, 30, 60, 50, 20, 30]
+        }
+      ]
+    },
+    "frame-b": {
+      "id": "sl",
+      "title": "Window",
+      "width": 240,
+      "height": 120,
+      "animate": true,
+      "x": { "timeDomain": ["2026-03-03T14:05:00Z", "2026-03-03T14:35:00Z"] },
+      "y": { "domain": [0, 100] },
+      "marks": [
+        {
+          "type": "line",
+          "name": "p99",
+          "x": {
+            "times": [
+              "2026-03-03T14:00:00Z", "2026-03-03T14:05:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:15:00Z",
+              "2026-03-03T14:20:00Z", "2026-03-03T14:25:00Z", "2026-03-03T14:30:00Z", "2026-03-03T14:35:00Z"
+            ]
+          },
+          "y": [10, 40, 30, 60, 50, 20, 30, 70]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "fixture": "bars-band",
+  "about": "Grouped bars on a band axis with one missing value: bar ids and native titles, mode band metadata, the band highlight, the missing-value table cell, and select on a bar. Band axes never slide and cannot be brushed.",
+  "level": 3,
+  "input": "input.json",
+  "reference": { "chart": "chart.svg", "table": "table.html" },
+  "forbid": {
+    "elements": ["script", "foreignObject"], "attrs": ["style"], "attrPrefixes": ["on"],
+    "where": [
+      { "sel": "svg", "attrs": ["transform"] },
+      { "sel": "g.hp-marks", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-labels", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-axis-x", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-hover", "attrs": ["transform"], "deep": true },
+      { "sel": "rect.hp-band-hl", "attrs": ["transform"] }
+    ]
+  },
+  "server": [
+    {
+      "sel": "svg", "count": 1, "classes": ["hp"],
+      "attrs": { "id": "bb", "role": "img", "tabindex": "0", "aria-labelledby": "bb-title", "aria-describedby": "bb-desc", "data-hp": "1", "data-hp-x": "band" },
+      "match": {
+        "data-hp-plot": "^-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)?$",
+        "data-hp-y": "^linear -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)?$"
+      }
+    },
+    { "sel": "g.hp-marks > g.hp-series", "count": 2 },
+    { "sel": "g.hp-series[data-hp-series=\"2025\"]", "count": 1 },
+    { "sel": "g.hp-series[data-hp-series=\"2026\"]", "count": 1 },
+    { "sel": "g.hp-series.hp-s1", "count": 1, "attrs": { "data-hp-series": "2025" }, "should": true },
+    { "sel": "g.hp-series.hp-s2", "count": 1, "attrs": { "data-hp-series": "2026" }, "should": true },
+    { "sel": "g.hp-series > path.hp-bar", "count": 3, "should": true },
+    { "sel": "path.hp-bar > title", "count": 3, "should": true },
+    { "sel": "path.hp-bar#bb-b-40293d93-9bfcdfb7", "count": 1, "should": true },
+    { "sel": "rect.hp-band-hl", "count": 1, "attrs": { "visibility": "hidden" } },
+    {
+      "sel": "g.hp-hover > metadata.hp-tips", "count": 1,
+      "tips": { "mode": "band", "count": 2, "k": ["Q1", "Q2"], "names": ["2025", "2026"] }
+    },
+    { "sel": "g.hp-hover > metadata.hp-tips", "count": 1, "tips": { "slots": [[1, "2025"], [2, "2026"]] }, "should": true },
+    { "in": "table", "sel": "table.hp-table", "count": 1, "attrs": { "id": "bb-table" } },
+    { "in": "table", "sel": "tbody > tr", "count": 2 },
+    { "in": "table", "sel": "tbody > tr#bb-r-9bfcdfb7", "count": 1, "should": true },
+    { "in": "table", "sel": "td > span.hp-sr", "count": 1, "text": " no data" },
+    { "in": "table", "sel": "td > span[aria-hidden=\"true\"]", "count": 1, "text": "–" }
+  ],
+  "client": {
+    "geometry": { "plot": [28.82, 26, 228, 98], "x": ["band"], "y": ["linear", 0, 200] },
+    "tips": { "mode": "band", "n": 2, "ord": [0, 1], "k": ["Q1", "Q2"] },
+    "hover": [
+      { "at": [150, 60], "index": 1 },
+      { "at": [128, 60], "index": 0 },
+      { "at": [20, 60], "index": -1, "note": "left of the outer band edge, 78.61 - 99.59/2" }
+    ],
+    "select": [
+      {
+        "click": [90, 60], "target": "#bb-b-40293d93-9bfcdfb7",
+        "detail": { "chart": "bb", "x": "Q1", "series": "2026", "index": 0 },
+        "params": { "hp-chart": "bb", "hp-x": "Q1", "hp-series": "2026" }
+      },
+      {
+        "click": [150, 60], "target": "svg",
+        "detail": { "chart": "bb", "x": "Q2", "series": "", "index": 1 },
+        "params": { "hp-chart": "bb", "hp-x": "Q2" }
+      }
+    ],
+    "brush": [
+      { "from": 40, "to": 200, "detail": null, "note": "band x axes are not brushable in spec 1" }
+    ]
+  }
+}

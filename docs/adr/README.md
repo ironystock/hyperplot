@@ -11,6 +11,7 @@ contributors can see *why* the code is the way it is.
 | [0002](0002-go-zero-dependencies.md) | Go with zero dependencies | Accepted |
 | [0003](0003-htmx4-morph-live-updates.md) | Live updates through htmx 4 morph swaps | Accepted |
 | [0004](0004-css-theming-and-graceful-degradation.md) | CSS theming with graceful degradation | Accepted |
+| [0005](0005-htmx-community-first.md) | The htmx extension is the product; Go is its reference server | Proposed |
 
 ## Adding a record
 

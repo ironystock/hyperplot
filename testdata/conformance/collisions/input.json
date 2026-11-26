@@ -1,0 +1,15 @@
+{
+  "spec": 1,
+  "about": "Two bar series with the same name, and two categories whose 32-bit FNV-1a hashes collide (both e0864ec2).",
+  "chart": {
+    "id": "co",
+    "title": "Collisions",
+    "width": 240,
+    "height": 120,
+    "marks": [
+      { "type": "bar", "name": "p50", "x": { "categories": ["Q1149599", "Q1312382"] }, "y": [3, 4] },
+      { "type": "bar", "name": "p50", "x": { "categories": ["Q1149599", "Q1312382"] }, "y": [5, 6] }
+    ]
+  },
+  "table": true
+}
