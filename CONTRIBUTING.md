@@ -4,16 +4,26 @@ Thanks for your interest in hyperplot! Bug reports, documentation fixes, tests
 and features are all welcome. This guide explains how to set up the project,
 what we expect from a change, and how a pull request gets merged.
 
+The repository holds three things that move together: the `hx-plot` htmx
+extension in [`client/`](client/) (npm `htmx-ext-plot`), the
+[wire spec](docs/spec.md) it shares with servers in any language, and the Go
+library that is the spec's reference server. If you implement the spec in
+another language, reports of anything unclear or wrong in it are among the
+most useful contributions.
+
 By participating you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
 - **Small fixes** (typos, docs, an obvious bug with a test): open a pull
   request directly.
-- **Anything larger** (a new option, mark, or change to output): open an issue
-  first so we can agree on the approach before you invest time. hyperplot
-  keeps a small API with strong defaults, and some features are out of scope
-  on purpose (see the non-goals in [docs/DESIGN.md](docs/DESIGN.md)).
+- **Anything larger** (a new option, mark, attribute, event, or change to
+  output): open an issue first so we can agree on the approach before you
+  invest time. hyperplot keeps a small API with strong defaults, and some
+  features are out of scope on purpose (see the non-goals in
+  [docs/DESIGN.md](docs/DESIGN.md)). Anything that changes the wire (markup,
+  attributes, request parameters, events, swap behaviour) is a spec change;
+  see [the spec and design document rule](#the-spec-and-design-document-rule).
 - **Security issues**: don't open a public issue. Follow
   [SECURITY.md](SECURITY.md).
 
@@ -22,8 +32,11 @@ By participating you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
 You need:
 
 - **Go 1.24 or later.** CI tests on 1.24.x and the latest stable release.
-- **Node.js 22 or later**, only to run the client tests (`node --test`). The
-  client has no npm dependencies, so there is nothing to install.
+- **Node.js 22 or later**, to run the client tests (`node --test`). The
+  client has no runtime dependencies, and its unit tests need nothing
+  installed. The real-browser tests (`make browser`) also need Chrome and
+  the dev dependencies (`npm ci` in `client/`), and `npm run size` fetches
+  terser through `npx`.
 - **Tools** used by `make lint` and the git hooks:
 
   ```sh
@@ -39,8 +52,14 @@ Then clone and check that everything passes:
 git clone https://github.com/ironystock/hyperplot
 cd hyperplot
 lefthook install   # optional: gofumpt and go vet before each commit
+(cd client && npm ci)   # dev-only deps for the browser tests that make check runs last
 make check
 ```
+
+`make check` ends with the real-browser tests, which drive an installed
+Chrome or Chromium. If yours isn't in the usual install path, set
+`CHROME_PATH` to the binary. Without Chrome, run `make lint race client`
+instead, and let CI run the browser tests.
 
 On Windows, run `make` from Git Bash (or run the underlying commands
 directly; each target is a one-line wrapper).
@@ -51,6 +70,7 @@ directly; each target is a one-line wrapper).
 |---|---|
 | `make test` | `go test ./...` and the client tests |
 | `make client` | The client tests: `node --test`, run inside `client/` |
+| `make browser` | The real-browser tests in `client/browser/` (needs Chrome and `npm ci` in `client/`) |
 | `make race` | `go test -race ./...` |
 | `make hygiene` | LF line endings only, zero dependencies, `go mod tidy -diff` |
 | `make lint` | `hygiene`, gofumpt check, `go vet`, `staticcheck`, `golangci-lint run` |
@@ -60,7 +80,7 @@ directly; each target is a one-line wrapper).
 | `make bench` | Benchmarks with `-benchmem` |
 | `make cover` | Coverage profile plus `cover.html` |
 | `make demo` | Runs the live dashboard example on http://localhost:8080 |
-| `make check` | `lint`, `race` (failing if tests touch `testdata/`), one run of every benchmark and the client tests: the CI checks on one OS and one Go version, minus fuzzing |
+| `make check` | `lint`, `race` (failing if tests touch `testdata/`), one run of every benchmark, the client tests and the browser tests (needs Chrome and `npm ci` in `client/`): the CI checks on one OS and one Go version, minus fuzzing |
 
 `make check` can't reproduce CI's matrix (Linux, Windows and macOS, with Go
 1.24.x and stable). If you use language or library features, build with Go
@@ -103,9 +123,46 @@ change as the API.
 - Rendering changes need a golden test (see below). Logic changes (scales,
   formatting, validation) need unit tests.
 - Add fuzz seeds for inputs that broke something.
-- Client changes need a `node --test` test in `client/`: `hyperplot.test.mjs`
-  for the pure helpers, `dom.test.mjs` (against the fake browser in
-  `fakedom.mjs`) for the DOM and htmx wiring.
+- Client changes need a `node --test` test in `client/`: `hx-plot.test.mjs`
+  for the pure helpers; `dom.test.mjs`, `swap.test.mjs`, `brush.test.mjs` or
+  `tween.test.mjs` (against the fake browser in `fakedom.mjs`) for the DOM
+  and htmx wiring; `conformance.test.mjs` when a fixture's `client`
+  expectations change. Keep the scripts within their size budget
+  (`npm run size` in `client/`). The core `hx-plot.js` is over its budget
+  for now (see "Size budget" in [DESIGN.md](docs/DESIGN.md#size-budget)),
+  so the check fails; a change should not make it larger without a reason.
+- Behaviour that only a real browser shows (scrolling, animation, the morph
+  itself, pointer capture) belongs in `client/browser/` too.
+
+### Browser tests
+
+`client/browser/*.browser.mjs` drive an installed Chrome through
+`playwright-core`, a dev-only dependency that downloads no browser. Most of
+them build and run the example dashboard, so they need Go as well.
+
+```sh
+cd client
+npm ci
+npm run test:browser   # or, from the repository root: make browser
+```
+
+Set `CHROME_PATH` when Chrome isn't at its usual install path, and
+`HP_BROWSER_TMP` to choose where the temporary Chrome profiles go;
+`client/browser/harness.mjs` lists the other settings. The tests need no
+network once `npm ci` has run: they serve htmx from `node_modules`. Every
+test closes its browser and server, also on failure; if you write a new
+one, use the harness so that stays true.
+
+### Conformance fixtures
+
+`testdata/conformance/` pins the wire spec to bytes (format in its
+[README](testdata/conformance/README.md)). `go test . -run Conformance`
+re-renders each fixture with the Go renderer and runs every assertion;
+`node --test` in `client/` runs the client expectations. A change to a
+reference file is a change to what the spec promises other servers, so
+regenerate them only together with a spec change
+(`go test . -run Conformance -update`) and review the diff like a golden
+file.
 
 ### Golden files
 
@@ -124,16 +181,32 @@ well-formed. When you intentionally change the output:
 
 CI fails if running the tests modifies anything under `testdata/`.
 
-## The design document rule
+## The spec and design document rule
 
-[docs/DESIGN.md](docs/DESIGN.md) is the contract for the public API, the DOM
-output structure, the CSS, the visual defaults and the htmx integration. The
-client, the stylesheet and users' own CSS depend on it.
+Two documents are the contract:
 
-**If a change makes the code and DESIGN.md disagree, update DESIGN.md in the
-same pull request**, and explain the change in the description. Significant
-architectural decisions also get an [ADR](docs/adr/) (copy the format of an
-existing one and number it sequentially).
+- [docs/spec.md](docs/spec.md), the **wire spec**: the markup a server
+  sends, the attributes page authors write, the request parameters, the
+  events and the swap behaviour. Servers in other languages are built from
+  it, so it must be right on its own.
+- [docs/DESIGN.md](docs/DESIGN.md), the **implementation contract**: the Go
+  API, the DOM output in detail, the CSS, the visual defaults, the htmx
+  facts and how the reference client behaves. The extension, the
+  stylesheet and users' own CSS depend on it.
+
+**spec.md and DESIGN.md change together.** If a change makes the code
+disagree with either, update the document in the same pull request, and
+explain the change in the description. A change to the wire also needs:
+
+- the conformance fixtures updated to match;
+- a version decision (spec §2.3): a change a version-1 client can ignore (a
+  new optional attribute or JSON field) keeps spec 1; anything a version-1
+  client would misread bumps the version;
+- a line in the changelog, since servers in other languages will have to
+  follow it.
+
+Significant architectural decisions also get an [ADR](docs/adr/README.md)
+(copy the format of an existing one and number it sequentially).
 
 ## Commit messages
 
@@ -148,8 +221,8 @@ We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 ```
 
 Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`,
-`chore`. Scopes are usually a package or area: `scale`, `hx`, `client`,
-`bar`, `theme`, `a11y`, `examples`.
+`chore`. Scopes are usually a package or area: `spec`, `client`, `scale`,
+`hx`, `bar`, `theme`, `a11y`, `examples`.
 
 Examples:
 

@@ -11,7 +11,8 @@ Report them privately with GitHub's private vulnerability reporting:
 2. Click **Report a vulnerability**
    (direct link: <https://github.com/ironystock/hyperplot/security/advisories/new>).
 3. Describe the issue, the affected version or commit, and how to reproduce
-   it. A minimal `hyperplot.Chart` literal or HTTP request is ideal.
+   it. A minimal `hyperplot.Chart` literal, chart markup, page or HTTP
+   request is ideal.
 
 What to expect:
 
@@ -24,14 +25,16 @@ What to expect:
 
 ## Supported versions
 
-hyperplot has not had a release yet. Until v1.0.0, only the **latest minor
-release** (and `main`) receives security fixes. After v1.0.0, the latest
-minor release of the current major version will be supported.
+hyperplot has not had a release yet. It ships as a Go module and as the npm
+package `htmx-ext-plot` (the `hx-plot` extension), versioned separately.
+Until v1.0.0, only the **latest minor release** of each (and `main`)
+receives security fixes. After v1.0.0, the latest minor release of the
+current major version will be supported.
 
 | Version | Supported |
 |---|---|
 | `main` | Yes |
-| Latest `v0.x` release | Yes (once released) |
+| Latest `v0.x` release of the Go module or the npm package | Yes (once released) |
 | Older releases | No |
 
 ## Scope
@@ -52,8 +55,17 @@ formatted values. Its security model is built around that.
 - **SSE field injection.** Input to `hx.Stream` that injects extra SSE fields
   or events (for example through `\r` or `\n` in data, event names or ids).
 - **Attribute injection** through `hx.Partial` target or swap values.
-- **Client-side injection.** The client extension inserting server-provided
-  text as HTML instead of with `textContent`.
+- **Client-side injection.** The `hx-plot` extension inserting
+  server-provided text as HTML instead of with `textContent`, evaluating
+  anything from a chart or a page, or needing a CSP exception (inline
+  scripts or styles, `eval`) to work.
+- **The wire spec.** Escaping rules in [docs/spec.md](docs/spec.md), or the
+  Python helpers in its Appendix B, that let a conforming server produce
+  unsafe output. Other servers copy them.
+- **Request parameters.** The `hx` readers (`Size`, `Selected`, `Brushed`)
+  panicking, buffering large bodies, or accepting values the spec says to
+  reject, and the extension sending parameters to requests they don't
+  belong to.
 - **Denial of service** through small inputs that cause disproportionate CPU
   or memory use in rendering, or a panic in a public function.
 
@@ -77,7 +89,13 @@ formatted values. Its security model is built around that.
 - Treat `Chart.HTML()` and `Chart.Table()` output as trusted HTML only because
   hyperplot generated it; don't splice untrusted strings into it afterwards.
 - Charts work under a strict Content Security Policy: serve
-  `hyperplot.Stylesheet()` as a same-origin stylesheet and the client as a
-  same-origin script. See the [htmx guide](docs/htmx.md) for CSP details.
+  `hyperplot.Stylesheet()` (or `hx-plot.css`) as a same-origin stylesheet
+  and `hx-plot.js` as a same-origin script. See the
+  [htmx guide](docs/htmx.md#content-security-policy) for CSP details.
+- The `hp-*` request parameters come from the browser and can be anything.
+  Validate them like any input and escape them when you echo them; the `hx`
+  readers return the raw strings.
+- Servers in other languages: an HTML escaper alone is not enough for chart
+  markup. Follow spec §3.6 (Appendix B has `xml_text` and `xml_attr`).
 - Bound the size of user-controlled inputs (number of points, label length)
   before rendering, as you would for any server-side work.
