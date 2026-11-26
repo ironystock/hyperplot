@@ -171,6 +171,7 @@ var knownImports = map[string]string{
 	"template":  "html/template",
 	"testing":   "testing",
 	"time":      "time",
+	"url":       "net/url",
 }
 
 var leadingImports = regexp.MustCompile(`^\s*(?:import\s+(?:\([^)]*\)|"[^"]*")\s*)+`)

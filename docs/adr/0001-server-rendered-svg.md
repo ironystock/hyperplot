@@ -45,7 +45,7 @@ The server produces a complete `<svg>` element with an accessible name and
 description, preformatted tooltip text in a `<metadata>` element, and a
 `<title>` on each bar and dot for a no-JavaScript fallback. A small,
 optional client extension adds interaction on top (see
-[DESIGN.md](../DESIGN.md#client-extension-clienthyperplotjs)); the chart is
+[DESIGN.md](../DESIGN.md#client-extension-clienthx-plotjs)); the chart is
 complete without it.
 
 ### Consequences

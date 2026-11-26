@@ -1,18 +1,205 @@
 # hyperplot
 
-**Server-rendered SVG charts for Go, live with htmx 4.**
+**`hx-plot`: an htmx 4 extension for live charts that your server draws as SVG.
+No client chart library.**
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ironystock/hyperplot.svg)](https://pkg.go.dev/github.com/ironystock/hyperplot)
 [![CI](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml/badge.svg)](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ironystock/hyperplot)](https://goreportcard.com/report/github.com/ironystock/hyperplot)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-hyperplot turns Go data into clean, accessible SVG on the server. You put the
-SVG in your HTML like any other fragment, and htmx 4 keeps it live: polling,
-server-sent events and filters all re-render on the server and **morph** the
-chart in place, so bars and lines animate to their new values instead of
-blinking. There is no JavaScript charting framework, no JSON API to design,
-and no build step.
+Your server renders each chart as SVG markup and sends it like any other
+fragment. htmx keeps it live with the requests you already know (polling,
+server-sent events, forms) and `innerMorph` swaps. The extension
+(`hx-plot.js`, npm `htmx-ext-plot`) reads the markup and adds what a chart
+needs in the browser: tooltips and keyboard reading, state that survives
+swaps, time windows that slide instead of redrawing, and clicks and drags
+that become ordinary htmx requests. The browser never receives a data API,
+and never formats a number.
+
+Any server language can produce the charts. The contract between server and
+extension is a short [wire spec](docs/spec.md) with
+[conformance fixtures](testdata/conformance/README.md). The Go library in
+this repository is the reference server, and the
+[server guide](docs/implementing-a-server.md) builds one in Python.
+
+> **Status: pre-release.** The extension (0.2.0) and spec version 1 are
+> complete and tested, but nothing is on npm or tagged yet, and names may
+> still change before the first publish. Feedback is very welcome. See
+> [Status](#status).
+
+**Contents**
+
+- [Why server-rendered charts with htmx](#why-server-rendered-charts-with-htmx)
+- [Quick start: the extension](#quick-start-the-extension)
+- [Gestures become requests](#gestures-become-requests)
+- [Live updates](#live-updates)
+- [Reference server: Go](#reference-server-go)
+- [Implement a server in your language](#implement-a-server-in-your-language)
+- [Status](#status)
+- [Documentation](#documentation)
+
+## Why server-rendered charts with htmx
+
+The htmx chart extensions we know of (htmx-echarts, htmx-plotly, hx-chart)
+send JSON to a client-side charting library, which draws the chart in the
+browser. hyperplot sends the chart itself:
+the response is the hypermedia. That keeps the htmx way of working all the
+way down:
+
+- **The server already has the data.** It renders where the data lives, so
+  there is no chart-specific JSON endpoint and no client formatting code.
+  Units, time zones and number formats are decided once, on the server, and
+  the tooltip says exactly what the axis does.
+- **The chart is in the first response.** No bundle to load, no spinner, no
+  layout shift. It works with JavaScript off, in a `.svg` file, and through a
+  strict Content Security Policy.
+- **Live updates are ordinary swaps.** Re-render on the server, send the new
+  chart, and htmx's morph updates the existing elements in place. CSS
+  transitions animate changed values, and when a time window moves the
+  extension slides the chart rather than redrawing it.
+- **It is accessible by construction.** Every chart has an accessible name
+  and description, takes keyboard focus, and comes with an equivalent data
+  table that stays in sync.
+
+A fair objection to server-rendered charts is that a live update redraws
+the whole chart and looks clunky. With morph swaps it doesn't: the elements
+survive the swap, so they animate to their new values, and the extension
+keeps the tooltip and keyboard position where they were.
+
+When should you use something else? If readers need to pan and zoom through
+very large datasets, or filter data in the browser without a round trip, a
+client-side library fits better.
+
+## Quick start: the extension
+
+Load htmx 4 and the extension with plain script tags, no build step and no
+`hx-ext` attribute (htmx 4 activates an extension when its script loads):
+
+```html
+<!-- Don't swap error pages from proxies or middleware over the charts. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<link rel="stylesheet" href="/static/hx-plot.css">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js"></script>
+<script src="/static/hx-plot.js"></script>
+```
+
+`hx-plot.js` and the stylesheet `hx-plot.css` come from the npm package
+`htmx-ext-plot`. It isn't published yet: until it is, copy them from
+[`client/`](client/) (the stylesheet is the Go library's
+`hyperplot.Stylesheet()`), or serve them from Go with the `client` package.
+The extension registers itself as `plot`; a page that restricts
+`htmx.config.extensions` must list it.
+
+Then put a chart your server rendered inside an element that refreshes it:
+
+```html
+<div hx-get="/charts/latency" hx-trigger="every 2s, htmx:plot:resize"
+     hx-swap="innerMorph" hx-plot:autosize>
+  <svg xmlns="http://www.w3.org/2000/svg" id="latency" class="hp hp-anim" data-hp="1" …>…</svg>
+</div>
+```
+
+That chart now has:
+
+- **Tooltips and a crosshair** on hover (a band highlight on bar charts, a
+  ring on scatter plots), filled with text the server formatted.
+- **Keyboard reading**: focus the chart, then step through it with the arrow
+  keys, Home and End. Each step is announced to screen readers.
+- **Updates that keep their place.** After every poll or SSE message the
+  tooltip and keyboard position stay on the same data, a moved time window
+  slides, an open data table stays open and scrolled to its newest row.
+- **Responsive rendering.** `hx-plot:autosize` adds the container's width to
+  requests as `hp-w`, and fires `htmx:plot:resize` when it changes, so the
+  server renders at the size the page has instead of scaling the text.
+
+Without htmx, the extension still gives charts on a page their tooltips and
+keyboard reading.
+
+### Attributes
+
+| Attribute | On | Does |
+|---|---|---|
+| `hx-plot:autosize` (or `="both"`) | the element whose width sizes the chart, usually the swap target | adds `hp-w` (and `hp-h`) to requests that target it; fires `htmx:plot:resize` when it changes size |
+| `hx-plot:brush` | an ancestor of the charts | lets readers drag across a time or linear x axis (needs the companion `hx-plot-brush.js`) |
+
+Both accept htmx's other spellings (`data-hx-plot:…`, and
+`htmx.config.metaCharacter` in place of `:`). Tuning, such as turning the
+slide off, is configuration: `htmx.config.plot`, or per request
+`hx-config="plot.slide:false"`. The [extension's
+README](client/README.md) has the events, the config keys and the
+accessibility table.
+
+## Gestures become requests
+
+A click on a point, or Enter on a keyboard point, dispatches
+`htmx:plot:select`. A drag across a chart inside `hx-plot:brush` (or
+Shift+Arrow keys, then Enter) dispatches `htmx:plot:brush`. Use them as
+triggers, and the extension adds the gesture to the request as form
+parameters:
+
+```html
+<section hx-get="/detail" hx-trigger="htmx:plot:select" hx-target="#detail">
+  <div class="zoom" hx-get="/charts/latency" hx-trigger="htmx:plot:brush"
+       hx-target="#latency" hx-swap="outerMorph" hx-sync="replace" hx-plot:brush>
+    <div id="latency" hx-get="/charts/latency" hx-trigger="every 2s, htmx:plot:resize"
+         hx-swap="innerMorph" hx-sync="closest .zoom:drop" hx-plot:autosize>…</div>
+  </div>
+</section>
+<p id="detail" aria-live="polite"></p>
+```
+
+Clicking 2:10 PM, then dragging from 2:05 PM to 2:15 PM, sends:
+
+```http
+GET /detail?hp-chart=lt&hp-x=2026-03-03T14%3A10%3A00Z
+GET /charts/latency?hp-w=800&hp-chart=lt&hp-x0=2026-03-03T14%3A05%3A00Z&hp-x1=2026-03-03T14%3A15%3A00Z
+```
+
+`hp-x` is the key the server wrote for that point, so the server can match
+it exactly. The server answers the brush with a zoomed polling element and
+`HX-Push-Url`, so the zoom is a URL: it can be bookmarked, and Back undoes
+it. Drill-down and zoom are hypermedia exchanges, with no client state.
+Because the parameters are plain form fields, a link per table row and a
+from/to form send the same requests without a pointer, or without script
+([spec §5.5](docs/spec.md#55-equivalents-in-plain-html)).
+
+## Live updates
+
+The extension adds no transport of its own; htmx's are enough.
+
+**Polling with a polling tag.** With htmx's `hx-ptag` extension the server
+answers `304 Not Modified` while a chart is unchanged, so an idle dashboard
+costs one empty response per tick. Charts render deterministically, so the
+same data always hashes to the same tag.
+
+```html
+<div hx-get="/charts/latency" hx-trigger="every 2s, htmx:plot:resize"
+     hx-swap="innerMorph" hx-ptag='"hp-1a2b3c4d5e6f7a8b"' hx-plot:autosize>…</div>
+```
+
+**Server-sent events.** The server pushes a new chart whenever the data
+changes; each unnamed message is swapped in.
+
+```html
+<div hx-sse:connect="/stream/throughput" hx-swap="innerMorph">…</div>
+```
+
+**Filters and other forms.** A form re-requests the charts for a new slice
+of data, and the morph animates from the old values to the new ones.
+
+```html
+<form hx-get="/dashboard" hx-trigger="change" hx-target="#charts" hx-swap="innerMorph">…</form>
+```
+
+The [htmx integration guide](docs/htmx.md) covers each pattern in depth,
+with the htmx 4 behaviours that differ from htmx 2.
+
+## Reference server: Go
+
+The Go module `github.com/ironystock/hyperplot` renders charts to
+deterministic, well-formed, accessible SVG that meets every level of the
+spec, and its `hx` package reads and writes the htmx side: polling tags, SSE
+streams, sizes and gestures. It uses only the standard library.
 
 ```go
 chart := hyperplot.Chart{
@@ -26,50 +213,21 @@ chart := hyperplot.Chart{
 svg, err := chart.Render() // []byte of well-formed, deterministic SVG
 ```
 
-> **Status: pre-1.0, under active development.** Nothing has been tagged or
-> published yet, and the API may change before v1.0.0. Feedback on the API is
-> very welcome. See [Status](#status).
-
-## Features
-
-- **Line, area, bar, dot and rule marks** that combine in one plot, with
-  grouped or stacked bars and areas, three curve types, and gaps for missing
-  (`NaN`) values.
-- **Linear, time and category axes** with "nice" ticks, DST-safe time ticks,
-  and number formatting that uses a real minus sign (−). Labels follow US
-  conventions by default ("Mar 3", "2 PM"); custom formatters change them.
-- **Good defaults from data-viz practice**: a validated, colorblind-aware
-  8-color palette in fixed order, recessive gridlines, rounded bar ends,
-  direct end labels when they fit, and a legend only when you need one.
-- **Live updates with htmx 4**: deterministic output with stable element ids,
-  so `hx-swap="innerMorph"` updates a chart in place and CSS transitions
-  animate the change.
-- **An `hx` helper package** for content tags (`HX-PTag` with `304 Not
-  Modified`), server-sent event streams, multi-target partials, and
-  responsive sizing.
-- **Accessible**: an accessible name and description on every chart, keyboard
-  focus (with arrow-key reading via the client extension), and an equivalent
-  `<table>` of the data.
-- **Optional client extension** (one small file, no dependencies) for hover
-  tooltips, a crosshair, keyboard reading and responsive re-rendering.
-- **Sparklines** for stat tiles, themed by the same stylesheet.
-- **Selected dark mode** that follows `prefers-color-scheme` or a
-  `data-theme` attribute.
-- **Zero dependencies**: the Go packages use only the standard library.
-
-## Install
+### Install
 
 ```sh
 go get github.com/ironystock/hyperplot
 ```
 
-hyperplot requires Go 1.24 or later.
+It requires Go 1.24 or later. No version is tagged yet, so this fetches the
+latest commit.
 
-## Quick start
+### Quick start
 
-A complete program, also in [`examples/basic`](examples/basic/) (`go run ./examples/basic`):
-a bar chart served by `net/http` and rendered into an `html/template` page.
-The stylesheet is served as a file, so the page needs no inline styles.
+A complete program, also in [`examples/basic`](examples/basic/)
+(`go run ./examples/basic`): a bar chart served by `net/http` and rendered
+into an `html/template` page. The stylesheet is served as a file, so the
+page needs no inline styles.
 
 ```go
 package main
@@ -126,50 +284,26 @@ func main() {
 
 Every string in the chart, including series names and categories, is escaped
 by the renderer, so `chart.HTML()` is safe to embed even when labels come
-from users.
+from users. For [templ](https://templ.guide) users, `chart.Component()`
+satisfies `templ.Component` structurally, without hyperplot importing templ.
 
-For [templ](https://templ.guide) users, `chart.Component()` satisfies
-`templ.Component` structurally, without hyperplot importing templ.
+### Live charts from Go
 
-## Live charts with htmx 4
+Serve the extension from the embedded copy in the `client` package (with an
+`ETag` and caching headers), and set `Chart.ID` and `Chart.Animate` on every
+chart you update:
 
-Load htmx 4 and, if you want tooltips and autosizing, the hyperplot client
-extension. htmx 4 extensions load by script tag; there is no `hx-ext`
-attribute.
-
-```html
-<!-- Don't swap error pages from proxies or middleware over the charts. -->
-<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
-<link rel="stylesheet" href="/hyperplot.css">
-<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js"></script>
-<script src="/hyperplot.js"></script>
+```go
+mux.Handle("GET /static/hx-plot.js", client.Handler())
+mux.Handle("GET /static/hx-plot-brush.js", client.BrushHandler()) // optional: brushing
 ```
 
-htmx 4 swaps every response except `204` and `304`, so without the
-`htmx-config` line a proxy's `502` page or a login middleware's `401` would
-replace a chart, and `hx-ptag` would keep it there after the error clears
-(see [Errors](docs/htmx.md#errors-your-handler-never-sees)).
-
-Set `Chart.ID` to a stable value for any chart you update, and `Chart.Animate`
-to have CSS transitions animate the morph.
-
-### 1. Polling with a content tag
-
-The client polls; the server answers `304 Not Modified` when the chart has
-not changed, so an idle dashboard costs one tiny response per tick.
-
-```html
-<div hx-get="/charts/latency" hx-trigger="every 2s, hp:resize"
-     hx-swap="innerMorph" hx-ptag="{{.Tag}}" data-hp-autosize>
-  {{.Chart}}
-</div>
-```
+A polling handler renders at the width the extension reports and lets
+`hx.CheckPTag` answer `304` when nothing changed:
 
 ```go
 func latency(w http.ResponseWriter, r *http.Request) {
-	width, _ := hx.Size(r, 640, 0)    // the container's width, sent by the client extension
+	width, _ := hx.Size(r, 640, 0)    // hp-w from hx-plot:autosize; keep the height
 	chart := latencyChart(width, 320) // a *hyperplot.Chart with ID and Animate set
 	svg, err := chart.Render()
 	if err != nil {
@@ -184,17 +318,8 @@ func latency(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-The server keeps the height. A wrapper without a CSS height takes its
-height from the chart inside it, so sending that back would grow the chart
-on every poll (see [autosize](docs/htmx.md#responsive-charts-with-autosize)).
-
-### 2. Streaming with server-sent events
-
-The server pushes a freshly rendered chart whenever the data changes.
-
-```html
-<div hx-sse:connect="/stream/throughput" hx-swap="innerMorph">{{.Chart}}</div>
-```
+A stream sends a fresh chart on every tick and skips a frame that fails to
+render:
 
 ```go
 func throughput(w http.ResponseWriter, r *http.Request) {
@@ -225,30 +350,38 @@ func throughput(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### 3. Filters
+`hx.Selected` and `hx.Brushed` read the gestures. A brush and a poll can
+share a handler: `Brushed` reports a brush only when `hp-x0` and `hp-x1` are
+present.
 
-A form re-requests the charts for a new slice of data. Pin each series to a
-color `Slot` so that a series keeps its color when filters hide others.
-
-```html
-<form hx-get="/dashboard" hx-trigger="change" hx-target="#charts" hx-swap="innerMorph">
-  <select name="region">
-    <option>all</option><option>eu-west</option><option>us-east</option>
-  </select>
-</form>
-<div id="charts">{{.Charts}}</div>
+```go
+func zoom(w http.ResponseWriter, r *http.Request) {
+	width, _ := hx.Size(r, 640, 0)
+	chart := latencyChart(width, 320)
+	if b, ok := hx.Brushed(r); ok {
+		if t0, t1, err := b.Times(); err == nil { // ordered, in UTC
+			chart.X.TimeDomain = [2]time.Time{t0, t1}
+		}
+	}
+	svg, err := chart.Render()
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(svg)
+}
 ```
+
+Pin each series to a colour `Slot` when filters can hide some of them, so a
+series keeps its colour:
 
 ```go
 hyperplot.Line{Name: "eu-west", Slot: 1, X: hyperplot.Times(ts), Y: eu}
 hyperplot.Line{Name: "us-east", Slot: 2, X: hyperplot.Times(ts), Y: us}
 ```
 
-The [htmx integration guide](docs/htmx.md) covers each pattern in depth, plus
-multi-target updates with `hx.Partial`, SSE replay with `Last-Event-ID`,
-responsive autosizing, CSP, and the htmx 4 behaviors that differ from htmx 2.
-
-## Chart types
+### Chart types
 
 | Mark | Draws | Notes |
 |---|---|---|
@@ -261,102 +394,81 @@ responsive autosizing, CSP, and the htmx 4 behaviors that differ from htmx 2.
 
 Marks share the chart's scales, so you can combine them, for example bars with
 a `RuleY` target. The x values pick the scale: `Floats` (linear), `Times`
-(time) or `Categories` (band). `Chart.Table()` renders an accessible
-`<table>` equivalent of any chart.
+(time) or `Categories` (band). `Chart.Table()` renders the accessible
+`<table>` equivalent of any chart. The defaults follow data-visualization
+practice: a colourblind-aware 8-colour palette in a fixed order with its own
+dark mode, recessive gridlines, direct labels when they fit, and a legend
+only when it is needed.
 
-Deliberately not included: pie charts, dual y-axes, 3D, maps, and canvas
+Deliberately not included: pie charts, dual y-axes, 3D, maps and canvas
 output. See the goals and non-goals in the [design document](docs/DESIGN.md).
 
-## The client extension
+## Implement a server in your language
 
-`client/hyperplot.js` is a single plain-JavaScript file with no dependencies
-and no build step. It is optional: charts are complete, readable and
-accessible without it. With it you get:
+A server in Python, PHP, Ruby or anything else implements the
+[wire spec](docs/spec.md) and gets the same extension behaviour. The spec is
+in three cumulative levels, so you can start small:
 
-- **Tooltips and a crosshair** on hover, built from text the server already
-  formatted (the browser never formats numbers).
-- **Keyboard reading**: focus a chart, then use the arrow keys, Home and End
-  to step through the data, and Escape to dismiss.
-- **Morph-safe state**: an open tooltip survives polling and SSE updates.
-- **Responsive re-rendering**: elements with `data-hp-autosize` fire an
-  `hp:resize` event when their width changes, and requests carry the
-  element's width so the server can render to fit (`hx.Size`).
+| Level | Your server | The page gets |
+|---|---|---|
+| 1. Static | emits chart markup with a JSON hover payload | native tooltips without script; with the extension, tooltips, a crosshair and keyboard reading |
+| 2. Live | adds stable ids, three geometry attributes and row keys, and serves frames over htmx polling or SSE | morph updates that keep their place, sliding windows, live tables, `304`s for unchanged polls |
+| 3. Interactive | reads the gesture parameters | drill-down on click or Enter, brush-to-zoom with history |
 
-Go programs can serve it without npm through the `client` package, which
-embeds the file and provides an `http.Handler` with caching headers:
-
-```go
-http.Handle("/hyperplot.js", client.Handler())
-```
-
-It also works without htmx: tooltips and keyboard reading use event
-delegation on `document`.
-
-## Design principles
-
-- **Accessible.** Every chart is `role="img"` with an accessible name and a
-  factual auto-generated description, is reachable by keyboard, and has a
-  data-table equivalent. Text never relies on series color alone.
-- **Deterministic.** The same input produces byte-identical output: no
-  map-order or time dependence. That makes golden tests, caching, content
-  tags and morphing reliable.
-- **Safe by construction.** All text is escaped, the output is always
-  well-formed XML, and the client inserts text with `textContent` only.
-- **CSP-friendly.** Charts use classes and an external stylesheet: no
-  `style=""` attributes, no inline event handlers, no `eval`.
-- **Graceful without CSS.** Marks are drawn in `currentColor`, so a chart
-  without the stylesheet is still legible in monochrome.
-- **Selected dark mode.** Dark mode uses its own validated palette rather
-  than an inversion, and follows `prefers-color-scheme` or
-  `<html data-theme="dark">`.
-- **Zero dependencies.** The Go packages import only the standard library;
-  the client has no runtime dependencies.
-
-## Why server-rendered?
-
-- **The server already has the data.** Rendering where the data lives means
-  no chart-specific JSON endpoint, no client-side formatting code, and no
-  data shipped to the browser that the user never sees.
-- **One source of truth for formatting.** Units, time zones and number
-  formats are decided once, in Go, and the tooltip text is generated by the
-  same code as the axis.
-- **Fast first paint.** The chart is in the HTML response. There is no
-  loading spinner and no layout shift while a bundle downloads and runs.
-- **Works wherever SVG works**: in pages, as self-contained `.svg` files
-  (with `Standalone`), in reports, and with JavaScript disabled.
-- **Hypermedia fits live data.** With htmx 4 morph swaps, "re-render on the
-  server and send the new chart" is cheap and animates smoothly, so live
-  dashboards need no client state.
-
-When should you use something else? If users need to pan and zoom through
-very large datasets, or brush and filter data client-side without a round
-trip, a client-side library is a better fit.
+- [Implementing a server](docs/implementing-a-server.md) builds a Level 3
+  server in about 320 lines of standard-library Python, step by step, and
+  ends with a conformance checklist.
+- [The spec's Appendix B](docs/spec.md#appendix-b-an-exchange-and-helpers-in-python)
+  has the value-form, escaping and parsing helpers in Python.
+- [`testdata/conformance/`](testdata/conformance/README.md) has
+  language-neutral fixtures: chart inputs, reference output, and assertions
+  any server's output can be checked against.
 
 ## Status
 
-hyperplot is **pre-1.0**. The scales, the SVG writer, the chart renderer,
-the `hx` package, the client extension and the example dashboard are built
-and tested. Nothing has been published or tagged yet. Until v1.0.0, minor
-versions may change the API; changes will be listed in the
-[changelog](CHANGELOG.md).
+Pre-release. Built and tested: the extension (`hx-plot.js` 0.2.0 and its
+brush and tween companions), spec version 1 with its fixtures, and the Go
+reference server at Level 3 (renderer, `scale`, `hx`, the `client` package
+and the example dashboard). Nothing is on npm and no Go version is tagged.
 
-Not there yet: horizontal bars, bars on a time axis, a log scale, small
-multiples, annotations beyond a horizontal rule, and a locale option (labels
-follow US conventions: a 12-hour clock and month-first dates). The
-[roadmap](docs/DESIGN.md#roadmap) lists these and the other known gaps.
+Known gaps, all on the [roadmap](docs/DESIGN.md#roadmap):
+
+- The extension is tested in Node against a fake DOM and in Chrome. Firefox
+  and Safari are untested, and the Safari tween companion has never run in
+  Safari.
+- The core script is over its 13 KiB minified and 5.5 KiB gzipped budget
+  (it is about 18 KiB and 7.6 KiB; the measured sizes are in the
+  extension's [size table](client/README.md#size)); trimming it, or moving
+  another part into a companion, is still to do.
+- Touch readers can't brush, and mobile screen-reader users can't select or
+  brush, in spec 1; pages should offer the plain HTML equivalents.
+- The Go renderer has no horizontal bars, bars on a time axis, log scale,
+  small multiples, annotations beyond a horizontal rule, or locale option
+  (labels follow US conventions).
+
+Until v1.0.0, minor versions may change the API and the markup; changes are
+listed in the [changelog](CHANGELOG.md), and markup changes go through the
+spec.
 
 ## Documentation
 
-- [Design document](docs/DESIGN.md): the API, DOM output, visual spec and
-  palette. The contract the code is built against, with its current status
-  and [roadmap](docs/DESIGN.md#roadmap).
-- [htmx 4 integration guide](docs/htmx.md): every live-update pattern in depth.
-- [Architecture decision records](docs/adr/): why it is built this way.
-- [Example dashboard](examples/dashboard/): every live pattern on one page;
-  run it with `make demo`. [`examples/basic`](examples/basic/) is the quick
-  start above.
-- API reference on [pkg.go.dev](https://pkg.go.dev/github.com/ironystock/hyperplot)
-  (available once the module is published).
+- [Wire spec](docs/spec.md): the contract between any server and the
+  extension, with conformance levels.
+- [Implementing a server](docs/implementing-a-server.md): a step-by-step
+  guide in Python.
+- [The extension's README](client/README.md): attributes, events, config,
+  parameters and accessibility, in the layout of htmx's own extension pages.
+- [htmx 4 integration guide](docs/htmx.md): every live-update and gesture
+  pattern in depth, with Go handlers.
+- [Design document](docs/DESIGN.md): how the Go library and the reference
+  client are built, with the current status and the [roadmap](docs/DESIGN.md#roadmap).
+- [Architecture decision records](docs/adr/README.md): why it is built this
+  way, including [why the extension is the product](docs/adr/0005-htmx-community-first.md).
+- [Example dashboard](examples/dashboard/): polling, SSE, filters,
+  drill-down and brush-to-zoom on one page, run with `make demo`.
+  [`examples/basic`](examples/basic/) is the Go quick start.
+- Go API reference on [pkg.go.dev](https://pkg.go.dev/github.com/ironystock/hyperplot)
+  (available once a version is tagged).
 
 ## Contributing
 
