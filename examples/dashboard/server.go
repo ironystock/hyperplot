@@ -87,10 +87,12 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /charts/latency", s.latency)
 	mux.HandleFunc("GET /charts/requests", s.requests)
 	mux.HandleFunc("GET /charts/scatter", s.scatter)
+	mux.HandleFunc("GET /detail/requests", s.requestsDetail)
 	mux.HandleFunc("GET /cards/throughput", s.throughputCard)
 	mux.HandleFunc("GET /stream/throughput", s.throughputStream)
-	mux.HandleFunc("GET /static/hyperplot.css", s.stylesheet)
-	mux.Handle("GET /static/hyperplot.js", client.Handler())
+	mux.HandleFunc("GET /static/hx-plot.css", s.stylesheet)
+	mux.Handle("GET /static/hx-plot.js", client.Handler())
+	mux.Handle("GET /static/hx-plot-brush.js", client.BrushHandler())
 	mux.Handle("GET /static/", http.StripPrefix("/static/", staticTypes(http.FileServerFS(static))))
 	return securityHeaders(mux)
 }
@@ -145,9 +147,9 @@ type chartsData struct {
 	Scope string
 	KPIs  []kpi
 
-	LatencyURL string
-	LatencyTag string // seeds hx-ptag, so the first poll can be a 304
-	Latency    template.HTML
+	BrushURL string // where a brush of the latency chart goes
+	Latency  latencyPoller
+	Zoom     zoomBar
 
 	Stream streamData
 
@@ -155,11 +157,21 @@ type chartsData struct {
 	RequestsTag string
 	Requests    template.HTML
 	Stacked     bool
+	DetailURL   string // where a select of the requests chart goes
+	Detail      detailData
 
 	ScatterURL string
 	ScatterTag string
 	Scatter    template.HTML
 	ScatterN   int
+}
+
+// latencyPoller is the element that polls the latency chart. A zoom
+// replaces it whole (outerMorph), because its hx-get carries the zoom.
+type latencyPoller struct {
+	URL  string
+	Tag  string // seeds hx-ptag, so the first poll can be a 304
+	Body template.HTML
 }
 
 // streamData is the element that holds the throughput SSE connection.
@@ -175,6 +187,7 @@ type chartBody struct {
 	Title string
 	Width string
 	SVG   template.HTML
+	Extra template.HTML // between the chart and its table
 	Table template.HTML
 }
 
@@ -205,9 +218,18 @@ func pageWidths(r *http.Request) widths {
 
 // page serves the whole dashboard, or only the contents of #charts when
 // the filter row asks for them (an htmx request that targets #charts).
+//
+// The page URL can carry a latency zoom (from, to; or hp-x0 and hp-x1 from
+// the zoom form submitted without script) and an open window detail
+// (hp-chart=requests, hp-x, hp-series from a window link). The filter row
+// sends neither, so a filter change returns to the live window.
 func (s *server) page(w http.ResponseWriter, r *http.Request) {
-	f := parseFilters(r)
-	charts, err := s.charts(f, s.now(), pageWidths(r))
+	f, now := parseFilters(r), s.now()
+	z, ok := brushZoom(r, now, s.loc)
+	if !ok {
+		z = zoomFromQuery(r.URL.Query(), now)
+	}
+	charts, err := s.charts(r, f, z, now, pageWidths(r))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -220,11 +242,7 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 	if hx.IsPartial(r) {
 		// Keep the address bar shareable: the filters, without the
 		// widths the request carried.
-		u := "/?" + f.query()
-		if f.Stacked {
-			u += "&bars=stacked"
-		}
-		h.Set("HX-Replace-Url", u)
+		h.Set("HX-Replace-Url", pageURL(f, z))
 		// htmx fires this event after the swap; the throughput card
 		// listens for it and opens a stream for the new filters.
 		h.Set("HX-Trigger", filtersApplied)
@@ -244,12 +262,14 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 // charts renders every chart for the first paint and for filter changes.
 // The tags seed each container's hx-ptag: they hash exactly the bytes its
 // own endpoint returns for the same filters, time and width.
-func (s *server) charts(f filters, now time.Time, ws widths) (chartsData, error) {
+func (s *server) charts(r *http.Request, f filters, z zoom, now time.Time, ws widths) (chartsData, error) {
 	q := f.query()
 	d := chartsData{
 		Scope:       f.scope(),
-		LatencyURL:  "/charts/latency?" + q,
+		BrushURL:    "/charts/latency?" + q,
+		Zoom:        newZoomBar(f, z, now, s.loc),
 		RequestsURL: "/charts/requests?" + q,
+		DetailURL:   "/detail/requests?" + q,
 		ScatterURL:  "/charts/scatter?" + q,
 		ScatterN:    scatterN,
 		Stacked:     f.Stacked,
@@ -258,18 +278,16 @@ func (s *server) charts(f filters, now time.Time, ws widths) (chartsData, error)
 	if d.KPIs, err = kpis(f, latencyEnd(f, now)); err != nil {
 		return d, err
 	}
-	lat, err := s.latencyResponse(f, now, ws.Latency)
-	if err != nil {
+	if d.Latency, err = s.latencyPoller(f, z, now, ws.Latency); err != nil {
 		return d, err
 	}
-	d.LatencyTag = hx.Tag(lat)
-	if d.Latency, err = s.body(latencyChart(f, latencyEnd(f, now), ws.Latency, s.loc)); err != nil {
-		return d, err
-	}
-	if d.Requests, err = s.body(requestsChart(f, now, ws.Requests, s.loc)); err != nil {
+	if d.Requests, err = s.requestsBody(f, now, ws.Requests); err != nil {
 		return d, err
 	}
 	d.RequestsTag = hx.Tag([]byte(d.Requests))
+	if d.Detail, err = s.detail(r, f, now, ws.Requests); err != nil {
+		return d, err
+	}
 	if d.Scatter, err = s.body(scatterChart(f, now, ws.Scatter)); err != nil {
 		return d, err
 	}
@@ -277,6 +295,14 @@ func (s *server) charts(f filters, now time.Time, ws widths) (chartsData, error)
 	if d.Stream, err = s.stream(f, now, ws.Throughput); err != nil {
 		return d, err
 	}
+	// The page shows the chart but opens no stream: its container fetches
+	// the stream card on load, at the container's real width (the page
+	// cannot know it, and htmx:plot:resize fires only when the width
+	// changes). Connecting here would open a stream at the default width
+	// that the card then replaces, and the chart would sit scaled down
+	// until then. Filter responses don't touch the container's children
+	// (hx-morph-skip-children); filters-applied fetches a new card.
+	d.Stream.URL = ""
 	return d, nil
 }
 
@@ -288,15 +314,23 @@ func latencyEnd(f filters, now time.Time) time.Time {
 	return now.Truncate(f.Range.Step)
 }
 
+// latencyFor is the latency chart: the live window, or the zoom.
+func (s *server) latencyFor(f filters, z zoom, now time.Time, width float64) *hyperplot.Chart {
+	if z.on() {
+		return zoomedLatencyChart(f, z, now, width, s.loc)
+	}
+	return latencyChart(f, latencyEnd(f, now), width, s.loc)
+}
+
 // latencyResponse is the latency chart plus the KPI tiles, which ride
-// along as an <hx-partial> because they change with the same buckets.
-func (s *server) latencyResponse(f filters, now time.Time, width float64) ([]byte, error) {
-	end := latencyEnd(f, now)
-	body, err := s.body(latencyChart(f, end, width, s.loc))
+// along as an <hx-partial> because they change with the same buckets. The
+// tiles always cover the range preset, also while the chart is zoomed.
+func (s *server) latencyResponse(f filters, z zoom, now time.Time, width float64) ([]byte, error) {
+	body, err := s.body(s.latencyFor(f, z, now, width))
 	if err != nil {
 		return nil, err
 	}
-	tiles, err := kpis(f, end)
+	tiles, err := kpis(f, latencyEnd(f, now))
 	if err != nil {
 		return nil, err
 	}
@@ -307,14 +341,137 @@ func (s *server) latencyResponse(f filters, now time.Time, width float64) ([]byt
 	return append([]byte(body), hx.Partial("#kpis", "innerMorph", kb.Bytes())...), nil
 }
 
+// latencyPoller renders the polling element for f and z. Its hx-get
+// carries the zoom, so later polls stay zoomed, and its seeded tag is the
+// tag of exactly what its first poll will get.
+func (s *server) latencyPoller(f filters, z zoom, now time.Time, width float64) (latencyPoller, error) {
+	resp, err := s.latencyResponse(f, z, now, width)
+	if err != nil {
+		return latencyPoller{}, err
+	}
+	body, err := s.body(s.latencyFor(f, z, now, width))
+	if err != nil {
+		return latencyPoller{}, err
+	}
+	u := "/charts/latency?" + f.query()
+	if z.on() {
+		u += "&" + z.query()
+	}
+	return latencyPoller{URL: u, Tag: hx.Tag(resp), Body: body}, nil
+}
+
+// latency answers three kinds of request on one URL (docs/spec.md §5.4):
+//
+//   - a brush (hp-x0 and hp-x1, from a drag or the zoom form) zooms in;
+//   - zoom=out (the "Back to live" link) returns to the live window;
+//   - anything else is a poll, zoomed when the URL carries from and to.
+//
+// A poll is answered with the chart only (innerMorph). A zoom changes the
+// polling element's own hx-get, which an inner swap cannot do, so it is
+// answered with the whole polling element (outerMorph), the zoom toolbar
+// as an <hx-partial>, and HX-Push-Url naming the page URL of the new view.
 func (s *server) latency(w http.ResponseWriter, r *http.Request) {
-	b, err := s.latencyResponse(parseFilters(r), s.now(), chartWidth(r))
+	f, now := parseFilters(r), s.now()
+	if z, ok := brushZoom(r, now, s.loc); ok {
+		s.zoomTo(w, r, f, z, now)
+		return
+	}
+	if _, ok := hx.Brushed(r); ok {
+		// A brush whose values do not parse, or of another chart: ignore
+		// it (§5.3). htmx swaps nothing for a 204.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	q := r.URL.Query()
+	if q.Get("zoom") == "out" {
+		s.zoomTo(w, r, f, zoom{}, now)
+		return
+	}
+	b, err := s.latencyResponse(f, zoomFromQuery(q, now), now, chartWidth(r))
 	s.writeTagged(w, r, b, err)
 }
 
+// zoomTo answers a zoom in or out with the new polling element.
+func (s *server) zoomTo(w http.ResponseWriter, r *http.Request, f filters, z zoom, now time.Time) {
+	p, err := s.latencyPoller(f, z, now, chartWidth(r))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var b, bar bytes.Buffer
+	if err := s.tmpl.ExecuteTemplate(&b, "latency", p); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err := s.tmpl.ExecuteTemplate(&bar, "zoom-bar", newZoomBar(f, z, now, s.loc)); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	b.Write(hx.Partial("#latency-zoom", "innerMorph", bar.Bytes()))
+	h := w.Header()
+	h.Set("Cache-Control", "no-cache")
+	h.Set("HX-Push-Url", pageURL(f, z))
+	writeHTML(w, b.Bytes())
+}
+
+// ---- Drill-down ------------------------------------------------------------
+
+// requestsBody is the requests chart, its window links (the select
+// gesture as plain links) and its table.
+func (s *server) requestsBody(f filters, now time.Time, width float64) (template.HTML, error) {
+	var links bytes.Buffer
+	if err := s.tmpl.ExecuteTemplate(&links, "windows", windowLinks(f, requestWindows(f, now, s.loc))); err != nil {
+		return "", err
+	}
+	return s.bodyWith(requestsChart(f, now, width, s.loc), template.HTML(links.String())) // html/template output
+}
+
 func (s *server) requests(w http.ResponseWriter, r *http.Request) {
-	b, err := s.body(requestsChart(parseFilters(r), s.now(), chartWidth(r), s.loc))
+	b, err := s.requestsBody(parseFilters(r), s.now(), chartWidth(r))
 	s.writeTagged(w, r, []byte(b), err)
+}
+
+// detail renders the window detail that r selects, or the closed detail.
+func (s *server) detail(r *http.Request, f filters, now time.Time, width float64) (detailData, error) {
+	d := detailData{
+		BackURL: pageURL(f, zoom{}),
+		BackGet: "/detail/requests?" + f.query(),
+	}
+	win, rs, notice, ok := selectedWindow(r, f, requestWindows(f, now, s.loc))
+	if !ok {
+		d.Notice, d.Status = notice, notice
+		return d, nil
+	}
+	c := detailChart(f, rs, win.Start, width, s.loc)
+	svg, err := c.HTML()
+	if err != nil {
+		return d, err
+	}
+	table, err := c.Table()
+	if err != nil {
+		return d, err
+	}
+	span := rangeText(win.Start, win.Start.Add(f.Range.Window), s.loc)
+	d.Open = true
+	d.Heading = "Window from " + win.Label
+	d.Sub = regionNames(rs) + " · " + span + ", in " + bucketText(f.Range.Window/detailBuckets) + " buckets"
+	d.Status = "Showing requests for " + regionNames(rs) + " from " + span + "."
+	d.Stats = detailStats(f, rs, win.Start)
+	d.Title = c.Title
+	d.SVG, d.Table = svg, table
+	return d, nil
+}
+
+// requestsDetail answers a select of the requests chart, a window link and
+// the detail's Close link (no hp-x: no selection).
+func (s *server) requestsDetail(w http.ResponseWriter, r *http.Request) {
+	d, err := s.detail(r, parseFilters(r), s.now(), chartWidth(r))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
+	s.render(w, r, "detail", d)
 }
 
 func (s *server) scatter(w http.ResponseWriter, r *http.Request) {
@@ -437,7 +594,7 @@ func (s *server) stylesheet(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", "text/css; charset=utf-8")
 	h.Set("Cache-Control", "no-cache")
 	h.Set("ETag", s.cssTag)
-	http.ServeContent(w, r, "hyperplot.css", time.Time{}, bytes.NewReader(s.css))
+	http.ServeContent(w, r, "hx-plot.css", time.Time{}, bytes.NewReader(s.css))
 }
 
 // ---- Helpers ---------------------------------------------------------------
@@ -450,7 +607,10 @@ func chartWidth(r *http.Request) float64 {
 }
 
 // body renders a chart with its data table.
-func (s *server) body(c *hyperplot.Chart) (template.HTML, error) {
+func (s *server) body(c *hyperplot.Chart) (template.HTML, error) { return s.bodyWith(c, "") }
+
+// bodyWith renders a chart, then extra, then the chart's data table.
+func (s *server) bodyWith(c *hyperplot.Chart, extra template.HTML) (template.HTML, error) {
 	svg, err := c.HTML()
 	if err != nil {
 		return "", err
@@ -465,6 +625,7 @@ func (s *server) body(c *hyperplot.Chart) (template.HTML, error) {
 		Title: c.Title,
 		Width: strconv.FormatFloat(c.Width, 'f', -1, 64),
 		SVG:   svg,
+		Extra: extra,
 		Table: table,
 	})
 	if err != nil {

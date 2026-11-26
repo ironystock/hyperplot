@@ -7,18 +7,26 @@
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="A live service dashboard rendered as server-side SVG by hyperplot and kept live by htmx 4.">
 <!-- noSwap: error pages from a proxy, a timeout or middleware never replace a
-     chart (and hx-ptag can't pin one in place). morphIgnore: morphs keep a
-     <details> the reader opened open. Both arrays replace htmx's defaults. -->
-<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"],"morphIgnore":["data-htmx-powered","open"]}'>
+     chart (and hx-ptag can't pin one in place). The array replaces htmx's
+     default. The client extension keeps a table's <details> open or closed
+     across morphs, so the page needs no morphIgnore for "open". -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
 <title>Service overview · hyperplot</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/hyperplot.css">
+<link rel="stylesheet" href="/static/hx-plot.css">
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
-<script defer src="/static/hyperplot.js"></script>
+<!-- htmx and its extensions load in order and without defer. A deferred
+     htmx 4.0.2 starts on a timer, which can fire while a deferred extension
+     is still downloading; that extension then misses the first pass, and
+     the throughput stream, for one, never connects. hx-plot.js and its
+     brush companion may defer: htmx waits for DOMContentLoaded, which runs
+     after deferred scripts, and deferred scripts run in order. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+<script defer src="/static/hx-plot-brush.js"></script>
 </head>
 <body>
 <header class="top">
@@ -86,13 +94,25 @@
     <header class="card-head">
       <div>
         <h2 id="latency-heading">Latency</h2>
-        <p class="card-sub">p50, p95 and p99 across the selected regions, against a 250 ms objective</p>
+        <p class="card-sub">p50, p95 and p99 across the selected regions, against a 250 ms objective. Drag across the chart to zoom in.</p>
       </div>
       <span class="badge" id="latency-status"><span class="dot" aria-hidden="true"></span>Polled every 2 s</span>
     </header>
-    <div id="latency-body" class="chart" data-hp-autosize
-         hx-get="{{.LatencyURL}}" hx-trigger="load delay:1ms, every 2s, hp:resize" hx-swap="innerMorph"
-         hx-ptag="{{.LatencyTag}}" hx-indicator="#latency-status">{{.Latency}}</div>
+    {{- /*
+      Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader drag
+      a range across the chart (or mark one with Shift+arrows and Enter);
+      the extension dispatches htmx:plot:brush, which this element turns
+      into a request with hp-x0 and hp-x1. The answer replaces the polling
+      element whole (outerMorph), because its hx-get carries the zoom. The
+      hx-sync pair puts the brush, the zoom form and the polls on one
+      queue: a zoom aborts a poll in flight, and polls are dropped while a
+      zoom is pending, so a late poll cannot swap the unzoomed chart back.
+    */}}
+    <div class="zoom" hx-plot:brush hx-get="{{.BrushURL}}" hx-trigger="htmx:plot:brush"
+         hx-target="#latency-body" hx-swap="outerMorph" hx-sync="replace" hx-include="[name=bars]">
+      <div id="latency-zoom" class="zoom-bar">{{template "zoom-bar" .Zoom}}</div>
+      {{template "latency" .Latency}}
+    </div>
   </section>
 
   <section class="card" aria-labelledby="throughput-heading">
@@ -110,9 +130,12 @@
       hx-sse 4.0.2, morphing a new hx-sse:connect URL into the same element
       leaves the old stream reconnecting, and a node that htmx processes
       twice while connecting opens two streams.
+      The page itself renders the chart without a stream; "load" fetches the
+      stream card at the container's real width, so the chart is fitted
+      before it goes live and only one stream ever opens.
     */}}
-    <div id="throughput-body" class="chart" data-hp-autosize hx-morph-skip-children
-         hx-get="/cards/throughput" hx-include="#filters" hx-trigger="hp:resize, filters-applied from:body"
+    <div id="throughput-body" class="chart" hx-plot:autosize hx-morph-skip-children
+         hx-get="/cards/throughput" hx-include="#filters" hx-trigger="load, htmx:plot:resize, filters-applied from:body"
          hx-swap="innerHTML">{{template "stream" .Stream}}</div>
   </section>
 
@@ -120,7 +143,7 @@
     <header class="card-head">
       <div>
         <h2 id="requests-heading">Requests by region</h2>
-        <p class="card-sub">Closed windows only, so this changes rarely</p>
+        <p class="card-sub">Closed windows only, so this changes rarely. Click a bar for its window in detail.</p>
       </div>
       <fieldset class="seg seg-sm" hx-get="/charts/requests" hx-trigger="change" hx-target="#requests-body"
                 hx-swap="innerMorph" hx-include="#filters, [form=filters]" hx-indicator="#requests-status">
@@ -129,9 +152,22 @@
         <label class="seg-item"><input type="radio" form="filters" name="bars" value="stacked"{{if .Stacked}} checked{{end}}><span>Stacked</span></label>
       </fieldset>
     </header>
-    <div id="requests-body" class="chart" data-hp-autosize
-         hx-get="{{.RequestsURL}}" hx-trigger="load delay:1ms, every 5s, hp:resize" hx-swap="innerMorph"
-         hx-include="[name=bars]" hx-ptag="{{.RequestsTag}}" hx-indicator="#requests-status">{{.Requests}}</div>
+    {{- /*
+      Select to drill down (docs/spec.md §5.2). A click on a bar, or Enter
+      on a focused one, makes the extension dispatch htmx:plot:select, which
+      bubbles to this element and becomes a request with hp-chart, hp-x (the
+      bar's category) and hp-series (the clicked bar's region). The detail
+      goes into #requests-detail; because that element has
+      hx-plot:autosize, the request also carries its width (hp-w). The
+      window links under the chart send the same request without a pointer.
+    */}}
+    <div class="drill" hx-get="{{.DetailURL}}" hx-trigger="htmx:plot:select"
+         hx-target="#requests-detail" hx-swap="innerMorph">
+      <div id="requests-body" class="chart" hx-plot:autosize
+           hx-get="{{.RequestsURL}}" hx-trigger="load delay:1ms, every 5s, htmx:plot:resize" hx-swap="innerMorph"
+           hx-include="[name=bars]" hx-ptag="{{.RequestsTag}}" hx-indicator="#requests-status">{{.Requests}}</div>
+    </div>
+    <div id="requests-detail" class="detail" hx-plot:autosize>{{template "detail" .Detail}}</div>
     <p class="card-foot"><span class="badge" id="requests-status"><span class="dot" aria-hidden="true"></span>Polled every 5 s</span></p>
   </section>
 
@@ -143,8 +179,8 @@
       </div>
       <span class="badge"><span class="dot" aria-hidden="true"></span>Updates with the filters</span>
     </header>
-    <div id="scatter-body" class="chart" data-hp-autosize
-         hx-get="{{.ScatterURL}}" hx-trigger="load delay:1ms, hp:resize" hx-swap="innerMorph"
+    <div id="scatter-body" class="chart" hx-plot:autosize
+         hx-get="{{.ScatterURL}}" hx-trigger="load delay:1ms, htmx:plot:resize" hx-swap="innerMorph"
          hx-ptag="{{.ScatterTag}}">{{.Scatter}}</div>
   </section>
 
@@ -158,7 +194,11 @@
       <dt>Filters</dt>
       <dd>The filter row re-renders every chart with one request and <code>innerMorph</code>. Each region pins a color slot, so it keeps its color when others are hidden.</dd>
       <dt>Sizing</dt>
-      <dd>Resize the window: each chart re-renders at its container's width (<code>hp:resize</code> and <code>hx.Size</code>).</dd>
+      <dd>Resize the window: each chart re-renders at its container's width (<code>htmx:plot:resize</code> and <code>hx.Size</code>).</dd>
+      <dt>Brush to zoom</dt>
+      <dd>Drag across the latency chart, or focus it and mark a range with Shift and the arrow keys, then press Enter. The brush becomes an ordinary request (<code>hx.Brushed</code>); the server re-renders that range and pushes its URL, so Back undoes the zoom. The from/to form does the same without a pointer.</dd>
+      <dt>Select to drill down</dt>
+      <dd>Click a bar, or press Enter on a focused one, to open its window for that region (<code>hx.Selected</code>). The links under the chart open the same detail. Changing a filter returns to the live window.</dd>
       <dt>Reading the data</dt>
       <dd>Hover or focus a chart and use the arrow keys, or open <q>View as table</q> under it.</dd>
     </dl>
@@ -182,9 +222,59 @@
 {{- end}}
 
 {{define "chart-body" -}}
-{{.SVG}}<input type="hidden" form="filters" name="w-{{.ID}}" value="{{.Width}}"/><details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+{{.SVG}}<input type="hidden" form="filters" name="w-{{.ID}}" value="{{.Width}}"/>{{.Extra}}<details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+{{- end}}
+
+{{define "latency" -}}
+<div id="latency-body" class="chart" hx-plot:autosize
+     hx-get="{{.URL}}" hx-trigger="load delay:1ms, every 2s, htmx:plot:resize" hx-swap="innerMorph"
+     hx-sync="closest .zoom:drop" hx-ptag="{{.Tag}}" hx-indicator="#latency-status">{{.Body}}</div>
+{{- end}}
+
+{{define "zoom-bar" -}}
+<p id="latency-zoom-status" class="zoom-state" role="status"><span class="zoom-mark{{if .Zoomed}} zoom-mark-on{{end}}" aria-hidden="true"></span>{{.Status}}</p>
+<form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
+      hx-get="/charts/latency" hx-target="#latency-body" hx-swap="outerMorph" hx-sync="closest .zoom:replace" hx-include="[name=bars]">
+  {{- range .Hidden}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
+  <input type="hidden" name="hp-chart" value="latency">
+  <label class="field"><span>From</span><input type="datetime-local" name="hp-x0" step="1" value="{{.From}}" required></label>
+  <label class="field"><span>To</span><input type="datetime-local" name="hp-x1" step="1" value="{{.To}}" required></label>
+  <button type="submit" class="btn">Zoom</button>
+  {{- if .Zoomed}}
+  <a class="btn btn-quiet" href="{{.ResetURL}}" hx-get="{{.ResetGet}}" hx-target="#latency-body" hx-swap="outerMorph"
+     hx-sync="closest .zoom:replace" hx-include="[name=bars]" data-focus-return="#latency">Back to live</a>
+  {{- end}}
+</form>
+{{- end}}
+
+{{define "windows" -}}
+<nav class="drill-links" aria-label="Window details"><span class="drill-label" aria-hidden="true">Details</span>
+{{- range .}}<a id="{{.ID}}" href="{{.Href}}" hx-get="{{.Get}}" hx-target="#requests-detail" hx-swap="innerMorph">{{.Label}}</a>{{end -}}
+</nav>
+{{- end}}
+
+{{define "detail" -}}
+<p id="requests-detail-status" class="sr-only" role="status">{{.Status}}</p>
+{{- if .Open}}
+<article class="detail-card" aria-labelledby="requests-detail-heading">
+  <header class="detail-head">
+    <div>
+      <h3 id="requests-detail-heading">{{.Heading}}</h3>
+      <p class="card-sub">{{.Sub}}</p>
+    </div>
+    <a class="btn btn-quiet" href="{{.BackURL}}" hx-get="{{.BackGet}}" hx-target="#requests-detail" hx-swap="innerMorph" data-focus-return="#requests">Close</a>
+  </header>
+  <dl class="stats">
+    {{- range .Stats}}<div class="stat"><dt>{{.Label}}</dt><dd>{{.Value}}{{with .Unit}}<span class="stat-unit">{{.}}</span>{{end}}</dd></div>{{end -}}
+  </dl>
+  {{.SVG}}
+  <details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+</article>
+{{- else if .Notice}}
+<p class="detail-note">{{.Notice}}</p>
+{{- end}}
 {{- end}}
 
 {{define "stream" -}}
-<div class="stream" hx-sse:connect="{{.URL}}" hx-swap="innerMorph">{{.Body}}</div>
+<div class="stream"{{with .URL}} hx-sse:connect="{{.}}" hx-swap="innerMorph"{{end}}>{{.Body}}</div>
 {{- end}}
