@@ -187,16 +187,54 @@ jobs:
         working-directory: client
         run: node --test
 
-  browser:
-    name: Browser tests (Chrome)
+      # The Node example server (node: built-ins only, no package.json).
+      # Its tests read client/, docs/spec.md and testdata/conformance/, so
+      # they run on every change, not only changes under examples/node.
+      - name: node --test (examples/node)
+        working-directory: examples/node
+        run: node --test
+
+  python:
+    name: Python example and checker (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the oldest version examples/python/README.md supports
+        # (the checker asks for 3.9).
+        python: ["3.10", "3.x"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      # harness.mjs builds and runs examples/dashboard.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      # Standard library only: nothing to install. test_wire.py checks that
+      # hp_wire.py still equals docs/spec.md Appendix B.
+      - name: unittest (Python example)
+        run: python -m unittest discover examples/python
+
+      # The checker's self-tests: every reference fixture passes, and each
+      # mutation of a valid chart, table or server fails with its section.
+      - name: unittest (checker)
+        run: python -m unittest discover tools/hpcheck
+
+  # The checker against the Python and Node fixture renderers' output and
+  # against the dashboard, Python and Node servers over HTTP. The example
+  # tests above never read those files or hpcheck.json, so this is what
+  # keeps the conformance commands in their READMEs working.
+  conformance:
+    name: Conformance (hpcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-go@v7
         with:
           go-version: stable
@@ -206,6 +244,38 @@ jobs:
         with:
           node-version: "22"
           package-manager-cache: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: make conformance
+        run: make conformance PYTHON=python
+
+  browser:
+    name: Browser tests (Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # harness.mjs builds and runs the Go examples, and
+      # examples.browser.mjs also starts the Python and Node servers.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
 
       # The dev dependencies only: playwright-core (which downloads no
       # browser) and the htmx.org files the tests serve in place of the CDN,
@@ -227,8 +297,11 @@ jobs:
           "$chrome" --version
           echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
 
+      # Every browser test, including examples.browser.mjs, which opens
+      # every example (Go, Python and Node) in turn.
       - name: npm run test:browser
         working-directory: client
         env:
           HP_BROWSER_TMP: ${{ runner.temp }}/hyperplot
+          PYTHON: python
         run: npm run test:browser

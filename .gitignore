@@ -11,6 +11,14 @@
 *.prof
 coverage.*
 cover.html
+# Output the example READMEs write: the Python and Node fixture renderers
+# (render_fixtures.py out/python, render-fixtures.mjs out/node) and the
+# gallery's static export (go run ./examples/gallery -out out/gallery)
+/out/
+
+# Python bytecode from running the Python example or its tests
+__pycache__/
+*.py[cod]
 
 # Go workspace files are per-developer
 go.work
