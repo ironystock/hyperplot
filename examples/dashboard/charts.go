@@ -45,9 +45,17 @@ func chartHeight(w float64, tall bool) float64 {
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
 
 // latencyChart plots the traffic-weighted p50, p95 and p99 latency of the
-// selected regions over the closed buckets ending at end.
+// selected regions over the closed buckets ending at end. The series start
+// one bucket before the window (see windowHistory), so the lines reach the
+// plot's left edge while the window slides.
 func latencyChart(f filters, end time.Time, w float64, loc *time.Location) *hyperplot.Chart {
-	hist := history(f, end)
+	start := end.Add(-f.Range.Span)
+	return latencyFrame(windowHistory(f, end, start), start, end, w, loc)
+}
+
+// latencyFrame plots the buckets in hist over the x window [start, end]:
+// the live window of latencyChart or a zoom (zoomedLatencyChart).
+func latencyFrame(hist []sample, start, end time.Time, w float64, loc *time.Location) *hyperplot.Chart {
 	xs := hyperplot.Times(hyperplot.Map(hist, func(s sample) time.Time { return s.End }))
 	line := func(name string, slot int, v func(sample) float64) hyperplot.Line {
 		return hyperplot.Line{
@@ -65,7 +73,7 @@ func latencyChart(f filters, end time.Time, w float64, loc *time.Location) *hype
 		Height:   chartHeight(w, true),
 		Animate:  true,
 		Location: loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{end.Add(-f.Range.Span), end}},
+		X:        hyperplot.Axis{TimeDomain: [2]time.Time{start, end}},
 		Y:        hyperplot.Axis{Label: "Latency (ms)", Unit: " ms", Zero: true},
 		Marks: []hyperplot.Mark{
 			line("p50", slotP50, func(s sample) float64 { return s.P50 }),
@@ -77,12 +85,13 @@ func latencyChart(f filters, end time.Time, w float64, loc *time.Location) *hype
 }
 
 // throughputChart stacks each selected region's request rate. The closed
-// buckets are followed by one live point for the current second, so the
-// chart moves every second while the stream is open.
+// buckets, from one before the window on, are followed by one live point for
+// the current second, so the chart moves every second while the stream is
+// open.
 func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
 	now = now.Truncate(time.Second)
 	last := now.Truncate(f.Range.Step)
-	hist := history(f, last)
+	hist := windowHistory(f, last, now.Add(-f.Range.Span))
 	xs := hyperplot.Map(hist, func(s sample) time.Time { return s.End })
 	var live []float64
 	if now.After(last) {
@@ -119,24 +128,15 @@ func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *h
 // its polls are answered with 304 Not Modified.
 func requestsChart(f filters, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
 	win := f.Range.Window
-	end := now.Truncate(win)
-	cats := make(hyperplot.Categories, f.Range.Windows)
-	starts := make([]time.Time, f.Range.Windows)
-	for i := range starts {
-		starts[i] = end.Add(-time.Duration(f.Range.Windows-i) * win)
-		layout := "3:04 PM"
-		if win%time.Hour == 0 {
-			layout = "3 PM"
-		}
-		cats[i] = starts[i].In(loc).Format(layout)
-	}
+	ws := requestWindows(f, now, loc)
+	cats := hyperplot.Categories(hyperplot.Map(ws, func(w window) string { return w.Label }))
 	marks := make([]hyperplot.Mark, len(f.Regions))
 	for i, g := range f.Regions {
 		marks[i] = hyperplot.Bar{
 			Name: g.Key,
 			X:    cats,
-			Y: hyperplot.Map(starts, func(t time.Time) float64 {
-				return math.Round(g.rate(t, win) * win.Seconds())
+			Y: hyperplot.Map(ws, func(w window) float64 {
+				return math.Round(g.rate(w.Start, win) * win.Seconds())
 			}),
 			Slot: g.Slot,
 		}

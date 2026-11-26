@@ -9,7 +9,10 @@
 // little room rather than clipping.
 package textwidth
 
-import "unicode"
+import (
+	"strings"
+	"unicode"
+)
 
 // ascii holds advance widths in thousandths of an em for runes 0x20-0x7E.
 var ascii = [95]uint16{
@@ -69,7 +72,8 @@ func isWide(r rune) bool {
 }
 
 // Truncate shortens s with a trailing ellipsis so that its estimated width
-// fits within maxWidth. It returns s unchanged if it already fits.
+// fits within maxWidth. It returns s unchanged if it already fits. Spaces
+// before the ellipsis are dropped ("6:06…", not "6:06 …").
 func Truncate(s string, fontSize, maxWidth float64) string {
 	if Width(s, fontSize) <= maxWidth {
 		return s
@@ -79,7 +83,7 @@ func Truncate(s string, fontSize, maxWidth float64) string {
 	for i, r := range s {
 		w += runeWidth(r) * fontSize * safety
 		if w+ell > maxWidth {
-			return s[:i] + "…"
+			return strings.TrimRightFunc(s[:i], unicode.IsSpace) + "…"
 		}
 	}
 	return s

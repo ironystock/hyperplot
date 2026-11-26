@@ -61,6 +61,8 @@ func TestTruncate(t *testing.T) {
 		{"too narrow for anything", "hello", 1, "…"},
 		{"empty", "", 0, ""},
 		{"multibyte stays valid", "日本語のシリーズ名", 40, "日本…"},
+		// The prefix that fits is "6:06 "; its trailing space is dropped.
+		{"no space before the ellipsis", "6:06 AM", Width("6:06 …", 12) * safety, "6:06…"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

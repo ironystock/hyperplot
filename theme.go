@@ -189,8 +189,8 @@ func (pl Palette) vars(def Palette) string {
 }
 
 // CSS returns the theme's stylesheet. It declares the --hp-* custom
-// properties on .hp (charts), .hp-tip (the client's tooltip) and
-// .hp-table (data tables), switches to the dark palette for a dark color
+// properties on .hp (charts), .hp-spark (sparklines), .hp-tip (the
+// client's tooltip) and .hp-table (data tables), switches to the dark palette for a dark color
 // scheme or data-theme="dark", and styles marks, text, tooltips and
 // tables. It also honors prefers-reduced-motion and forced-colors.
 func (t Theme) CSS() string {
@@ -201,7 +201,7 @@ func (t Theme) CSS() string {
 		}
 		b.WriteByte('\n')
 	}
-	scopes := []string{".hp", ".hp-tip", ".hp-table"}
+	scopes := []string{".hp", ".hp-spark", ".hp-tip", ".hp-table"}
 	under := func(prefix string) string {
 		parts := make([]string, len(scopes))
 		for i, s := range scopes {
@@ -213,13 +213,19 @@ func (t Theme) CSS() string {
 	// svg.hp:root selectors cover.
 	def := DefaultTheme()
 	dark := t.Dark.vars(def.Dark)
-	w(".hp,.hp-tip,.hp-table{", t.Light.vars(def.Light), "}")
+	w(strings.Join(scopes, ","), "{", t.Light.vars(def.Light), "}")
 	w(`@media (prefers-color-scheme:dark){`, under(`:root:where(:not([data-theme="light"]))`),
 		`,svg.hp:root:not([data-theme="light"]){`, dark, "}}")
 	w(under(`:root[data-theme="dark"]`), `,svg.hp:root[data-theme="dark"]{`, dark, "}")
 
 	// Chart frame and text.
-	w(".hp{color:var(--hp-text);max-width:100%;height:auto;overflow:visible}")
+	// touch-action lets a sideways finger drag reach the client as
+	// pointer events (the touch scrub) while vertical scrolling and pinch
+	// zoom still work; without it the browser takes the drag as a pan and
+	// cancels the pointer. docs/spec.md §3.4 makes it a MUST for any
+	// replacement stylesheet.
+	w(".hp{color:var(--hp-text);max-width:100%;height:auto;overflow:visible;touch-action:pan-y pinch-zoom}")
+	w(".hp-spark{color:var(--hp-text);max-width:100%;height:auto;overflow:visible}")
 	w(".hp:focus{outline:none}")
 	w(".hp:focus-visible{outline:2px solid var(--hp-series-1);outline-offset:2px;border-radius:2px}")
 	w(".hp text{fill:var(--hp-text);fill-opacity:1}")
@@ -232,9 +238,20 @@ func (t Theme) CSS() string {
 	w(".hp .hp-grid{stroke:var(--hp-grid);stroke-opacity:1}")
 	w(".hp .hp-baseline{stroke:var(--hp-axis);stroke-opacity:1}")
 	w(".hp .hp-rule{stroke:var(--hp-text);stroke-opacity:.5}")
-	w(".hp .hp-dot,.hp .hp-end{stroke:var(--hp-surface)}")
-	w(".hp .hp-crosshair{stroke:var(--hp-text-muted);stroke-opacity:.6;pointer-events:none}")
-	w(".hp .hp-band-hl{fill:var(--hp-text);fill-opacity:.06;pointer-events:none}")
+	w(".hp .hp-dot,.hp .hp-end,.hp-spark .hp-end{stroke:var(--hp-surface)}")
+	// The active point's indicators: the crosshair (mode x), the band
+	// highlight (mode band) and the brushed range (rect.hp-brush, drawn by
+	// the client). With a keyboard they are the chart's focus state, so
+	// each has an edge in the muted ink at 3:1 or more against the surface
+	// (WCAG 1.4.11): a 1.5 px stroke whose worst-case antialiasing still
+	// covers 75% of a pixel, in screen pixels whatever the chart's scale.
+	// The washes alone, about 1.1:1, were barely visible. Then the
+	// crosshair cursor over charts inside an hx-plot:brush container.
+	const edge = "stroke:var(--hp-text-muted);stroke-opacity:1;stroke-width:1.5px;vector-effect:non-scaling-stroke;"
+	w(".hp .hp-crosshair{", edge, "pointer-events:none}")
+	w(".hp .hp-band-hl{fill:var(--hp-text);fill-opacity:.06;", edge, "pointer-events:none}")
+	w(".hp .hp-brush{fill:currentColor;fill-opacity:.1;", edge, "pointer-events:none}")
+	w(`:is([hx-plot\:brush],[data-hx-plot\:brush]) .hp{cursor:crosshair}`)
 
 	// Series colors. Marks paint with currentColor.
 	for i := 1; i <= 8; i++ {
@@ -291,12 +308,13 @@ func (t Theme) CSS() string {
 	// 1:1 against Canvas, and in band mode it is the only mark of the
 	// active category on the plot.
 	w("@media (forced-colors:active){",
-		".hp{color:CanvasText}",
-		".hp .hp-marks,.hp .hp-key,.hp .hp-end{forced-color-adjust:none}",
+		".hp,.hp-spark{color:CanvasText}",
+		".hp .hp-marks,.hp .hp-key,.hp .hp-end,.hp-spark .hp-end{forced-color-adjust:none}",
 		".hp text,.hp .hp-tick,.hp .hp-axis-label,.hp .hp-legend-label,.hp .hp-label,.hp .hp-rule-label{fill:CanvasText}",
 		".hp .hp-grid{stroke:GrayText}.hp .hp-baseline,.hp .hp-rule,.hp .hp-crosshair{stroke:CanvasText}",
-		".hp .hp-dot,.hp .hp-end,.hp .hp-label,.hp .hp-rule-label{stroke:Canvas}.hp .hp-bg{fill:Canvas}",
+		".hp .hp-dot,.hp .hp-end,.hp-spark .hp-end,.hp .hp-label,.hp .hp-rule-label{stroke:Canvas}.hp .hp-bg{fill:Canvas}",
 		".hp .hp-band-hl{fill:Highlight;fill-opacity:.25;stroke:Highlight;stroke-width:2px}",
+		".hp .hp-brush{fill:Highlight;fill-opacity:.25;stroke:Highlight}",
 		".hp-tip{border:1px solid CanvasText;forced-color-adjust:none;background:Canvas;color:CanvasText}",
 		".hp-tip-t,.hp-tip-v,.hp-tip-n{color:CanvasText}}")
 	return b.String()

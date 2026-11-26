@@ -1,6 +1,8 @@
 package hyperplot
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
@@ -8,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ironystock/hyperplot/scale"
 )
@@ -83,10 +86,14 @@ type plan struct {
 
 // xScale is the chart's x scale, of whichever kind the data needs.
 type xScale struct {
-	kind  xKind
-	lin   scale.Linear
-	tim   scale.Time
-	band  scale.Band
+	kind xKind
+	lin  scale.Linear
+	tim  scale.Time
+	band scale.Band
+	// ms is the drawn time domain in epoch milliseconds, as data-hp-x
+	// writes it (see timeWire); timeX maps through it. tim, over the
+	// data's own domain inside it, places and formats the ticks.
+	ms    [2]float64
 	count int
 	// timeFmt formats a time in full, for tooltips and tables.
 	timeFmt func(time.Time) string
@@ -126,11 +133,15 @@ func newPlan(c *Chart) (*plan, error) {
 	if err := checkDomain("Y", c.Y); err != nil {
 		return nil, err
 	}
+	if d := c.X.TimeDomain; !d[0].IsZero() && !d[1].IsZero() && (!timeInRange(d[0]) || !timeInRange(d[1])) {
+		return nil, fmt.Errorf("hyperplot: X.TimeDomain [%s, %s] is outside years 1 to 9999 (UTC)",
+			d[0].UTC().Format(time.RFC3339Nano), d[1].UTC().Format(time.RFC3339Nano))
+	}
 	if err := p.buildSeries(); err != nil {
 		return nil, err
 	}
 	if p.id == "" {
-		p.id = "hp-" + hash8(p.defaultIDKey())
+		p.id = defaultID(p.defaultIDKey())
 	}
 	p.computeEdges()
 	p.extents()
@@ -171,6 +182,11 @@ func chartID(c *Chart) (string, error) {
 // that agree on all of them (untitled charts of unnamed series, or one
 // chart rendered for two filters) still share an id, which is why
 // Chart.ID tells callers to set an ID for those.
+//
+// The key holds text that users may choose (series names, categories in
+// a title), so the id is not the 32-bit FNV-1a of the element keys, which
+// can be inverted to give one chart another's id with a chosen name; see
+// defaultID.
 func (p *plan) defaultIDKey() string {
 	c := p.c
 	var b strings.Builder
@@ -187,10 +203,21 @@ func (p *plan) defaultIDKey() string {
 	return b.String()
 }
 
+// defaultID returns the default chart id for key: "hp-" and the first 16
+// hex digits (64 bits) of its SHA-256, so that no one can find a name
+// that gives their chart the id of another chart on the page, which
+// would hand it that chart's accessible name, description and clip path.
+// It cannot stop two charts that agree on every input (the same title and
+// series names) from sharing an id; Chart.ID says to set one for those.
+func defaultID(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return "hp-" + hex.EncodeToString(sum[:8])
+}
+
 func checkDomain(name string, a Axis) error {
 	d := a.Domain
 	if d[0] != d[1] && !(valid(d[0]) && valid(d[1])) {
-		return fmt.Errorf("hyperplot: %s.Domain %v must be finite", name, d)
+		return fmt.Errorf("hyperplot: %s.Domain %v must be finite and within ±1e300", name, d)
 	}
 	return nil
 }
@@ -273,6 +300,13 @@ func (p *plan) buildSeries() error {
 			return fmt.Errorf("hyperplot: mark %d is nil", i)
 		}
 		s.mark, s.index = i, len(p.series)
+		// Like categories, a name is keyed by the text the client sees
+		// (data-hp-series, the JSON, hp-series in a select), so that its
+		// id follows the spec's derivation (docs/spec.md §3.6, §4.1).
+		s.name = validText(s.name)
+		if cats, ok := s.x.(Categories); ok {
+			s.x = validCategories(cats)
+		}
 		if err := p.checkSeries(s); err != nil {
 			return err
 		}
@@ -390,6 +424,13 @@ func (p *plan) checkSeries(s *series) error {
 	if s.labels != nil && len(s.labels) != len(s.y) {
 		return fmt.Errorf("hyperplot: %s: Labels has %d values but Y has %d", desc(), len(s.labels), len(s.y))
 	}
+	if ts, ok := s.x.(Times); ok {
+		for i, t := range ts {
+			if !timeInRange(t) {
+				return fmt.Errorf("hyperplot: %s: X[%d] %s is outside years 1 to 9999 (UTC)", desc(), i, t.UTC().Format(time.RFC3339Nano))
+			}
+		}
+	}
 	if s.kind == kindBar {
 		cats, _ := s.x.(Categories)
 		if len(cats) == 0 {
@@ -404,6 +445,56 @@ func (p *plan) checkSeries(s *series) error {
 		}
 	}
 	return nil
+}
+
+// timeInRange reports whether t falls in years 1 to 9999 in UTC: the
+// years an RFC 3339 date-time can write, and those the hx parsers and
+// Python's datetime read. Row keys and brush values outside them would
+// not round-trip (docs/spec.md §1.1).
+func timeInRange(t time.Time) bool {
+	y := t.UTC().Year()
+	return y >= 1 && y <= 9999
+}
+
+// validCategories returns cats with every byte that is not valid UTF-8
+// replaced by U+FFFD, as the JSON metadata and the markup write it, so
+// that categories are told apart (and keyed, docs/spec.md §4.3) by the
+// text the client sees. It returns cats itself when all are valid and
+// never modifies it.
+func validCategories(cats Categories) Categories {
+	var out Categories
+	for i, c := range cats {
+		if utf8.ValidString(c) {
+			if out != nil {
+				out[i] = c
+			}
+			continue
+		}
+		if out == nil {
+			out = make(Categories, len(cats))
+			copy(out, cats[:i])
+		}
+		out[i] = validText(c)
+	}
+	if out == nil {
+		return cats
+	}
+	return out
+}
+
+// validText returns s with every byte that is not valid UTF-8 replaced by
+// U+FFFD, as the markup and the JSON write it. It returns s itself when
+// it is valid.
+func validText(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	for _, r := range s { // an invalid byte ranges as RuneError, width 1
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // assignSlots validates pinned slots and gives every unpinned series the

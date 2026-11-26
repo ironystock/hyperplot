@@ -1,0 +1,210 @@
+{
+  "fixture": "params",
+  "about": "Request parameters (docs/spec.md, 'Request parameters'). 'client' cases describe what the extension adds to a request in htmx_config_request: the request's URL (ctx.request.action), the body already collected (form values and hx-vals), the autosize box (the hx-plot:autosize element at or above the request's target; null: none), htmx.config.metaCharacter when set, and the triggering event. 'server' cases describe how a server reads the parameters; the Go reference is package hx.",
+  "level": 3,
+  "client": [
+    {
+      "name": "autosize width",
+      "action": "/charts/latency", "body": {},
+      "autosize": { "mode": "", "width": 640.4, "height": 300 },
+      "event": { "type": "every" },
+      "adds": { "hp-w": "640" }
+    },
+    {
+      "name": "autosize both",
+      "action": "/charts/latency", "body": {},
+      "autosize": { "mode": "both", "width": 640, "height": 300 },
+      "event": { "type": "htmx:plot:resize" },
+      "adds": { "hp-w": "640", "hp-h": "300" }
+    },
+    {
+      "name": "a width the author wrote into the URL wins",
+      "action": "/charts/latency?hp-w=500", "body": {},
+      "autosize": { "mode": "", "width": 640, "height": 0 },
+      "event": { "type": "load" },
+      "adds": {}
+    },
+    {
+      "name": "a width already in the body wins",
+      "action": "/charts/latency", "body": { "hp-w": "500" },
+      "autosize": { "mode": "", "width": 640, "height": 0 },
+      "event": { "type": "load" },
+      "adds": {}
+    },
+    {
+      "name": "zero width is never sent",
+      "action": "/charts/latency", "body": {},
+      "autosize": { "mode": "", "width": 0, "height": 0 },
+      "event": { "type": "load" },
+      "adds": {}
+    },
+    {
+      "name": "no autosize element",
+      "action": "/charts/latency", "body": {},
+      "autosize": null,
+      "event": { "type": "load" },
+      "adds": {}
+    },
+    {
+      "name": "select",
+      "action": "/drill", "body": {},
+      "autosize": null,
+      "event": { "type": "htmx:plot:select", "detail": { "chart": "bb", "x": "Q1", "series": "2026", "index": 0 } },
+      "adds": { "hp-chart": "bb", "hp-x": "Q1", "hp-series": "2026" }
+    },
+    {
+      "name": "select with no series omits hp-series",
+      "action": "/drill", "body": {},
+      "autosize": null,
+      "event": { "type": "htmx:plot:select", "detail": { "chart": "lt", "x": "2026-03-03T14:10:00Z", "series": "", "index": 1 } },
+      "adds": { "hp-chart": "lt", "hp-x": "2026-03-03T14:10:00Z" }
+    },
+    {
+      "name": "brush plus autosize",
+      "action": "/charts/latency?range=1h", "body": {},
+      "autosize": { "mode": "", "width": 800, "height": 0 },
+      "event": { "type": "htmx:plot:brush", "detail": { "chart": "lt", "x0": "2026-03-03T14:05:00Z", "x1": "2026-03-03T14:15:00Z" } },
+      "adds": { "hp-w": "800", "hp-chart": "lt", "hp-x0": "2026-03-03T14:05:00Z", "hp-x1": "2026-03-03T14:15:00Z" },
+      "url": "/charts/latency?range=1h&hp-w=800&hp-chart=lt&hp-x0=2026-03-03T14%3A05%3A00Z&hp-x1=2026-03-03T14%3A15%3A00Z",
+      "note": "for GET, htmx copies the body into the query string after the URL's own parameters"
+    },
+    {
+      "name": "author values are never overridden",
+      "action": "/drill?hp-chart=fixed", "body": { "hp-x": "from-hx-vals" },
+      "autosize": null,
+      "event": { "type": "htmx:plot:select", "detail": { "chart": "bb", "x": "Q1", "series": "2026", "index": 0 } },
+      "adds": { "hp-series": "2026" }
+    },
+    {
+      "name": "select under htmx.config.metaCharacter",
+      "action": "/drill", "body": {},
+      "autosize": null, "metaCharacter": "-",
+      "event": { "type": "htmx-plot-select", "detail": { "chart": "bb", "x": "Q1", "series": "", "index": 0 } },
+      "adds": { "hp-chart": "bb", "hp-x": "Q1" },
+      "note": "htmx renames its events when metaCharacter is set; the extension compares with the adjusted name"
+    },
+    {
+      "name": "the pre-spec event name adds nothing",
+      "action": "/drill", "body": {},
+      "autosize": null,
+      "event": { "type": "plot:select", "detail": { "chart": "bb", "x": "Q1" } },
+      "adds": {}
+    },
+    {
+      "name": "other events add nothing",
+      "action": "/drill", "body": {},
+      "autosize": null,
+      "event": { "type": "click", "detail": { "chart": "bb", "x": "Q1" } },
+      "adds": {}
+    }
+  ],
+  "server": [
+    { "query": "hp-w=640", "size": { "default": [640, 0], "want": [640, 0] } },
+    { "query": "hp-w=10&hp-h=9000", "size": { "default": [640, 320], "want": [50, 4096] }, "note": "client values are clamped to [50, 4096]" },
+    { "query": "hp-w=abc&hp-h=-5", "size": { "default": [640, 320], "want": [640, 320] }, "note": "unusable values give the default, unclamped" },
+    { "query": "hp-w=NaN", "size": { "default": [640, 0], "want": [640, 0] } },
+    {
+      "query": "hp-chart=bb&hp-x=Q1&hp-series=2026",
+      "select": { "ok": true, "chart": "bb", "x": "Q1", "series": "2026" }
+    },
+    { "query": "hp-chart=bb&hp-x=", "select": { "ok": false } },
+    {
+      "query": "hp-x=2026-03-03T14%3A10%3A00Z",
+      "select": { "ok": true, "chart": "", "x": "2026-03-03T14:10:00Z", "series": "", "time": "2026-03-03T14:10:00Z" }
+    },
+    {
+      "query": "hp-chart=lt&hp-x0=2026-03-03T14%3A05%3A00Z&hp-x1=2026-03-03T14%3A15%3A00.25Z",
+      "brush": { "ok": true, "chart": "lt", "x0": "2026-03-03T14:05:00Z", "x1": "2026-03-03T14:15:00.25Z", "times": ["2026-03-03T14:05:00Z", "2026-03-03T14:15:00.25Z"] }
+    },
+    {
+      "query": "hp-x0=2026-03-03T14%3A15%3A00Z&hp-x1=2026-03-03T14%3A05%3A00Z",
+      "brush": { "ok": true, "chart": "", "x0": "2026-03-03T14:15:00Z", "x1": "2026-03-03T14:05:00Z", "times": ["2026-03-03T14:05:00Z", "2026-03-03T14:15:00Z"] },
+      "note": "servers must not assume x0 <= x1: the typed accessors order the pair"
+    },
+    {
+      "query": "hp-x0=2026-03-03T15%3A05%3A00%2B01%3A00&hp-x1=2026-03-03T14%3A15%3A00Z",
+      "brush": { "ok": true, "chart": "", "x0": "2026-03-03T15:05:00+01:00", "x1": "2026-03-03T14:15:00Z", "times": ["2026-03-03T14:05:00Z", "2026-03-03T14:15:00Z"] },
+      "note": "any RFC 3339 offset is accepted"
+    },
+    {
+      "query": "hp-x0=1.5&hp-x1=1.7451",
+      "brush": { "ok": true, "chart": "", "x0": "1.5", "x1": "1.7451", "floats": [1.5, 1.7451] }
+    },
+    { "query": "hp-x0=1.5", "brush": { "ok": false } },
+    {
+      "query": "hp-x0=NaN&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "NaN", "x1": "2", "floats": "error" },
+      "note": "both values are present, so the reader reports a brush; the typed accessor rejects NaN, and the server then ignores the brush (spec 5.3)"
+    },
+    {
+      "query": "hp-x0=2026-03-03T14%3A05&hp-x1=2026-03-03T14%3A15%3A30.5",
+      "brush": {
+        "ok": true, "chart": "", "x0": "2026-03-03T14:05", "x1": "2026-03-03T14:15:30.5",
+        "times": ["2026-03-03T14:05:00Z", "2026-03-03T14:15:30.5Z"],
+        "timesIn": { "zone": "America/New_York", "times": ["2026-03-03T19:05:00Z", "2026-03-03T19:15:30.5Z"] }
+      },
+      "note": "the HTML datetime-local form (no offset) is read in the chart's time zone: UTC for times, the given zone for timesIn"
+    },
+    {
+      "query": "hp-x0=2026-03-08T01%3A50&hp-x1=2026-03-08T02%3A10",
+      "brush": {
+        "ok": true, "chart": "", "x0": "2026-03-08T01:50", "x1": "2026-03-08T02:10",
+        "times": ["2026-03-08T01:50:00Z", "2026-03-08T02:10:00Z"],
+        "timesIn": { "zone": "America/New_York", "times": ["2026-03-08T06:50:00Z", "2026-03-08T07:10:00Z"] }
+      },
+      "note": "New York skips 02:00 to 03:00 on 2026-03-08; a skipped wall time is read with the offset before the change (EST), as JavaScript's Date and Python's fold=0 read it, so 02:10 is 03:10 EDT and the range keeps its order"
+    },
+    {
+      "query": "hp-x0=2026-11-01T01%3A30&hp-x1=2026-11-01T02%3A30%3A00",
+      "brush": {
+        "ok": true, "chart": "", "x0": "2026-11-01T01:30", "x1": "2026-11-01T02:30:00",
+        "times": ["2026-11-01T01:30:00Z", "2026-11-01T02:30:00Z"],
+        "timesIn": { "zone": "America/New_York", "times": ["2026-11-01T05:30:00Z", "2026-11-01T07:30:00Z"] }
+      },
+      "note": "New York repeats 01:00 to 02:00 on 2026-11-01; a repeated wall time is the first of its two instants (EDT)"
+    },
+    { "query": "hp-x0=0000-12-31T23%3A30%3A00-01%3A00&hp-x1=0001-01-01T01%3A00%3A00Z", "brush": { "ok": true, "chart": "", "x0": "0000-12-31T23:30:00-01:00", "x1": "0001-01-01T01:00:00Z", "times": "error" }, "note": "year 0 is rejected as written, even when the offset moves the instant into year 1" },
+    { "query": "hp-x0=2026-03-03T14%3A10%3A00%2B00%3A60&hp-x1=2026-03-03T14%3A15%3A00Z", "brush": { "ok": true, "chart": "", "x0": "2026-03-03T14:10:00+00:60", "x1": "2026-03-03T14:15:00Z", "times": "error" }, "note": "RFC 3339 offset minutes run to 59" },
+    { "query": "hp-x0=2026-03-03T14&hp-x1=2026-03-03T15", "brush": { "ok": true, "chart": "", "x0": "2026-03-03T14", "x1": "2026-03-03T15", "times": "error" } },
+    {
+      "query": "hp-x0=1E3&hp-x1=-0.5e-2",
+      "brush": { "ok": true, "chart": "", "x0": "1E3", "x1": "-0.5e-2", "floats": [-0.005, 1000] },
+      "note": "any JSON number: an upper-case E and an exponent are fine"
+    },
+    {
+      "query": "hp-x0=1e999&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "1e999", "x1": "2", "floats": "error" },
+      "note": "a JSON number that overflows to infinity is not finite (spec 5.3); the cases after it are not JSON numbers, though float parsers in many languages take them"
+    },
+    { "query": "hp-x0=-1e999&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "-1e999", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=Infinity&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "Infinity", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=inf&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "inf", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=1_0&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "1_0", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=%202&hp-x1=3", "brush": { "ok": true, "chart": "", "x0": " 2", "x1": "3", "floats": "error" } },
+    { "query": "hp-x0=0x10&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "0x10", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=%2B1&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "+1", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=1.&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": "1.", "x1": "2", "floats": "error" } },
+    { "query": "hp-x0=.5&hp-x1=2", "brush": { "ok": true, "chart": "", "x0": ".5", "x1": "2", "floats": "error" } },
+    {
+      "query": "hp-x0=2026-03-03t14%3A10%3A00z&hp-x1=2026-03-03T14%3A20%3A00.2500000000Z",
+      "brush": { "ok": true, "chart": "", "x0": "2026-03-03t14:10:00z", "x1": "2026-03-03T14:20:00.2500000000Z", "times": ["2026-03-03T14:10:00Z", "2026-03-03T14:20:00.25Z"] },
+      "note": "RFC 3339 allows a lower-case t and z, and any number of fraction digits"
+    },
+    {
+      "query": "hp-x0=2026-03-03T08%3A40%3A00-05%3A30&hp-x1=2026-03-03T14%3A20%3A00Z",
+      "brush": { "ok": true, "chart": "", "x0": "2026-03-03T08:40:00-05:30", "x1": "2026-03-03T14:20:00Z", "times": ["2026-03-03T14:10:00Z", "2026-03-03T14:20:00Z"] }
+    },
+    {
+      "query": "hp-x0=2026-03-03T14%3A10%2B01%3A00&hp-x1=2026-03-03T14%3A20%3A00Z",
+      "brush": { "ok": true, "chart": "", "x0": "2026-03-03T14:10+01:00", "x1": "2026-03-03T14:20:00Z", "times": "error" },
+      "note": "an offset needs seconds: this is neither RFC 3339 nor the datetime-local form"
+    },
+    { "query": "hp-x0=2026-03-03T14%3A10%3A00%2B24%3A00&hp-x1=2026-03-03T14%3A20%3A00Z", "brush": { "ok": true, "chart": "", "x0": "2026-03-03T14:10:00+24:00", "x1": "2026-03-03T14:20:00Z", "times": "error" } },
+    { "query": "hp-x0=2026-03-03T24%3A00%3A00Z&hp-x1=2026-03-03T14%3A20%3A00Z", "brush": { "ok": true, "chart": "", "x0": "2026-03-03T24:00:00Z", "x1": "2026-03-03T14:20:00Z", "times": "error" } },
+    { "query": "hp-x0=2026-02-30T14%3A10%3A00Z&hp-x1=2026-03-03T14%3A20%3A00Z", "brush": { "ok": true, "chart": "", "x0": "2026-02-30T14:10:00Z", "x1": "2026-03-03T14:20:00Z", "times": "error" } },
+    {
+      "query": "hp-x0=20260303T141000Z&hp-x1=2026-03-03T14%3A20%3A00Z",
+      "brush": { "ok": true, "chart": "", "x0": "20260303T141000Z", "x1": "2026-03-03T14:20:00Z", "times": "error" },
+      "note": "ISO 8601 forms that are not RFC 3339 (basic, week and ordinal dates) are rejected"
+    },
+    { "query": "hp-x0=2026-W10-2T14%3A10%3A00Z&hp-x1=2026-03-03T14%3A20%3A00Z", "brush": { "ok": true, "chart": "", "x0": "2026-W10-2T14:10:00Z", "x1": "2026-03-03T14:20:00Z", "times": "error" } }
+  ]
+}

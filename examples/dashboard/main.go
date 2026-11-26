@@ -3,6 +3,7 @@
 //
 //	go run ./examples/dashboard            # http://localhost:8080
 //	go run ./examples/dashboard -addr :9000
+//	go run ./examples/dashboard -speed 5   # simulated time runs 5x faster
 //
 // It shows every live-update pattern hyperplot supports, on simulated,
 // deterministic data:
@@ -18,9 +19,21 @@
 //     from one layout to the other.
 //   - The filter row re-renders every chart with one hx-get and
 //     innerMorph. Regions keep their colors because each pins a Slot.
-//   - Every chart fits its container: the client extension fires
-//     hp:resize and reports the width, which the handlers read with
-//     hx.Size.
+//   - Every chart fits its container: the hx-plot extension fires
+//     htmx:plot:resize and reports the width (hp-w), which the handlers
+//     read with hx.Size.
+//   - Brush to zoom: dragging across the latency chart (hx-plot:brush)
+//     becomes a request with hp-x0 and hp-x1. The handler reads it with
+//     hx.Brushed, answers with a polling element whose hx-get carries the
+//     range, and pushes the page URL of the zoom, so Back undoes it. A
+//     from/to form sends the same request without a pointer.
+//   - Select to drill down: a click on a bar of the requests chart (or
+//     Enter on a focused one, or a window link) becomes a request with
+//     hp-x and hp-series; the handler reads it with hx.Selected and renders
+//     that window in detail.
+//
+// Each gesture also updates a polite live region, so screen readers hear
+// what the request did.
 //
 // The page loads htmx and its extensions from a CDN, so a browser needs
 // network access; the server itself uses only the standard library.
@@ -41,22 +54,30 @@ import (
 
 func main() {
 	addr := flag.String("addr", ":8080", "address to listen on")
+	speed := flag.Float64("speed", 1, "how many times faster than real time the simulated clock runs, so windows slide sooner (demos and browser tests)")
 	flag.Parse()
 	logger := log.New(os.Stderr, "dashboard: ", log.LstdFlags)
+	if !(*speed > 0 && *speed <= 1000) {
+		logger.Fatalf("-speed %v: want a number in (0, 1000]", *speed)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, *addr, logger); err != nil {
+	if err := run(ctx, *addr, *speed, logger); err != nil {
 		logger.Fatal(err)
 	}
 }
 
 // run serves the dashboard on addr until ctx is canceled, then shuts down
 // gracefully. Open SSE streams end when ctx does, because every request
-// context derives from it.
-func run(ctx context.Context, addr string, logger *log.Logger) error {
+// context derives from it. The simulated clock runs speed times faster than
+// real time.
+func run(ctx context.Context, addr string, speed float64, logger *log.Logger) error {
 	s, err := newServer(logger)
 	if err != nil {
 		return err
+	}
+	if speed != 1 {
+		s.now = fastClock(time.Now, speed)
 	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -103,6 +124,15 @@ func newHTTPServer(ctx context.Context, h http.Handler, logger *log.Logger) *htt
 		IdleTimeout:       2 * time.Minute,
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		ErrorLog:          logger,
+	}
+}
+
+// fastClock returns a clock that starts at now() and runs speed times
+// faster than it.
+func fastClock(now func() time.Time, speed float64) func() time.Time {
+	start := now()
+	return func() time.Time {
+		return start.Add(time.Duration(float64(now().Sub(start)) * speed))
 	}
 }
 

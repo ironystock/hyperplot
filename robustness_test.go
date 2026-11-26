@@ -1,11 +1,15 @@
 package hyperplot
 
 import (
+	"bytes"
+	"math"
 	"math/rand/v2"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // Tests for inputs at the edges of what charts are built for: crowded
@@ -110,7 +114,7 @@ func TestDirectLabelsNeedTheLastPointInsideX(t *testing.T) {
 // TestRepeatedXValuesAreListed checks that every point a series has at
 // one x reaches the tooltip and the table, not only the first.
 func TestRepeatedXValuesAreListed(t *testing.T) {
-	c := &Chart{Marks: []Mark{
+	c := &Chart{ID: "r", Marks: []Mark{
 		Line{Name: "mean", X: Floats{1, 2}, Y: []float64{10, 20}},
 		Dot{Name: "samples", X: Floats{1, 1, 1, 2, 2}, Y: []float64{8, 10, 12, 18, 22}, Labels: []string{"a", "", "c", "d", "e"}},
 	}}
@@ -119,8 +123,8 @@ func TestRepeatedXValuesAreListed(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`<tr><td>a, c</td><th scope="row">1</th><td>10</td><td>8, 10, 12</td></tr>`,
-		`<tr><td>d, e</td><th scope="row">2</th><td>20</td><td>18, 22</td></tr>`,
+		`<tr id="r-r-` + hash8("1") + `"><td>a, c</td><th scope="row">1</th><td>10</td><td>8, 10, 12</td></tr>`,
+		`<tr id="r-r-` + hash8("2") + `"><td>d, e</td><th scope="row">2</th><td>20</td><td>18, 22</td></tr>`,
 	} {
 		if !strings.Contains(string(tbl), want) {
 			t.Errorf("table lacks %s\n%s", want, tbl)
@@ -349,6 +353,112 @@ func TestDefaultIDsDiffer(t *testing.T) {
 	}
 }
 
+// TestDefaultIDResistsChosenNames pins the default id to a 64-bit hash:
+// with the 32-bit FNV-1a it once used, the series name "evil-aujk87b"
+// was found (meet in the middle, milliseconds) to give a second chart the
+// id of "acme-corp"'s chart, so that the victim read the attacker's
+// <title>, <desc> and clip path.
+func TestDefaultIDResistsChosenNames(t *testing.T) {
+	chart := func(name string) *Chart {
+		return &Chart{Title: "Requests per tenant", Marks: []Mark{Line{Name: name, X: Floats{0, 1, 2}, Y: []float64{1, 2, 3}}}}
+	}
+	ids := map[string]string{}
+	for _, name := range []string{"acme-corp", "evil-aujk87b"} {
+		p, err := newPlan(chart(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !regexp.MustCompile(`^hp-[0-9a-f]{16}$`).MatchString(p.id) {
+			t.Errorf("default id %q is not hp- and 16 hex digits", p.id)
+		}
+		for other, id := range ids {
+			if id == p.id {
+				t.Errorf("%q and %q share the default id %s", name, other, id)
+			}
+		}
+		ids[name] = p.id
+	}
+}
+
+// TestRepeatedWallTimesReadApart checks that the default time labels
+// tell apart the two instants of a wall time that the chart's zone shows
+// twice, in the tooltip heading, the keyboard reading (both "t") and the
+// table's row header (spec.md §3.5, §3.8).
+func TestRepeatedWallTimesReadApart(t *testing.T) {
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := time.Date(2026, 11, 1, 5, 30, 0, 0, time.UTC) // 1:30 AM EDT
+	c := &Chart{ID: "c", Location: ny, Marks: []Mark{
+		Line{Name: "a", X: Times{a, a.Add(time.Hour), a.Add(2 * time.Hour)}, Y: []float64{1, 2, 3}},
+	}}
+	svg := mustRender(t, c)
+	table, err := c.Table()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Nov 1, 2026 1:30 AM EDT", "Nov 1, 2026 1:30 AM EST", "Nov 1, 2026 2:30 AM"} {
+		if !bytes.Contains(svg, []byte(`"t":"`+want+`"`)) {
+			t.Errorf("no row headed %q in the metadata", want)
+		}
+		if !strings.Contains(string(table), `<th scope="row">`+want+`</th>`) {
+			t.Errorf("no table row headed %q:\n%s", want, table)
+		}
+	}
+	assertSpec(t, "fall back", svg, []byte(table))
+}
+
+// TestSeriesNamesInvalidUTF8 checks that a series name with bytes that
+// are not UTF-8 is keyed by the text the client sees, with each such byte
+// read as U+FFFD (spec.md §3.6, §4.1), as categories are: the id agrees
+// with the spec's derivation and with data-hp-series, which a select
+// sends back as hp-series.
+func TestSeriesNamesInvalidUTF8(t *testing.T) {
+	fffd := string(utf8.RuneError)
+	render := func(names ...string) string {
+		var marks []Mark
+		for _, n := range names {
+			marks = append(marks, Line{Name: n, X: Floats{1, 2}, Y: []float64{1, 2}})
+		}
+		return string(mustRender(t, &Chart{ID: "c", Marks: marks}))
+	}
+	out := render("a\xff")
+	want := `<g id="c-s-` + hash8("a"+fffd) + `" class="hp-series hp-s1" data-hp-series="a` + fffd + `">`
+	if !strings.Contains(out, want) {
+		t.Errorf("series a\\xff: want %s in\n%s", want, out)
+	}
+	if out != render("a"+fffd) {
+		t.Error(`a series named "a\xff" renders unlike one named "a\uFFFD"`)
+	}
+	// Two names that read alike are one name twice: distinct ids, by the
+	// spec's rule for a repeated name.
+	two := render("a\xfe", "a\xff")
+	for _, k := range []string{hash8("a" + fffd), hash8("a" + fffd + "#1")} {
+		if !strings.Contains(two, `id="c-s-`+k+`"`) {
+			t.Errorf("no series id c-s-%s in\n%s", k, two)
+		}
+	}
+}
+
+// TestDomainLimitIsNamed checks that a fixed domain beyond ±1e300 is
+// rejected with the real limit, not as "not finite": hx.Brush.Floats
+// returns any finite number, so a handler meets this error with finite
+// input.
+func TestDomainLimitIsNamed(t *testing.T) {
+	for _, d := range [][2]float64{{0, 1e301}, {-1e308, 1e308}, {0, math.Inf(1)}, {math.NaN(), 1}} {
+		c := &Chart{X: Axis{Domain: d}, Marks: []Mark{Line{Name: "a", X: Floats{1, 2}, Y: []float64{1, 2}}}}
+		_, err := c.Render()
+		if err == nil || !strings.Contains(err.Error(), "within ±1e300") {
+			t.Errorf("X.Domain %v: err = %v, want one naming the ±1e300 limit", d, err)
+		}
+	}
+	c := &Chart{X: Axis{Domain: [2]float64{-1e300, 1e300}}, Marks: []Mark{Line{Name: "a", X: Floats{1, 2}, Y: []float64{1, 2}}}}
+	if _, err := c.Render(); err != nil {
+		t.Errorf("X.Domain ±1e300: %v", err)
+	}
+}
+
 // TestDescriptionOfEmptyChart checks that a chart with series but no
 // values says so instead of describing fallback axis ranges.
 func TestDescriptionOfEmptyChart(t *testing.T) {
@@ -437,7 +547,7 @@ func TestForcedColorsKeepSeriesAndTooltipText(t *testing.T) {
 		t.Fatal("no forced-colors block")
 	}
 	for _, want := range []string{
-		".hp .hp-marks,.hp .hp-key,.hp .hp-end{forced-color-adjust:none}",
+		".hp .hp-marks,.hp .hp-key,.hp .hp-end,.hp-spark .hp-end{forced-color-adjust:none}",
 		".hp-tip-t,.hp-tip-v,.hp-tip-n{color:CanvasText}",
 	} {
 		if !strings.Contains(forced, want) {
@@ -512,6 +622,87 @@ func TestTooltipContentWraps(t *testing.T) {
 
 // TestRefetchDimIsDelayed checks that a refetch dims the chart only after
 // a delay, so fast polls do not make it pulse.
+// TestActivePointIndicatorsContrast checks WCAG 1.4.11 for the marks that
+// show a keyboard reader's position: the crosshair, the band highlight and
+// the brushed range each have an edge of 3:1 or more against the surface
+// in both default palettes, even when antialiasing spreads it over two
+// pixels. Before the fix they were washes and a faint line at about 1.1:1
+// to 1.6:1 in Chrome.
+func TestActivePointIndicatorsContrast(t *testing.T) {
+	css := Stylesheet()
+	normal, _, _ := strings.Cut(css, "@media (forced-colors:active){")
+	th := DefaultTheme()
+	tokens := map[string]map[string]string{
+		"light": {"text": th.Light.Text, "text-muted": th.Light.TextMuted, "surface": th.Light.Surface},
+		"dark":  {"text": th.Dark.Text, "text-muted": th.Dark.TextMuted, "surface": th.Dark.Surface},
+	}
+	declRe := regexp.MustCompile(`(?:^|;)([a-z-]+):([^;]*)`)
+	for _, sel := range []string{".hp .hp-crosshair", ".hp .hp-band-hl", ".hp .hp-brush"} {
+		i := strings.Index(normal, sel+"{")
+		if i < 0 {
+			t.Errorf("no rule for %s", sel)
+			continue
+		}
+		body, _, _ := strings.Cut(normal[i+len(sel)+1:], "}")
+		decl := map[string]string{}
+		for _, m := range declRe.FindAllStringSubmatch(body, -1) {
+			decl[m[1]] = m[2]
+		}
+		width, err := strconv.ParseFloat(strings.TrimSuffix(decl["stroke-width"], "px"), 64)
+		if err != nil || decl["vector-effect"] != "non-scaling-stroke" || (decl["stroke-opacity"] != "" && decl["stroke-opacity"] != "1") {
+			t.Errorf("%s{%s}: want an opaque non-scaling stroke with a px width", sel, body)
+			continue
+		}
+		token, ok := strings.CutPrefix(decl["stroke"], "var(--hp-")
+		token = strings.TrimSuffix(token, ")")
+		for mode, tk := range tokens {
+			if !ok || tk[token] == "" {
+				t.Errorf("%s: stroke %q is not a palette token", sel, decl["stroke"])
+				break
+			}
+			// A line w px wide straddling a pixel boundary covers two
+			// pixels by w/2 each: the worst case for its visible color.
+			cover := math.Min(1, width/2)
+			ink, bg := hexRGB(t, tk[token]), hexRGB(t, tk["surface"])
+			var seen [3]float64
+			for c := range seen {
+				seen[c] = cover*ink[c] + (1-cover)*bg[c]
+			}
+			if r := contrastRatio(seen, bg); r < 3 {
+				t.Errorf("%s in %s: edge contrast %.2f:1, want at least 3:1", sel, mode, r)
+			}
+		}
+	}
+}
+
+func hexRGB(t *testing.T, s string) [3]float64 {
+	t.Helper()
+	v, err := strconv.ParseUint(strings.TrimPrefix(s, "#"), 16, 32)
+	if err != nil || len(s) != 7 {
+		t.Fatalf("color %q is not #rrggbb", s)
+	}
+	return [3]float64{float64(v >> 16), float64(v >> 8 & 0xff), float64(v & 0xff)}
+}
+
+// contrastRatio is the WCAG contrast ratio of two sRGB colors (0–255).
+func contrastRatio(a, b [3]float64) float64 {
+	lum := func(c [3]float64) float64 {
+		var l float64
+		for i, w := range [3]float64{0.2126, 0.7152, 0.0722} {
+			v := c[i] / 255
+			if v <= 0.04045 {
+				v /= 12.92
+			} else {
+				v = math.Pow((v+0.055)/1.055, 2.4)
+			}
+			l += w * v
+		}
+		return l
+	}
+	la, lb := lum(a), lum(b)
+	return (math.Max(la, lb) + 0.05) / (math.Min(la, lb) + 0.05)
+}
+
 func TestRefetchDimIsDelayed(t *testing.T) {
 	if !strings.Contains(Stylesheet(), ".htmx-request .hp,.hp.htmx-request{opacity:.6;transition:opacity .2s .5s}") {
 		t.Error("the refetch dim should wait half a second")

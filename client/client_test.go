@@ -3,55 +3,95 @@ package client_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/ironystock/hyperplot/client"
 )
 
+// scripts lists the embedded scripts with their accessors and strings
+// each must contain.
+var scripts = []struct {
+	name    string
+	js      func() []byte
+	handler func() http.Handler
+	want    []string
+}{
+	{"hx-plot.js", client.JS, client.Handler, []string{"/*! hx-plot ", "registerExtension('plot'", "metadata.hp-tips", "htmx:plot:resize", "htmx:plot:select", "textContent"}},
+	{"hx-plot-brush.js", client.BrushJS, client.BrushHandler, []string{"/*! hx-plot-brush ", "htmx:plot:brush", "H.brush"}},
+	{"hx-plot-tween.js", client.TweenJS, client.TweenHandler, []string{"/*! hx-plot-tween ", "H.tween"}},
+}
+
 func TestJSEmbedded(t *testing.T) {
-	src := client.JS()
-	if len(src) == 0 {
-		t.Fatal("JS is empty")
-	}
-	for _, want := range []string{"registerExtension", "'hyperplot'", "metadata.hp-tips", "hp:resize", "textContent"} {
-		if !bytes.Contains(src, []byte(want)) {
-			t.Errorf("JS does not contain %q", want)
+	for _, s := range scripts {
+		src := s.js()
+		if len(src) == 0 {
+			t.Fatalf("%s is empty", s.name)
 		}
-	}
-	if bytes.Contains(src, []byte("\r")) {
-		t.Error("JS contains a carriage return; the file must use LF line endings")
-	}
-	if bytes.Contains(src, []byte("innerHTML")) {
-		t.Error("JS uses innerHTML; tooltip text must go through textContent")
+		for _, want := range s.want {
+			if !bytes.Contains(src, []byte(want)) {
+				t.Errorf("%s does not contain %q", s.name, want)
+			}
+		}
+		if bytes.Contains(src, []byte("\r")) {
+			t.Errorf("%s contains a carriage return; the file must use LF line endings", s.name)
+		}
+		if bytes.Contains(src, []byte("innerHTML")) {
+			t.Errorf("%s uses innerHTML; text must go through textContent", s.name)
+		}
 	}
 }
 
-// TestJSIsACopy guards the strong ETag: if a caller could change the
+// TestJSIsACopy guards the strong ETags: if a caller could change the
 // served bytes, clients revalidating with the old tag would get 304 and
 // keep a stale script.
 func TestJSIsACopy(t *testing.T) {
-	h := client.Handler()
-	before := do(t, h, http.MethodGet, nil)
+	for _, s := range scripts {
+		h := s.handler()
+		before := do(t, h, http.MethodGet, nil)
 
-	src := client.JS()
-	want := src[0]
-	for i := range src {
-		src[i] = 'X'
+		src := s.js()
+		want := src[0]
+		for i := range src {
+			src[i] = 'X'
+		}
+		if got := s.js()[0]; got != want {
+			t.Fatalf("%s: changing a returned slice changed the next one: first byte %q, want %q", s.name, got, want)
+		}
+		after := do(t, h, http.MethodGet, nil)
+		if !bytes.Equal(after.body, before.body) {
+			t.Errorf("%s: changing a returned slice changed what the handler serves", s.name)
+		}
+		if a, b := after.header.Get("ETag"), before.header.Get("ETag"); a != b {
+			t.Errorf("%s: ETag changed from %q to %q", s.name, b, a)
+		}
 	}
-	if got := client.JS()[0]; got != want {
-		t.Fatalf("changing a returned slice changed the next one: first byte %q, want %q", got, want)
-	}
-	after := do(t, h, http.MethodGet, nil)
-	if !bytes.Equal(after.body, before.body) {
-		t.Error("changing a returned slice changed what Handler serves")
-	}
-	if a, b := after.header.Get("ETag"), before.header.Get("ETag"); a != b {
-		t.Errorf("ETag changed from %q to %q", b, a)
+}
+
+func TestHandlersServeTheirOwnScript(t *testing.T) {
+	tags := map[string]bool{}
+	for _, s := range scripts {
+		res := do(t, s.handler(), http.MethodGet, nil)
+		if res.code != http.StatusOK || !bytes.Equal(res.body, s.js()) {
+			t.Errorf("%s: status %d, or the body differs from its JS function", s.name, res.code)
+		}
+		if got := res.header.Get("Content-Type"); got != "text/javascript; charset=utf-8" {
+			t.Errorf("%s: Content-Type = %q", s.name, got)
+		}
+		etag := res.header.Get("ETag")
+		if tags[etag] {
+			t.Errorf("%s: ETag %s is not unique", s.name, etag)
+		}
+		tags[etag] = true
+		if code := do(t, s.handler(), http.MethodGet, http.Header{"If-None-Match": {etag}}).code; code != http.StatusNotModified {
+			t.Errorf("%s: revalidation status = %d, want 304", s.name, code)
+		}
 	}
 }
 
@@ -64,7 +104,7 @@ type response struct {
 
 func do(t *testing.T, h http.Handler, method string, header http.Header) response {
 	t.Helper()
-	req := httptest.NewRequestWithContext(t.Context(), method, "/static/hyperplot.js", nil)
+	req := httptest.NewRequestWithContext(t.Context(), method, "/static/hx-plot.js", nil)
 	for k, vs := range header {
 		for _, v := range vs {
 			req.Header.Add(k, v)
@@ -207,11 +247,47 @@ func fetch(ctx context.Context, url string) error {
 	return nil
 }
 
+// TestPackageFiles checks that every file the npm package lists in
+// package.json "files" exists, except the minified copies that prepack
+// builds: npm packs without a missing one and says nothing. LICENSE, which
+// npm adds on its own, must be the repository's.
+func TestPackageFiles(t *testing.T) {
+	raw, err := os.ReadFile("package.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pkg struct {
+		Files []string `json:"files"`
+	}
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range append(pkg.Files, "LICENSE") {
+		if strings.HasSuffix(f, ".min.js") || strings.HasSuffix(f, ".min.js.map") {
+			continue
+		}
+		if _, err := os.Stat(f); err != nil {
+			t.Errorf("package.json lists %s: %v", f, err)
+		}
+	}
+	got, err := os.ReadFile("LICENSE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile("../LICENSE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Error("client/LICENSE differs from the repository's LICENSE; copy it")
+	}
+}
+
 func ExampleHandler() {
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/hyperplot.js", client.Handler())
+	mux.Handle("GET /static/hx-plot.js", client.Handler())
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/static/hyperplot.js", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/static/hx-plot.js", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	fmt.Println(rec.Code, rec.Header().Get("Content-Type"))

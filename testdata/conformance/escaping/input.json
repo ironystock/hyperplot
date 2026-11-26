@@ -1,0 +1,19 @@
+{
+  "spec": 1,
+  "about": "The series name and the second category hold TAB, LF, CR and U+0001 as well as markup characters.",
+  "chart": {
+    "id": "esc",
+    "title": "Q&A <1>",
+    "width": 240,
+    "height": 120,
+    "marks": [
+      {
+        "type": "bar",
+        "name": "<script>\"x\"&'y'</script>\t\n\r\u0001z",
+        "x": { "categories": ["a<b", "c&d\t\n\r\u0001e"] },
+        "y": [1, 2]
+      }
+    ]
+  },
+  "table": true
+}

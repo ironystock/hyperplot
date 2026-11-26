@@ -79,6 +79,11 @@ func (s Linear) Nice(count int) Linear {
 		d0, d1 = d1, d0
 	}
 	start, stop := niceBounds(d0, d1, count)
+	// Rounding in the step arithmetic can land a bound just inside the
+	// domain (-0.19999999999999998 niced to -0.2); a nice domain never
+	// leaves out a value of the original one, which the wire spec relies
+	// on (points outside the x domain have no tooltip row).
+	start, stop = math.Min(start, d0), math.Max(stop, d1)
 	if reversed {
 		start, stop = stop, start
 	}

@@ -276,6 +276,7 @@ func (p *plan) setXScale() {
 	case xTime:
 		t0, t1 := p.timeDomain()
 		p.x.tim = scale.Time{Domain: [2]time.Time{t0, t1}, Range: [2]float64{p.l, p.r}, Location: c.Location}
+		p.x.ms = timeWire(t0, t1)
 	case xBand:
 		p.x.band = scale.NewBand(p.cats, p.l, p.r)
 	default:
@@ -301,7 +302,7 @@ func (p *plan) xTickLabels() []tickLabel {
 			format = p.x.tim.TickFormatFor(p.x.count)
 		}
 		for _, t := range p.x.tim.Ticks(p.x.count) {
-			add(p.x.tim.Map(t), format(t))
+			add(p.timeX(t), format(t))
 		}
 	case xBand:
 		half := p.x.band.Bandwidth() / 2
@@ -476,7 +477,7 @@ func (p *plan) xPixel(s *series, i int) float64 {
 		}
 		return clampPx(p.x.lin.Map(x[i]))
 	case Times:
-		return clampPx(p.x.tim.Map(x[i]))
+		return clampPx(p.timeX(x[i]))
 	case Categories:
 		return p.bandCenter(p.catIdx[x[i]])
 	}

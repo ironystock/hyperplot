@@ -22,8 +22,10 @@ const (
 // values (NaN, ±Inf) break the line.
 //
 // It has no title or tooltip; its accessible name (aria-label) is Label
-// followed by the first, minimum, maximum and last values. It uses the
-// same classes as charts, so the same stylesheet themes it.
+// followed by the first, minimum, maximum and last values. Its root is
+// <svg class="hp-spark">, not a chart (svg.hp), so the client and spec
+// validators leave it alone; inside, it uses the same classes as charts
+// (hp-s1, hp-line, hp-area, hp-end), so the same stylesheet themes it.
 type Sparkline struct {
 	// Values are plotted at even horizontal spacing.
 	Values []float64
@@ -108,7 +110,10 @@ func (s Sparkline) Render() ([]byte, error) {
 	var out svg.Writer
 	out.Open("svg",
 		svg.A("xmlns", "http://www.w3.org/2000/svg"),
-		svg.A("class", "hp hp-spark"),
+		// Not class hp: a chart is any svg.hp (docs/spec.md §1, §6.4), and
+		// a sparkline has none of a chart's contract (§3.2), so clients
+		// and validators would take it for a broken chart.
+		svg.A("class", "hp-spark"),
 		svg.A("viewBox", "0 0 "+svg.Num(w)+" "+svg.Num(h)),
 		svg.N("width", w),
 		svg.N("height", h),

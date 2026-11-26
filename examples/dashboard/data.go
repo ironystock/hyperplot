@@ -260,6 +260,24 @@ func history(f filters, end time.Time) []sample {
 	return out
 }
 
+// windowHistory returns the closed buckets of f's step that end at or
+// before last, oldest first, back to and including the first one that ends
+// before start. last must be a multiple of the step.
+//
+// That one bucket lies outside a window [start, …]: the chart draws it,
+// clipped at the plot's left edge, and leaves it out of the tooltips and
+// the table. While the window slides, the line then reaches the left edge
+// instead of starting a bucket in (docs/spec.md §4.4).
+func windowHistory(f filters, last, start time.Time) []sample {
+	step := f.Range.Step
+	n := int(last.Sub(start)/step) + 2
+	out := make([]sample, n)
+	for i := range n {
+		out[i] = bucket(f, last.Add(-time.Duration(n-1-i)*step), step)
+	}
+	return out
+}
+
 // liveRates returns each selected region's request rate in the current,
 // still open second: the value the SSE stream appends to the throughput
 // chart. It is seeded by the second, so it changes once a second.

@@ -91,7 +91,7 @@ func ExampleChart_HTML() {
 		fmt.Println(out[i:])
 	}
 	// Output:
-	// <details><summary>Data</summary><table class="hp-table"><caption>Signups</caption><thead><tr><th scope="col">X</th><th scope="col">Signups</th></tr></thead><tbody><tr><th scope="row">Mon</th><td>12</td></tr><tr><th scope="row">Tue</th><td>19</td></tr></tbody></table></details></figure>
+	// <details><summary>Data</summary><table class="hp-table" id="hp-01b169927afb57c8-table"><caption>Signups</caption><thead><tr><th scope="col">X</th><th scope="col">Signups</th></tr></thead><tbody><tr id="hp-01b169927afb57c8-r-4ea382e1"><th scope="row">Mon</th><td>12</td></tr><tr id="hp-01b169927afb57c8-r-fab4f425"><th scope="row">Tue</th><td>19</td></tr></tbody></table></details></figure>
 }
 
 func ExampleChart_Table() {
@@ -108,7 +108,7 @@ func ExampleChart_Table() {
 	}
 	fmt.Println(table)
 	// Output:
-	// <table class="hp-table"><caption>Error rate</caption><thead><tr><th scope="col">X</th><th scope="col">api</th></tr></thead><tbody><tr><th scope="row">1</th><td>0.5%</td></tr><tr><th scope="row">2</th><td>1.25%</td></tr></tbody></table>
+	// <table class="hp-table" id="hp-ebb8e6092fae8e75-table"><caption>Error rate</caption><thead><tr><th scope="col">X</th><th scope="col">api</th></tr></thead><tbody><tr id="hp-ebb8e6092fae8e75-r-340ca71c"><th scope="row">1</th><td>0.5%</td></tr><tr id="hp-ebb8e6092fae8e75-r-370cabd5"><th scope="row">2</th><td>1.25%</td></tr></tbody></table>
 }
 
 func ExampleSparkline() {
@@ -119,7 +119,7 @@ func ExampleSparkline() {
 	}
 	fmt.Println(string(svg))
 	// Output:
-	// <svg xmlns="http://www.w3.org/2000/svg" class="hp hp-spark" viewBox="0 0 60 20" width="60" height="20" role="img" aria-label="Requests per second: first 3, min 2, max 6, last 6"><g class="hp-s1"><path class="hp-line" d="M4,13L21.33,10L38.67,16L56,4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle class="hp-end" cx="56" cy="4" r="2.5" fill="currentColor"/></g></svg>
+	// <svg xmlns="http://www.w3.org/2000/svg" class="hp-spark" viewBox="0 0 60 20" width="60" height="20" role="img" aria-label="Requests per second: first 3, min 2, max 6, last 6"><g class="hp-s1"><path class="hp-line" d="M4,13L21.33,10L38.67,16L56,4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle class="hp-end" cx="56" cy="4" r="2.5" fill="currentColor"/></g></svg>
 }
 
 func ExampleSparkline_HTML() {

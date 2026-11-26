@@ -51,6 +51,8 @@ func appendRows(dst []byte, rows []tipRow) []byte {
 		}
 		dst = append(dst, `{"t":`...)
 		dst = appendJSONString(dst, r.t)
+		dst = append(dst, `,"k":`...)
+		dst = appendJSONString(dst, r.k)
 		dst = append(dst, `,"v":[`...)
 		for j, e := range r.v {
 			if j > 0 {

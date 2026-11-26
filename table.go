@@ -2,6 +2,7 @@ package hyperplot
 
 import (
 	"html/template"
+	"math"
 	"strings"
 
 	"github.com/ironystock/hyperplot/internal/svg"
@@ -14,7 +15,12 @@ import (
 // empty). There is one row per x value and one column per series, with
 // values formatted like the tooltips (Y.Format plus Y.Unit) and "–" for
 // missing values; Dot labels, when present, fill the first column. A
-// chart of only dots lists one row per point instead.
+// chart of only dots lists one row per point instead. Points outside the
+// x domain (the overscan point of a sliding window) have no row.
+//
+// The table's id is the chart's id plus "-table", and each body row has a
+// stable id derived from its x value (docs/spec.md §4.1), so a morph swap
+// keeps a reader's rows in place as rows come and go.
 //
 // Place it next to the chart, for example inside a <details> element, so
 // that it stays reachable without hovering. It returns the same
@@ -33,6 +39,9 @@ func (c *Chart) Table() (template.HTML, error) {
 type tableWriter struct{ b strings.Builder }
 
 func (t *tableWriter) raw(s string) { t.b.WriteString(s) }
+
+// row opens a body row with the given id.
+func (t *tableWriter) row(id string) { t.b.WriteString(`<tr id="` + svg.Escape(id) + `">`) }
 
 // missingCell is the content of a cell with no value: the visible dash,
 // hidden from screen readers, which skip a bare en dash at their default
@@ -60,7 +69,7 @@ func (t *tableWriter) value(text string) {
 
 func (p *plan) table() string {
 	var t tableWriter
-	t.raw(`<table class="hp-table">`)
+	t.raw(`<table class="hp-table" id="` + svg.Escape(p.id) + `-table">`)
 	caption := p.c.Title
 	if caption == "" {
 		caption = "Chart data"
@@ -87,17 +96,22 @@ func (p *plan) table() string {
 func (p *plan) seriesTable(t *tableWriter, xHead string) {
 	idx := p.pointIndex()
 	type row struct {
-		k    xkey
-		head string
+		k        xkey
+		head, id string
 	}
 	var rows []row
-	if p.xk == xBand {
-		for _, cat := range p.cats {
-			rows = append(rows, row{xkey{s: cat}, cat})
+	if p.tipMode() == "band" {
+		// Band rows share their categories' keys, so a row and its bars
+		// carry the same {catKey}. A line on a band axis (mode x) lists
+		// only the categories with a value, like its metadata.
+		for ci, cat := range p.cats {
+			rows = append(rows, row{xkey{s: cat}, cat, p.catKey[ci]})
 		}
 	} else {
-		for _, c := range p.xColumns(idx) {
-			rows = append(rows, row{c.k, p.xValue(c.s, c.i)})
+		cols := p.xColumns(idx)
+		seen := make(map[string]bool, len(cols))
+		for _, c := range cols {
+			rows = append(rows, row{c.k, p.xValue(c.s, c.i), uniqueKey(c.k.rowKey(p.xk), seen)})
 		}
 	}
 	hasLabels := false
@@ -114,7 +128,7 @@ func (p *plan) seriesTable(t *tableWriter, xHead string) {
 	}
 	t.raw("</tr></thead><tbody>")
 	for _, r := range rows {
-		t.raw("<tr>")
+		t.row(p.id + "-r-" + r.id)
 		if hasLabels {
 			var labels []string
 			for _, s := range p.series {
@@ -159,11 +173,14 @@ func (p *plan) pointTable(t *tableWriter, xHead string) {
 	t.cell("th", "col", yHead)
 	t.raw("</tr></thead><tbody>")
 	for _, s := range p.series {
+		// Row ids are {seriesKey}-{key}, with keys unique per series.
+		seen := make(map[string]bool, len(s.y))
 		for i := range s.y {
-			if _, ok := keyOf(s.x, i); !ok {
-				continue
+			k, ok := keyOf(s.x, i)
+			if !ok || math.IsNaN(s.pyHi[i]) || !p.xInDomain(s, i) {
+				continue // not plotted, so not in the metadata either
 			}
-			t.raw("<tr>")
+			t.row(p.id + "-r-" + s.key + "-" + uniqueKey(k.rowKey(p.xk), seen))
 			if hasLabels {
 				label := ""
 				if s.labels != nil {

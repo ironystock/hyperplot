@@ -1,0 +1,14 @@
+{
+  "spec": 1,
+  "chart": {
+    "id": "bb",
+    "title": "Revenue",
+    "width": 240,
+    "height": 120,
+    "marks": [
+      { "type": "bar", "name": "2025", "x": { "categories": ["Q1", "Q2"] }, "y": [120, 135] },
+      { "type": "bar", "name": "2026", "x": { "categories": ["Q1", "Q2"] }, "y": [140, null] }
+    ]
+  },
+  "table": true
+}

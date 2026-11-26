@@ -27,6 +27,13 @@ test: ## Run Go and client tests.
 client: ## Run the client tests (node --test in client/).
 	cd client && node --test
 
+# The real-browser tests build and run examples/dashboard and drive an
+# installed Chrome (CHROME_PATH) through playwright-core, a dev-only
+# dependency: run `npm ci` in client/ first. Not part of `make test`.
+.PHONY: browser
+browser: ## Run the real-browser tests (needs Chrome, and npm ci in client/).
+	cd client && npm run test:browser
+
 .PHONY: race
 race: ## Run Go tests with the race detector (needs cgo).
 	$(GO) test -race $(PKGS)
@@ -95,9 +102,11 @@ cover: ## Run tests with coverage and write cover.html.
 demo: ## Run the live dashboard example on http://localhost:8080.
 	$(GO) run ./examples/dashboard
 
-# check mirrors the CI jobs on one machine and one Go version. CI also
-# runs the tests on Linux, Windows and macOS with Go 1.24.x and stable,
-# the client tests on two Node versions, and a fuzz smoke test (make fuzz).
+# check mirrors the CI jobs on one machine and one Go version, including
+# the real-browser tests (so it needs Chrome and `npm ci` in client/). CI
+# also runs the tests on Linux, Windows and macOS with Go 1.24.x and
+# stable, the client tests on two Node versions, and a fuzz smoke test
+# (make fuzz).
 .PHONY: check
 check: lint ## Run the CI checks locally, except the fuzz smoke test and the OS/Go matrix.
 	@before="$$(git status --porcelain --untracked-files=all -- testdata)"; \
@@ -109,3 +118,4 @@ check: lint ## Run the CI checks locally, except the fuzz smoke test and the OS/
 	fi
 	$(GO) test -run '^$$' -bench . -benchtime 1x $(PKGS)
 	$(MAKE) --no-print-directory client
+	$(MAKE) --no-print-directory browser

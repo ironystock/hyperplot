@@ -17,6 +17,8 @@ var htmxConfigPages = []string{
 	"README.md",
 	"docs/htmx.md",
 	"docs/DESIGN.md",
+	"docs/spec.md",
+	"docs/implementing-a-server.md",
 	"client/README.md",
 	"examples/dashboard/templates/page.html",
 }

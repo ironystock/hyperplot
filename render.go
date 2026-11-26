@@ -8,6 +8,10 @@ import (
 // serif faces.
 const fontFamily = "system-ui, -apple-system, 'Segoe UI', sans-serif"
 
+// specVersion is the wire spec version (docs/spec.md §2.3) written to the
+// root's data-hp attribute.
+const specVersion = "1"
+
 // render writes the chart. The element order is the DOM contract in
 // docs/DESIGN.md; the client script and the stylesheet rely on it.
 func (p *plan) render() []byte {
@@ -25,7 +29,7 @@ func (p *plan) render() []byte {
 	if c.Animate {
 		class += " hp-anim"
 	}
-	w.Open("svg",
+	root := []svg.Attr{
 		svg.A("xmlns", "http://www.w3.org/2000/svg"),
 		svg.A("id", p.id),
 		svg.A("class", class),
@@ -33,12 +37,17 @@ func (p *plan) render() []byte {
 		svg.N("width", p.w),
 		svg.N("height", p.h),
 		svg.A("role", "img"),
-		svg.A("aria-labelledby", p.id+"-title "+p.id+"-desc"),
+		// Named by the title and described by the desc. Naming it by both
+		// made browsers read the desc twice: once in the name and again
+		// as the description, which a <desc> child supplies anyway.
+		svg.A("aria-labelledby", p.id+"-title"),
+		svg.A("aria-describedby", p.id+"-desc"),
 		svg.A("tabindex", "0"),
-		svg.Flag("data-hp"),
-		svg.A("font-family", fontFamily),
-		svg.N("font-size", p.f),
-	)
+		svg.A("data-hp", specVersion),
+	}
+	root = append(root, p.geometryAttrs()...)
+	root = append(root, svg.A("font-family", fontFamily), svg.N("font-size", p.f))
+	w.Open("svg", root...)
 	w.Elem("title", c.Title, svg.A("id", p.id+"-title"))
 	w.Elem("desc", p.description(), svg.A("id", p.id+"-desc"))
 	if c.Standalone {

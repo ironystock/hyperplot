@@ -1,0 +1,20 @@
+{
+  "spec": 1,
+  "chart": {
+    "id": "lt",
+    "title": "Latency",
+    "width": 240,
+    "height": 120,
+    "animate": true,
+    "y": { "unit": " ms" },
+    "marks": [
+      {
+        "type": "line",
+        "name": "p50",
+        "x": { "times": ["2026-03-03T14:00:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:20:00Z"] },
+        "y": [42, 45, 41]
+      }
+    ]
+  },
+  "table": true
+}

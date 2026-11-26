@@ -388,7 +388,11 @@ func (s Time) tickFormat(dayStarts bool) func(time.Time) string {
 
 // Format returns a full, unambiguous label for a single time, at the
 // precision implied by the tick interval for count ticks. It is meant for
-// tooltips and data tables, where a value is read out of context.
+// tooltips and data tables, where a value is read out of context. A wall
+// time that the location shows twice, in the hour after the clocks go
+// back, gains the zone's abbreviation ("Nov 1, 2026 1:30 AM EDT", then
+// "… 1:30 AM EST"), or its offset ("UTC-04:00") when both sides of the
+// change share an abbreviation.
 func (s Time) Format(t time.Time, count int) string {
 	return s.Formatter(count)(t)
 }
@@ -406,8 +410,9 @@ func (s Time) Formatter(count int) func(time.Time) string {
 // a time of day under date labels, a fraction of a second under second
 // labels, and so on), it formats at the finest precision those times
 // need, down to nanoseconds. Distinct data times then never print alike,
-// which matters in tooltips and data tables. A nil times behaves like
-// Formatter.
+// which matters in tooltips and data tables; two instants with the same
+// wall time (the hour after the clocks go back) are told apart by their
+// zone, as in [Time.Format]. A nil times behaves like Formatter.
 func (s Time) FormatterFor(count int, times iter.Seq[time.Time]) func(time.Time) string {
 	loc, prec := s.loc(), s.precision(count)
 	if times != nil {
@@ -535,11 +540,58 @@ func (p precision) layout() string {
 
 // formatter returns a function that labels a time at precision p in loc.
 // Year-only labels are printed without the zero padding of the "2006"
-// layout, so year 50 reads "50", not "0050".
+// layout, so year 50 reads "50", not "0050". A time whose wall clock loc
+// shows twice (the hour after the clocks go back) gains its zone, so the
+// two instants read differently (see repeatedZone).
 func (p precision) formatter(loc *time.Location) func(time.Time) string {
 	if p == precYear {
-		return func(t time.Time) string { return strconv.Itoa(t.In(loc).Year()) }
+		return func(t time.Time) string {
+			t = t.In(loc)
+			return strconv.Itoa(t.Year()) + repeatedZone(t)
+		}
 	}
 	layout := p.layout()
-	return func(t time.Time) string { return t.In(loc).Format(layout) }
+	return func(t time.Time) string {
+		t = t.In(loc)
+		return t.Format(layout) + repeatedZone(t)
+	}
+}
+
+// repeatedZone returns "" unless t's wall clock in its location also
+// shows at another instant, because the offset falls at a nearby zone
+// transition (the clocks go back, as at the end of daylight saving time).
+// It then returns the zone's abbreviation (" EDT", " EST"), or, when the
+// zones either side of the transition share an abbreviation, the offset
+// (" UTC-04:00"): a wall time and an offset name one instant.
+func repeatedZone(t time.Time) string {
+	start, end := t.ZoneBounds()
+	if start.IsZero() && end.IsZero() {
+		return "" // a fixed zone, or one without transitions
+	}
+	name, off := t.Zone()
+	other, repeated := "", false
+	if !start.IsZero() {
+		// The clocks went back by prev-off at start: the wall times of
+		// [start, start+(prev-off)) also occurred just before start.
+		pname, prev := start.Add(-time.Nanosecond).Zone()
+		if prev > off && t.Before(start.Add(time.Duration(prev-off)*time.Second)) {
+			other, repeated = pname, true
+		}
+	}
+	if !repeated && !end.IsZero() {
+		// The clocks go back by off-next at end: the wall times of
+		// [end-(off-next), end) occur again just after it.
+		nname, next := end.Zone()
+		if next < off && !t.Before(end.Add(-time.Duration(off-next)*time.Second)) {
+			other, repeated = nname, true
+		}
+	}
+	switch {
+	case !repeated:
+		return ""
+	case name != other && name != "":
+		return " " + name
+	default:
+		return t.Format(" UTC-07:00")
+	}
 }

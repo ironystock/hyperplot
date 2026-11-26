@@ -1,0 +1,4 @@
+# Written by `npm run build` (and prepack) for the npm package; the
+# unminified sources are the ones in the repository.
+*.min.js
+*.min.js.map

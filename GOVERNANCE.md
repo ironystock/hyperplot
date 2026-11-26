@@ -20,7 +20,12 @@ deliberately simple. This document will change as the community grows.
    among the people involved.
 2. Changes to the public API, the DOM output structure, the CSS contract or
    the visual defaults must update [docs/DESIGN.md](docs/DESIGN.md) in the same
-   pull request.
+   pull request. Changes to the wire between servers and the `hx-plot`
+   extension (markup, attributes, request parameters, events, swap
+   behaviour) must also update the [wire spec](docs/spec.md) and its
+   conformance fixtures, and say whether they change the spec version.
+   Because servers in other languages implement the spec, such changes are
+   proposed in an issue first and get time for comment.
 3. Significant or hard-to-reverse decisions are recorded as
    [architecture decision records](docs/adr/), proposed in a pull request so
    anyone can comment before they are accepted.
@@ -40,7 +45,9 @@ status, with thanks.
 Releases follow [Semantic Versioning](https://semver.org/). Before v1.0.0,
 minor versions may contain breaking changes, which are called out in
 [CHANGELOG.md](CHANGELOG.md). Maintainers tag releases from `main` after CI
-passes.
+passes. The Go module (tags `vX.Y.Z`) and the npm package `htmx-ext-plot`
+are versioned separately; the wire spec has its own version number, carried
+in every chart's `data-hp` attribute.
 
 ## Code of conduct
 

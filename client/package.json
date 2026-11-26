@@ -1,10 +1,10 @@
 {
-  "name": "hyperplot",
-  "version": "0.1.0",
-  "description": "Tooltips, crosshair, keyboard reading and live-update support for server-rendered hyperplot SVG charts. An htmx 4 extension with no dependencies.",
+  "name": "htmx-ext-plot",
+  "version": "0.2.0",
+  "description": "htmx 4 extension for server-rendered SVG charts: tooltips, keyboard reading, live updates that slide instead of redraw, and select and brush gestures that become requests. No client chart library, no dependencies.",
   "license": "MIT",
   "author": "hyperplot contributors",
-  "homepage": "https://github.com/ironystock/hyperplot#readme",
+  "homepage": "https://github.com/ironystock/hyperplot/tree/main/client#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ironystock/hyperplot.git",
@@ -16,30 +16,65 @@
   "keywords": [
     "htmx",
     "htmx-extension",
+    "htmx-4",
     "hypermedia",
     "chart",
     "charts",
     "svg",
-    "tooltip",
-    "data-visualization",
     "server-side-rendering",
-    "go"
+    "sse",
+    "live",
+    "tooltip",
+    "accessibility",
+    "data-visualization"
   ],
-  "main": "./hyperplot.js",
-  "browser": "./hyperplot.js",
-  "unpkg": "./hyperplot.js",
-  "jsdelivr": "./hyperplot.js",
+  "main": "./hx-plot.js",
+  "browser": "./hx-plot.js",
+  "unpkg": "./hx-plot.js",
+  "jsdelivr": "./hx-plot.js",
   "exports": {
-    ".": "./hyperplot.js",
-    "./hyperplot.js": "./hyperplot.js",
+    ".": "./hx-plot.js",
+    "./hx-plot.js": "./hx-plot.js",
+    "./hx-plot.min.js": "./hx-plot.min.js",
+    "./hx-plot-brush.js": "./hx-plot-brush.js",
+    "./hx-plot-brush.min.js": "./hx-plot-brush.min.js",
+    "./hx-plot-tween.js": "./hx-plot-tween.js",
+    "./hx-plot-tween.min.js": "./hx-plot-tween.min.js",
+    "./hx-plot.css": "./hx-plot.css",
     "./package.json": "./package.json"
   },
   "files": [
-    "hyperplot.js",
+    "hx-plot.js",
+    "hx-plot.min.js",
+    "hx-plot.min.js.map",
+    "hx-plot-brush.js",
+    "hx-plot-brush.min.js",
+    "hx-plot-brush.min.js.map",
+    "hx-plot-tween.js",
+    "hx-plot-tween.min.js",
+    "hx-plot-tween.min.js.map",
+    "hx-plot.css",
+    "LICENSE",
     "README.md"
   ],
   "sideEffects": true,
+  "peerDependencies": {
+    "htmx.org": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "htmx.org": {
+      "optional": true
+    }
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node --test --test-concurrency=1 --test-timeout=180000 \"browser/*.browser.mjs\"",
+    "size": "node build.mjs",
+    "build": "node build.mjs --write",
+    "prepack": "node build.mjs --write"
+  },
+  "devDependencies": {
+    "htmx.org": "4.0.2",
+    "playwright-core": "1.65.1"
   }
 }

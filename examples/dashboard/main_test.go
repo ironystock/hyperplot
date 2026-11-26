@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"html"
 	"html/template"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,8 +19,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "time/tzdata" // zones with clock changes for TestRequestWindowsZones, even without system zoneinfo
 
+	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/scale"
 )
 
 // epoch is a fixed instant in the middle of a latency bucket for every
@@ -128,8 +133,14 @@ func TestRoutes(t *testing.T) {
 		{"requests stacked", "/charts/requests?" + q + "&bars=stacked", htmxHeader(), "text/html", 1, true, `id="requests"`},
 		{"scatter", "/charts/scatter?" + q, htmxHeader(), "text/html", 1, true, `class="hp-dot"`},
 		{"throughput card", "/cards/throughput?" + q + "&hp-w=480", htmxHeader(), "text/html", 1, true, `hx-sse:connect="/stream/throughput?`},
-		{"hyperplot.css", "/static/hyperplot.css", nil, "text/css", 0, false, ".hp-s1{"},
-		{"hyperplot.js", "/static/hyperplot.js", nil, "text/javascript", 0, false, "registerExtension"},
+		{"latency zoomed", "/charts/latency?" + q + "&from=2026-03-03T13%3A30%3A00Z&to=2026-03-03T13%3A40%3A00Z", htmxHeader(), "text/html", 5, true, `data-hp-x="time 1772544600000 1772545200000"`},
+		{"latency brush", "/charts/latency?" + q + "&hp-chart=latency&hp-x0=2026-03-03T13%3A30%3A00Z&hp-x1=2026-03-03T13%3A40%3A00Z", htmxHeader(), "text/html", 1, false, `<div id="latency-body"`},
+		{"latency zoom out", "/charts/latency?" + q + "&zoom=out", htmxHeader(), "text/html", 1, false, `<div id="latency-body"`},
+		{"requests detail", "/detail/requests?" + q + "&hp-chart=requests&hp-x=1%3A45%20PM", htmxHeader(), "text/html", 1, true, `id="drill"`},
+		{"requests detail closed", "/detail/requests?" + q, htmxHeader(), "text/html", 0, true, `id="requests-detail-status"`},
+		{"hx-plot.css", "/static/hx-plot.css", nil, "text/css", 0, false, ".hp-s1{"},
+		{"hx-plot.js", "/static/hx-plot.js", nil, "text/javascript", 0, false, "registerExtension"},
+		{"hx-plot-brush.js", "/static/hx-plot-brush.js", nil, "text/javascript", 0, false, "brush"},
 		{"app.css", "/static/app.css", nil, "text/css", 0, false, "--page"},
 		{"app.js", "/static/app.js", nil, "text/javascript", 0, false, "data-theme-choice"},
 	}
@@ -155,6 +166,45 @@ func TestRoutes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPageOpensNoStream checks that the page renders the throughput chart
+// without hx-sse:connect: its container fetches the stream card on load at
+// its real width, so only one stream ever opens and the chart is fitted
+// before it goes live.
+func TestPageOpensNoStream(t *testing.T) {
+	h := newTestServer(t).routes()
+	for _, header := range []http.Header{nil, htmxHeader()} {
+		res := get(t, h, "/?range=15m", header)
+		if strings.Contains(res.Body, `hx-sse:connect="`) {
+			t.Errorf("page (htmx %v) connects a stream; the container's load trigger should", header != nil)
+		}
+		if !strings.Contains(res.Body, `<div class="stream">`) {
+			t.Errorf("page (htmx %v) lacks the throughput chart's stream element", header != nil)
+		}
+	}
+	page := get(t, h, "/?range=15m", nil).Body
+	if !strings.Contains(page, `hx-get="/cards/throughput" hx-include="#filters" hx-trigger="load, `) {
+		t.Error("the throughput container does not fetch its stream card on load")
+	}
+}
+
+// TestFocusReturn checks that the links that remove themselves name where
+// keyboard focus goes (app.js moves it there after the swap).
+func TestFocusReturn(t *testing.T) {
+	h := newTestServer(t).routes()
+	q := "range=15m"
+	zoomed := get(t, h, "/?"+q+"&from=2026-03-03T13%3A30%3A00Z&to=2026-03-03T13%3A40%3A00Z", nil).Body
+	if !strings.Contains(zoomed, `data-focus-return="#latency">Back to live</a>`) {
+		t.Error(`"Back to live" lacks data-focus-return="#latency"`)
+	}
+	detail := get(t, h, "/detail/requests?"+q+"&hp-chart=requests&hp-x=1%3A45%20PM", htmxHeader()).Body
+	if strings.Contains(detail, "<article") && !strings.Contains(detail, `data-focus-return="#requests">Close</a>`) {
+		t.Error(`Close lacks data-focus-return="#requests"`)
+	}
+	if js := get(t, h, "/static/app.js", nil).Body; !strings.Contains(js, "data-focus-return") {
+		t.Error("app.js does not handle data-focus-return")
 	}
 }
 
@@ -515,7 +565,7 @@ func TestStreamFailureKeepsLastChart(t *testing.T) {
 func TestRunServesAndShutsDown(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
-	go func() { done <- run(ctx, "127.0.0.1:0", log.New(io.Discard, "", 0)) }()
+	go func() { done <- run(ctx, "127.0.0.1:0", 1, log.New(io.Discard, "", 0)) }()
 	time.Sleep(50 * time.Millisecond)
 	cancel()
 	select {
@@ -688,5 +738,611 @@ func TestCSPScriptSources(t *testing.T) {
 		if !allowed {
 			t.Errorf("the policy blocks the page's script %s", src)
 		}
+	}
+}
+
+// TestSlidingWindowsOverscan checks that the sliding charts draw one bucket
+// before their window, so the line reaches the plot's left edge while it
+// slides, and that the bucket is in neither the tooltips nor the table.
+func TestSlidingWindowsOverscan(t *testing.T) {
+	f := parseFilters(httptest.NewRequest(http.MethodGet, "/?range=15m", nil))
+	span, step := f.Range.Span, f.Range.Step
+	rows := regexp.MustCompile(`<tr id="[^"]*-r-`)
+	plotLeft := regexp.MustCompile(`data-hp-plot="([\d.]+) `)
+	firstX := regexp.MustCompile(`class="hp-(?:line|area)" d="M(-?[\d.]+),`)
+	for _, tc := range []struct {
+		name string
+		c    *hyperplot.Chart
+		now  time.Time
+	}{
+		// On a bucket boundary: buckets end at now-span-step (outside the
+		// window) and now-span … now.
+		{"latency", latencyChart(f, epoch.Truncate(step), 640, time.UTC), epoch.Truncate(step)},
+		// Mid-bucket: buckets end at last-span (outside) … last, then the
+		// live point at now.
+		{"throughput", throughputChart(f, epoch.Truncate(step).Add(3*time.Second), 640, time.UTC), epoch.Truncate(step).Add(3 * time.Second)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svg, err := tc.c.Render()
+			if err != nil {
+				t.Fatal(err)
+			}
+			table, err := tc.c.Table()
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := int(span/step) + 1 // the in-window points
+			if n := len(rows.FindAllString(string(table), -1)); n != want {
+				t.Errorf("table has %d rows, want %d", n, want)
+			}
+			if n := strings.Count(string(svg), `"k":"`); n != want {
+				t.Errorf("payload has %d rows, want %d", n, want)
+			}
+			l, x := plotLeft.FindSubmatch(svg), firstX.FindSubmatch(svg)
+			if l == nil || x == nil {
+				t.Fatal("no plot rectangle or no path")
+			}
+			left, _ := strconv.ParseFloat(string(l[1]), 64)
+			if x0, _ := strconv.ParseFloat(string(x[1]), 64); x0 >= left {
+				t.Errorf("the path starts at x %v, inside the plot (left %v): no overscan", x0, left)
+			}
+			outside := tc.now.Add(-span).Truncate(step)
+			if !outside.Before(tc.now.Add(-span)) {
+				outside = outside.Add(-step)
+			}
+			if k := `"k":"` + outside.Format(time.RFC3339) + `"`; strings.Contains(string(svg), k) {
+				t.Errorf("payload holds the overscan bucket %s", k)
+			}
+		})
+	}
+}
+
+// ---- Brush to zoom ---------------------------------------------------------
+
+// at parses an RFC 3339 time for the tests.
+func at(t *testing.T, s string) time.Time {
+	t.Helper()
+	v, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func TestNewZoom(t *testing.T) {
+	now := epoch // 14:01:15
+	tests := []struct {
+		name     string
+		t0, t1   string
+		from, to string
+	}{
+		{"kept", "2026-03-03T13:30:00Z", "2026-03-03T13:40:00Z", "2026-03-03T13:30:00Z", "2026-03-03T13:40:00Z"},
+		{"ordered", "2026-03-03T13:40:00Z", "2026-03-03T13:30:00Z", "2026-03-03T13:30:00Z", "2026-03-03T13:40:00Z"},
+		{"whole seconds, outwards", "2026-03-03T13:30:00.900Z", "2026-03-03T13:40:00.100Z", "2026-03-03T13:30:00Z", "2026-03-03T13:40:01Z"},
+		{"ends at now", "2026-03-03T13:50:00Z", "2026-03-03T15:00:00Z", "2026-03-03T13:50:00Z", "2026-03-03T14:01:15Z"},
+		{"widened around its middle", "2026-03-03T13:30:00Z", "2026-03-03T13:30:20Z", "2026-03-03T13:29:40Z", "2026-03-03T13:30:40Z"},
+		{"widened, but not past now", "2026-03-03T14:01:00Z", "2026-03-03T14:01:10Z", "2026-03-03T14:00:15Z", "2026-03-03T14:01:15Z"},
+		{"wholly in the future", "2026-03-04T00:00:00Z", "2026-03-05T00:00:00Z", "2026-03-03T14:00:15Z", "2026-03-03T14:01:15Z"},
+		{"at most a day", "2026-02-20T00:00:00Z", "2026-03-03T12:00:00Z", "2026-03-02T12:00:00Z", "2026-03-03T12:00:00Z"},
+		{"at most a week back", "2026-02-01T00:00:00Z", "2026-02-01T00:10:00Z", "2026-02-24T14:01:15Z", "2026-02-24T14:02:15Z"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			z := newZoom(at(t, tt.t0), at(t, tt.t1), now)
+			if got, want := z.query(), (zoom{at(t, tt.from), at(t, tt.to)}).query(); got != want {
+				t.Fatalf("newZoom = %s, want %s", got, want)
+			}
+			// Polls read the zoom back from the URL with a later clock: it
+			// must stay the same window. (A window at the week's edge
+			// moves with it.)
+			later := now.Add(time.Hour)
+			if z.From.Equal(now.Add(-maxBack)) {
+				later = now
+			}
+			again := zoomFromQuery(mustQuery(t, z.query()), later)
+			if again != z {
+				t.Errorf("read back an hour later: %s, want %s", again.query(), z.query())
+			}
+		})
+	}
+}
+
+func mustQuery(t *testing.T, q string) url.Values {
+	t.Helper()
+	v, err := url.ParseQuery(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func TestZoomStep(t *testing.T) {
+	for _, tt := range []struct {
+		span, step time.Duration
+	}{
+		{time.Minute, time.Second},
+		{2 * time.Minute, time.Second},
+		{10 * time.Minute, 5 * time.Second},
+		{time.Hour, 30 * time.Second},
+		{6 * time.Hour, 3 * time.Minute},
+		{24 * time.Hour, 15 * time.Minute},
+	} {
+		z := zoom{From: epoch, To: epoch.Add(tt.span)}
+		if got := z.step(); got != tt.step {
+			t.Errorf("span %v: step %v, want %v", tt.span, got, tt.step)
+		}
+	}
+}
+
+func TestZoomFromQuery(t *testing.T) {
+	for _, tt := range []struct {
+		query string
+		on    bool
+	}{
+		{"", false},
+		{"from=2026-03-03T13:30:00Z", false},
+		{"from=2026-03-03T13:30:00Z&to=bogus", false},
+		{"from=2026-03-03T13:30:00Z&to=2026-03-03T13:40:00Z", true},
+		{"from=2026-03-03T14:30:00%2B01:00&to=2026-03-03T13:40:00Z", true}, // any offset
+	} {
+		if z := zoomFromQuery(mustQuery(t, tt.query), epoch); z.on() != tt.on {
+			t.Errorf("%q: zoomed %v, want %v", tt.query, z.on(), tt.on)
+		}
+	}
+}
+
+// TestBrushZoom covers the brush parameters the latency handler accepts:
+// the extension's RFC 3339 values, and the datetime-local values of the
+// zoom form, which are wall times in the chart's zone.
+func TestBrushZoom(t *testing.T) {
+	berlin := time.FixedZone("CET", 3600)
+	tests := []struct {
+		name     string
+		query    string
+		ok       bool
+		from, to string
+	}{
+		{"extension", "hp-chart=latency&hp-x0=2026-03-03T13%3A40%3A00.250Z&hp-x1=2026-03-03T13%3A30%3A00Z", true, "2026-03-03T13:30:00Z", "2026-03-03T13:40:01Z"},
+		{"no chart named", "hp-x0=2026-03-03T13%3A30%3A00Z&hp-x1=2026-03-03T13%3A40%3A00Z", true, "2026-03-03T13:30:00Z", "2026-03-03T13:40:00Z"},
+		{"datetime-local in the chart's zone", "hp-chart=latency&hp-x0=2026-03-03T14%3A30&hp-x1=2026-03-03T14%3A40%3A30", true, "2026-03-03T13:30:00Z", "2026-03-03T13:40:30Z"},
+		{"another chart", "hp-chart=scatter&hp-x0=2026-03-03T13%3A30%3A00Z&hp-x1=2026-03-03T13%3A40%3A00Z", false, "", ""},
+		{"one end only", "hp-chart=latency&hp-x0=2026-03-03T13%3A30%3A00Z", false, "", ""},
+		{"unparsable", "hp-chart=latency&hp-x0=yesterday&hp-x1=2026-03-03T13%3A40%3A00Z", false, "", ""},
+		{"a number", "hp-chart=latency&hp-x0=1&hp-x1=2", false, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/charts/latency?"+tt.query, nil)
+			z, ok := brushZoom(r, epoch, berlin)
+			if ok != tt.ok {
+				t.Fatalf("ok = %v, want %v", ok, tt.ok)
+			}
+			if ok && (!z.From.Equal(at(t, tt.from)) || !z.To.Equal(at(t, tt.to))) {
+				t.Errorf("zoom %s, want %s to %s", z.query(), tt.from, tt.to)
+			}
+		})
+	}
+}
+
+var (
+	hxGetAttr  = regexp.MustCompile(`<div id="latency-body"[^>]*\shx-get="([^"]*)"`)
+	hxPTagAttr = regexp.MustCompile(`<div id="latency-body"[^>]*\shx-ptag="([^"]*)"`)
+	domainAttr = regexp.MustCompile(`id="latency"[^>]*\sdata-hp-x="([^"]*)"`)
+)
+
+// attr returns the first group of re's first match in body, or "".
+func attr(re *regexp.Regexp, body string) string {
+	if m := re.FindStringSubmatch(body); len(m) > 1 {
+		return m[1]
+	}
+	return ""
+}
+
+// TestBrushZoomsLatency plays the whole exchange of docs/spec.md §5.4: a
+// brush is answered with the polling element, whose hx-get carries the
+// zoom, plus the toolbar as a partial and HX-Push-Url; a poll of that
+// hx-get stays zoomed and its first answer matches the seeded tag; zoom=out
+// returns to the live window; and the pushed page URL shows the same zoom.
+func TestBrushZoomsLatency(t *testing.T) {
+	h := newTestServer(t).routes()
+	const filters = "range=1h&region=eu-west"
+	res := get(t, h, "/charts/latency?"+filters+"&bars=stacked&hp-w=900&hp-chart=latency"+
+		"&hp-x0=2026-03-03T13%3A30%3A00Z&hp-x1=2026-03-03T13%3A40%3A00Z", htmxHeader())
+	if res.Status != http.StatusOK {
+		t.Fatalf("brush: status %d", res.Status)
+	}
+	if got := res.Header.Get(hx.HeaderPTag); got != "" {
+		t.Errorf("a zoom answer carries HX-PTag %q; only polls should", got)
+	}
+	wantPush := "/?" + filters + "&from=2026-03-03T13%3A30%3A00Z&to=2026-03-03T13%3A40%3A00Z&bars=stacked"
+	if got := res.Header.Get("HX-Push-Url"); got != wantPush {
+		t.Errorf("HX-Push-Url %q, want %q", got, wantPush)
+	}
+	for _, want := range []string{
+		`hx-sync="closest .zoom:drop"`,
+		`<hx-partial hx-target="#latency-zoom" hx-swap="innerMorph">`,
+		`Zoomed to 1:30 PM to 1:40 PM (10 minutes, 5-second buckets).`,
+		`name="hp-x0" step="1" value="2026-03-03T13:30:00"`,
+		`>Back to live</a>`,
+		`viewBox="0 0 900 300"`,
+	} {
+		if !strings.Contains(res.Body, want) {
+			t.Errorf("brush answer lacks %s", want)
+		}
+	}
+	m := hxGetAttr.FindStringSubmatch(res.Body)
+	if m == nil {
+		t.Fatal("no polling element with an hx-get")
+	}
+	pollURL := html.UnescapeString(m[1])
+	if !strings.Contains(pollURL, "from=2026-03-03T13%3A30%3A00Z&to=2026-03-03T13%3A40%3A00Z") {
+		t.Errorf("the polling element's hx-get %q does not carry the zoom", pollURL)
+	}
+	d := attr(domainAttr, res.Body)
+	if d != "time 1772544600000 1772545200000" {
+		t.Errorf("zoomed chart's x domain %v, want 13:30 to 13:40", d)
+	}
+
+	// A poll of the new hx-get, at the width the brush reported, is the
+	// zoomed chart, and the seeded tag already matches it.
+	poll := get(t, h, pollURL+"&hp-w=900", htmxHeader())
+	if dd := attr(domainAttr, poll.Body); dd != d {
+		t.Errorf("a poll of the zoomed URL shows %v, want %s", dd, d)
+	}
+	seed := hxPTagAttr.FindStringSubmatch(res.Body)
+	if seed == nil {
+		t.Fatal("the polling element has no hx-ptag")
+	}
+	if got := strings.ReplaceAll(seed[1], "&#34;", `"`); got != poll.Header.Get(hx.HeaderPTag) {
+		t.Errorf("seeded tag %s, but the first poll gets %s", got, poll.Header.Get(hx.HeaderPTag))
+	}
+
+	// The page at the pushed URL shows the same zoom.
+	page := get(t, h, wantPush, nil)
+	if dd := attr(domainAttr, page.Body); dd != d {
+		t.Errorf("the pushed page URL shows %v, want %s", dd, d)
+	}
+	if !strings.Contains(page.Body, `class="zoom-mark zoom-mark-on"`) {
+		t.Error("the zoomed page's toolbar does not say it is zoomed")
+	}
+
+	// Back to live.
+	out := get(t, h, "/charts/latency?"+filters+"&zoom=out", htmxHeader())
+	if got, want := out.Header.Get("HX-Push-Url"), "/?"+filters; got != want {
+		t.Errorf("zoom out: HX-Push-Url %q, want %q", got, want)
+	}
+	if m := attr(hxGetAttr, out.Body); m == "" || strings.Contains(m, "from=") {
+		t.Errorf("zoom out: polling element %v still carries a zoom", m)
+	}
+	if !strings.Contains(out.Body, "Live: last hour.") || strings.Contains(out.Body, "Back to live") {
+		t.Error("zoom out: the toolbar still shows the zoom")
+	}
+}
+
+// TestBrushIgnored checks that a brush the server cannot read changes
+// nothing: 204, which htmx does not swap (docs/spec.md §5.3).
+func TestBrushIgnored(t *testing.T) {
+	h := newTestServer(t).routes()
+	for _, q := range []string{
+		"hp-chart=latency&hp-x0=soon&hp-x1=later",
+		"hp-chart=latency&hp-x0=NaN&hp-x1=1",
+		"hp-chart=requests&hp-x0=2026-03-03T13%3A30%3A00Z&hp-x1=2026-03-03T13%3A40%3A00Z",
+	} {
+		if res := get(t, h, "/charts/latency?"+q, htmxHeader()); res.Status != http.StatusNoContent || res.Body != "" {
+			t.Errorf("%s: status %d with %d bytes, want an empty 204", q, res.Status, len(res.Body))
+		}
+	}
+}
+
+// TestZoomFormWithoutScript submits the zoom form as a browser does without
+// script: a full page request to / with the datetime-local values.
+func TestZoomFormWithoutScript(t *testing.T) {
+	h := newTestServer(t).routes()
+	res := get(t, h, "/?range=1h&region=us-east&hp-chart=latency&hp-x0=2026-03-03T13%3A30&hp-x1=2026-03-03T13%3A45", nil)
+	if res.Status != http.StatusOK {
+		t.Fatalf("status %d", res.Status)
+	}
+	if d := attr(domainAttr, res.Body); d != "time 1772544600000 1772545500000" {
+		t.Errorf("x domain %v, want 13:30 to 13:45", d)
+	}
+}
+
+// TestFilterChangeEndsZoom checks that the filter row, which sends no zoom,
+// returns the latency chart to the live window.
+func TestFilterChangeEndsZoom(t *testing.T) {
+	res := get(t, newTestServer(t).routes(), "/?range=1h&region=us-east", htmxHeader())
+	if m := attr(hxGetAttr, res.Body); m == "" || strings.Contains(m, "from=") {
+		t.Errorf("polling element %v carries a zoom", m)
+	}
+	if got := res.Header.Get("HX-Replace-Url"); strings.Contains(got, "from=") {
+		t.Errorf("HX-Replace-Url %q carries a zoom", got)
+	}
+}
+
+// ---- Select to drill down --------------------------------------------------
+
+func TestSelectedWindow(t *testing.T) {
+	f := parseFilters(httptest.NewRequest(http.MethodGet, "/?range=1h&region=us-east&region=ap-south", nil))
+	ws := requestWindows(f, epoch, time.UTC) // 1:00 PM … 1:50 PM
+	tests := []struct {
+		name    string
+		query   string
+		ok      bool
+		start   string
+		regions string
+		notice  bool
+	}{
+		{"bar with a series", "hp-chart=requests&hp-x=1%3A20%20PM&hp-series=ap-south", true, "13:20", "ap-south", false},
+		{"Enter names no series", "hp-chart=requests&hp-x=1%3A20%20PM", true, "13:20", "us-east,ap-south", false},
+		{"no chart named", "hp-x=1%3A50%20PM", true, "13:50", "us-east,ap-south", false},
+		{"a region not selected", "hp-chart=requests&hp-x=1%3A00%20PM&hp-series=eu-west", true, "13:00", "us-east,ap-south", false},
+		{"a window no longer shown", "hp-chart=requests&hp-x=12%3A50%20PM", false, "", "", true},
+		{"another chart", "hp-chart=latency&hp-x=1%3A20%20PM", false, "", "", false},
+		{"nothing", "", false, "", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/detail/requests?"+tt.query, nil)
+			w, rs, notice, ok := selectedWindow(r, f, ws)
+			if ok != tt.ok || (notice != "") != tt.notice {
+				t.Fatalf("ok %v, notice %q; want ok %v, notice %v", ok, notice, tt.ok, tt.notice)
+			}
+			if !ok {
+				return
+			}
+			var keys []string
+			for _, g := range rs {
+				keys = append(keys, g.Key)
+			}
+			if got := w.Start.Format("15:04"); got != tt.start || strings.Join(keys, ",") != tt.regions {
+				t.Errorf("window %s for %v, want %s for %s", got, keys, tt.start, tt.regions)
+			}
+		})
+	}
+}
+
+// TestRequestWindowsZones checks the window labels, which are the requests
+// chart's categories and the select key, in zones whose wall clock is not
+// a whole number of hours from UTC or repeats an hour: the labels are
+// unique and name each window's real start, and the page renders.
+func TestRequestWindowsZones(t *testing.T) {
+	zone := func(name string) *time.Location {
+		t.Helper()
+		loc, err := time.LoadLocation(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return loc
+	}
+	ny, kolkata := zone("America/New_York"), zone("Asia/Kolkata")
+	hours := parseFilters(httptest.NewRequest(http.MethodGet, "/?range=6h", nil))
+	minutes := parseFilters(httptest.NewRequest(http.MethodGet, "/?range=1h", nil))
+	tests := []struct {
+		name string
+		f    filters
+		now  time.Time
+		loc  *time.Location
+		want string
+	}{
+		{"UTC", hours, epoch, time.UTC, "8 AM,9 AM,10 AM,11 AM,12 PM,1 PM"},
+		// 1 AM happens twice on 2026-11-01 in New York.
+		{
+			"fall back", hours, time.Date(2026, 11, 1, 8, 30, 0, 0, time.UTC), ny,
+			"10 PM,11 PM,12 AM,1 AM EDT,1 AM EST,2 AM",
+		},
+		// 2 AM never happens on 2026-03-08 in New York.
+		{
+			"spring forward", hours, time.Date(2026, 3, 8, 9, 30, 0, 0, time.UTC), ny,
+			"10 PM,11 PM,12 AM,1 AM,3 AM,4 AM",
+		},
+		{
+			"fall back, 10-minute windows", minutes, time.Date(2026, 11, 1, 6, 15, 0, 0, time.UTC), ny,
+			"1:10 AM,1:20 AM,1:30 AM,1:40 AM,1:50 AM,1:00 AM",
+		},
+		{
+			"half-hour offset", hours, time.Date(2026, 3, 3, 8, 15, 0, 0, time.UTC), kolkata,
+			"7:30 AM,8:30 AM,9:30 AM,10:30 AM,11:30 AM,12:30 PM",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ws := requestWindows(tt.f, tt.now, tt.loc)
+			labels := hyperplot.Map(ws, func(w window) string { return w.Label })
+			if got := strings.Join(labels, ","); got != tt.want {
+				t.Errorf("labels %s, want %s", got, tt.want)
+			}
+			for i, w := range ws {
+				if want := tt.now.Truncate(tt.f.Range.Window).Add(-time.Duration(len(ws)-i) * tt.f.Range.Window); !w.Start.Equal(want) {
+					t.Errorf("window %d starts at %v, want %v", i, w.Start, want)
+				}
+			}
+			if _, err := requestsChart(tt.f, tt.now, 640, tt.loc).Render(); err != nil {
+				t.Errorf("requests chart: %v", err)
+			}
+
+			s := newTestServer(t)
+			s.now = func() time.Time { return tt.now }
+			s.loc = tt.loc
+			h := s.routes()
+			q := tt.f.query()
+			for _, target := range []string{"/?" + q, "/charts/requests?" + q} {
+				if res := get(t, h, target, nil); res.Status != http.StatusOK {
+					t.Errorf("GET %s: status %d", target, res.Status)
+				}
+			}
+			// Each label selects its own window.
+			for _, w := range ws {
+				sel := url.Values{hx.ParamChart: {"requests"}, hx.ParamX: {w.Label}}.Encode()
+				r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/detail/requests?"+q+"&"+sel, nil)
+				got, _, _, ok := selectedWindow(r, tt.f, ws)
+				if !ok || !got.Start.Equal(w.Start) {
+					t.Errorf("select %q: window %v (ok %v), want %v", w.Label, got.Start, ok, w.Start)
+				}
+			}
+		})
+	}
+}
+
+// TestDrillDown requests a bar's detail the way the extension does after a
+// click, and checks the detail, its live region, the width it was sent and
+// that its request count repeats the bar's value.
+func TestDrillDown(t *testing.T) {
+	h := newTestServer(t).routes()
+	res := get(t, h, "/detail/requests?range=1h&region=us-east&region=eu-west&hp-w=560&hp-chart=requests&hp-x=1%3A20%20PM&hp-series=eu-west", htmxHeader())
+	if res.Status != http.StatusOK {
+		t.Fatalf("status %d", res.Status)
+	}
+	f := parseFilters(httptest.NewRequest(http.MethodGet, "/?range=1h", nil))
+	start := time.Date(2026, 3, 3, 13, 20, 0, 0, time.UTC)
+	bar := math.Round(regions[1].rate(start, f.Range.Window) * f.Range.Window.Seconds())
+	for _, want := range []string{
+		`role="status">Showing requests for eu-west from 1:20 PM to 1:30 PM.</p>`,
+		`<h3 id="requests-detail-heading">Window from 1:20 PM</h3>`,
+		`id="drill" class="hp hp-anim" viewBox="0 0 560 220"`,
+		`class="hp-series hp-s2" data-hp-series="eu-west"`, // the region keeps its slot
+		`<dt>Requests</dt><dd>` + scale.FormatNumber(bar, 0) + `</dd>`,
+		`href="/?range=1h&amp;region=us-east&amp;region=eu-west"`, // Close, without script
+	} {
+		if !strings.Contains(res.Body, want) {
+			t.Errorf("detail lacks %s", want)
+		}
+	}
+	if strings.Contains(res.Body, `data-hp-series="us-east"`) {
+		t.Error("the detail of an eu-west bar shows us-east")
+	}
+
+	closed := get(t, h, "/detail/requests?range=1h&region=us-east", htmxHeader())
+	if strings.Contains(closed.Body, "<svg") || !strings.Contains(closed.Body, `id="requests-detail-status"`) {
+		t.Errorf("Close: want only the empty live region, got %s", closed.Body)
+	}
+	gone := get(t, h, "/detail/requests?range=1h&hp-chart=requests&hp-x=9%3A00%20AM", htmxHeader())
+	if !strings.Contains(gone.Body, "no longer on the chart") {
+		t.Errorf("a window that slid out: want a notice, got %s", gone.Body)
+	}
+}
+
+// TestWindowLinks checks the plain-HTML equivalent of the select gesture:
+// one link per bar group under the requests chart, each opening that
+// window's detail, through htmx and as a page without script.
+func TestWindowLinks(t *testing.T) {
+	h := newTestServer(t).routes()
+	res := get(t, h, "/charts/requests?range=15m&region=ap-south", htmxHeader())
+	links := windowLinkRE.FindAllStringSubmatch(res.Body, -1)
+	labels := []string{"1:45 PM", "1:48 PM", "1:51 PM", "1:54 PM", "1:57 PM"}
+	if len(links) != len(labels) {
+		t.Fatalf("found %d window links, want %d", len(links), len(labels))
+	}
+	for i, m := range links {
+		m = m[1:] // the id is checked by TestWindowLinksKeepTheirWindow
+		if m[3] != labels[i] {
+			t.Errorf("link %d is %q, want %q", i, m[3], labels[i])
+		}
+		frag := get(t, h, html.UnescapeString(m[2]), htmxHeader())
+		if !strings.Contains(frag.Body, "Window from "+labels[i]) {
+			t.Errorf("link %d: the detail does not open", i)
+		}
+		href, anchor, _ := strings.Cut(html.UnescapeString(m[1]), "#")
+		if anchor != "requests-detail" {
+			t.Errorf("link %d: href %q does not scroll to the detail", i, m[1])
+		}
+		page := get(t, h, href, nil)
+		if !strings.Contains(page.Body, `<div id="requests-detail" class="detail" hx-plot:autosize><p id="requests-detail-status" class="sr-only" role="status">Showing requests for ap-south`) {
+			t.Errorf("link %d: the page without script does not open the detail", i)
+		}
+	}
+}
+
+// windowLinkRE matches a window link: its id, href, hx-get and label.
+var (
+	windowLinkRE = regexp.MustCompile(`<a id="([^"]*)" href="([^"]*)" hx-get="([^"]*)" hx-target="#requests-detail" hx-swap="innerMorph">([^<]*)</a>`)
+	windowIDRE   = regexp.MustCompile(`^window-[0-9a-f]{8}$`)
+)
+
+// TestWindowLinksKeepTheirWindow checks that each window link has an id
+// that names its window, so the innerMorph poll of #requests-body keeps a
+// link node with its window as the windows slide. Without ids the morph
+// paired the links by position: when a window closed, a focused link kept
+// focus but took the next window's text and URL, and Enter opened a window
+// the reader never chose.
+func TestWindowLinksKeepTheirWindow(t *testing.T) {
+	s := newTestServer(t)
+	h := s.routes()
+	// links returns label -> id of the window links at now.
+	links := func(now time.Time) (map[string]string, []string) {
+		t.Helper()
+		s.now = func() time.Time { return now }
+		res := get(t, h, "/charts/requests?range=15m", htmxHeader())
+		byLabel := map[string]string{}
+		var order []string
+		seen := map[string]bool{}
+		for _, m := range windowLinkRE.FindAllStringSubmatch(res.Body, -1) {
+			id, label := m[1], m[4]
+			if !windowIDRE.MatchString(id) {
+				t.Errorf("link %q has id %q, want window-{8 hex digits}", label, id)
+			}
+			if seen[id] {
+				t.Errorf("id %q appears twice", id)
+			}
+			seen[id] = true
+			byLabel[label] = id
+			order = append(order, label)
+		}
+		if len(order) != 5 {
+			t.Fatalf("found %d window links at %v, want 5", len(order), now)
+		}
+		return byLabel, order
+	}
+	before, labels0 := links(epoch)
+	after, labels1 := links(epoch.Add(3 * time.Minute)) // one 15m window later
+	if labels0[0] != "1:45 PM" || labels1[0] != "1:48 PM" || labels1[4] != "2:00 PM" {
+		t.Fatalf("windows did not slide by one: %v, then %v", labels0, labels1)
+	}
+	for label, id := range before {
+		if got, ok := after[label]; ok && got != id {
+			t.Errorf("window %q: id %q, then %q after the slide", label, id, got)
+		}
+	}
+	if _, ok := after["1:45 PM"]; ok {
+		t.Error("the window that slid out still has a link")
+	}
+	for _, id := range after {
+		if id == before["1:45 PM"] {
+			t.Errorf("a new window reuses the id %q of the window that slid out", id)
+		}
+	}
+}
+
+func TestSpanText(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		0:                                     "0 seconds",
+		time.Second:                           "1 second",
+		90 * time.Second:                      "1 minute 30 seconds",
+		2 * time.Hour:                         "2 hours",
+		time.Hour + time.Minute + 1e9:         "1 hour 1 minute 1 second",
+		24*time.Hour + 30*time.Second:         "24 hours 30 seconds",
+		10*time.Minute + 500*time.Millisecond: "10 minutes",
+	} {
+		if got := spanText(d); got != want {
+			t.Errorf("spanText(%v) = %q, want %q", d, got, want)
+		}
+	}
+}
+
+func TestRangeText(t *testing.T) {
+	a := time.Date(2026, 3, 3, 13, 5, 0, 0, time.UTC)
+	if got, want := rangeText(a, a.Add(10*time.Minute+30*time.Second), time.UTC), "1:05 PM to 1:15:30 PM"; got != want {
+		t.Errorf("same day: %q, want %q", got, want)
+	}
+	if got, want := rangeText(a, a.Add(12*time.Hour), time.UTC), "Mar 3, 1:05 PM to Mar 4, 1:05 AM"; got != want {
+		t.Errorf("two days: %q, want %q", got, want)
+	}
+}
+
+func TestFastClock(t *testing.T) {
+	now := epoch
+	clock := fastClock(func() time.Time { return now }, 5)
+	now = epoch.Add(2 * time.Second)
+	if got, want := clock(), epoch.Add(10*time.Second); !got.Equal(want) {
+		t.Errorf("after 2s at speed 5: %v, want %v", got, want)
 	}
 }

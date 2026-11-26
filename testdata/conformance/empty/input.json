@@ -1,0 +1,10 @@
+{
+  "spec": 1,
+  "chart": {
+    "id": "none",
+    "title": "Nothing yet",
+    "width": 240,
+    "height": 120
+  },
+  "table": false
+}

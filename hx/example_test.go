@@ -141,8 +141,8 @@ func ExamplePartial() {
 	// <hx-partial hx-target="#kpi-p99" hx-swap="innerMorph"><span class="kpi">12.5 ms</span></hx-partial>
 }
 
-// Size reads the container width that the hyperplot client extension
-// sends with each request from a data-hp-autosize element, falling back
+// Size reads the container width that the hx-plot client extension
+// sends with each request that targets an hx-plot:autosize element, falling back
 // to the default. The handler keeps its own height: the container is as
 // tall as the chart inside it, so its height must not feed back.
 func ExampleSize() {
@@ -159,10 +159,10 @@ func ExampleSize() {
 	// <svg class="hp" viewBox="0 0 640 320"></svg>
 }
 
-// With data-hp-autosize="both", the client also sends the container's
+// With hx-plot:autosize="both", the client also sends the container's
 // content height as hp-h. Use it only when CSS sets that height, as with
 //
-//	<div style="height: 40vh" data-hp-autosize="both" …>
+//	<div style="height: 40vh" hx-plot:autosize="both" …>
 //
 // Both values are clamped to [hx.MinSize, hx.MaxSize].
 func ExampleSize_both() {
@@ -170,6 +170,69 @@ func ExampleSize_both() {
 	w, h := hx.Size(r, 640, 320)
 	fmt.Println(w, h)
 	// Output: 812 4096
+}
+
+// A drill-down handler reads the select gesture that the extension adds
+// to a request triggered by htmx:plot:select (hx-trigger="htmx:plot:select"),
+// or that a plain link sends with the same parameters. hp-x is the row key
+// the chart carries, so it can be matched or parsed exactly.
+func ExampleSelected() {
+	q := "hp-chart=lt&hp-x=2026-03-03T14%3A10%3A00Z&hp-series=p50"
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/detail?"+q, nil)
+	sel, ok := hx.Selected(r)
+	if !ok {
+		fmt.Println("no selection: show the overview")
+		return
+	}
+	t, err := sel.Time()
+	if err != nil {
+		fmt.Println("not a time: ignore it")
+		return
+	}
+	fmt.Println(sel.Chart, sel.Series, t.Format(time.Kitchen))
+	// Output: lt p50 2:10PM
+}
+
+// A zoom handler tells a brush from a poll of the same URL by the
+// presence of hp-x0 and hp-x1, orders the range, and fixes the chart's x
+// domain to it. Values that do not parse are ignored (docs/spec.md §5.3).
+// A plain datetime-local from/to form sends the same parameters without
+// an offset; TimesIn reads them in the chart's time zone.
+func ExampleBrushed() {
+	q := "hp-chart=lt&hp-x0=2026-03-03T14%3A15%3A00Z&hp-x1=2026-03-03T14%3A05%3A00Z"
+	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/charts/latency?"+q, nil)
+	domain := [2]time.Time{} // zero: the data's extent
+	if b, ok := hx.Brushed(r); ok {
+		if t0, t1, err := b.Times(); err == nil {
+			domain = [2]time.Time{t0, t1}
+		}
+	}
+	fmt.Println(domain[0].Format(time.RFC3339), domain[1].Format(time.RFC3339))
+	// Output: 2026-03-03T14:05:00Z 2026-03-03T14:15:00Z
+}
+
+// On a linear axis the brush values are numbers. Floats rejects NaN,
+// infinities and anything that is not a JSON number; clamping the range
+// to what the data covers is the application's choice.
+func ExampleBrush_Floats() {
+	for _, q := range []string{"hp-x0=7.5&hp-x1=2", "hp-x0=NaN&hp-x1=2", "hp-x0=2"} {
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/charts/size?"+q, nil)
+		b, ok := hx.Brushed(r)
+		if !ok {
+			fmt.Println("no brush")
+			continue
+		}
+		x0, x1, err := b.Floats()
+		if err != nil {
+			fmt.Println("ignored:", err)
+			continue
+		}
+		fmt.Println(max(x0, 0), min(x1, 100))
+	}
+	// Output:
+	// 2 7.5
+	// ignored: hyperplot: "NaN" is not a number
+	// no brush
 }
 
 // One URL can serve the full page and, for htmx, just the fragment.

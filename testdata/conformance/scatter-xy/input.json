@@ -1,0 +1,14 @@
+{
+  "spec": 1,
+  "chart": {
+    "id": "sx",
+    "title": "Size vs time",
+    "width": 240,
+    "height": 120,
+    "marks": [
+      { "type": "dot", "name": "GET", "x": { "floats": [1, 2, 3] }, "y": [10, 30, 20], "labels": ["a", "", ""] },
+      { "type": "dot", "name": "POST", "x": { "floats": [2] }, "y": [15] }
+    ]
+  },
+  "table": true
+}

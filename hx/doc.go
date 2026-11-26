@@ -1,20 +1,27 @@
 // Package hx provides small, dependency-free server helpers for keeping
 // hyperplot charts live with htmx 4: polling tags, server-sent event
-// streams, multi-target partial responses, and client-reported chart
-// sizes. The helpers work with any HTML fragment, not only charts.
+// streams, multi-target partial responses, client-reported chart sizes,
+// and the select and brush gestures of the hx-plot extension. Together
+// with the root package they are the reference server of the hx-plot
+// wire spec (docs/spec.md). The helpers work with any HTML fragment, not
+// only charts.
 //
 // Every pattern below swaps with innerMorph. hyperplot output is
-// deterministic and gives series, bars and dots stable ids, so idiomorph
-// updates the existing SVG nodes in place instead of replacing them, and
-// the CSS transitions of a chart rendered with Animate animate the change.
+// deterministic and gives series, bars, dots and table rows stable ids,
+// so htmx's morph updates the existing nodes in place instead of
+// replacing them, and the hx-plot extension animates the change of a
+// chart rendered with Animate (a sliding window slides).
 //
-// The snippets assume htmx 4.0.2 and the extensions loaded by script tag
-// (htmx 4 has no hx-ext attribute; an extension is active once its script
-// has run):
+// The snippets assume htmx 4.0.2 and the extensions loaded by plain
+// script tags, without defer (htmx 4 has no hx-ext attribute; an
+// extension is active once its script has run, and a deferred htmx can
+// start before a deferred extension has loaded). hx-plot.js is the
+// extension from the npm package htmx-ext-plot:
 //
 //	<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js"></script>
 //	<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js"></script>
 //	<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js"></script>
+//	<script src="/static/hx-plot.js"></script>
 //
 // # Polling with ptag and innerMorph
 //
@@ -25,19 +32,19 @@
 // empty response per interval.
 //
 //	<div hx-get="/charts/latency"
-//	     hx-trigger="every 2s, hp:resize"
+//	     hx-trigger="every 2s, htmx:plot:resize"
 //	     hx-swap="innerMorph"
 //	     hx-ptag='"hp-1a2b3c4d5e6f7a8b"'
-//	     data-hp-autosize>
+//	     hx-plot:autosize>
 //	  {{.Chart}}
 //	</div>
 //
 // The optional hx-ptag attribute seeds the tag of the server-rendered
 // first paint, so even the first poll can be a 304. [CheckPTag] accepts
 // the tag with or without quotes, so hx-ptag="hp-1a2b3c4d5e6f7a8b" works
-// as well. data-hp-autosize and the hp:resize trigger come from the
-// hyperplot client extension, which re-requests the chart when its
-// container is resized and reports the new size (see [Size]).
+// as well. hx-plot:autosize and the htmx:plot:resize trigger come from the
+// hx-plot extension, which re-requests the chart when its container is
+// resized and reports the new size (see [Size]).
 //
 // The handler renders, tags the bytes, and lets [CheckPTag] decide. It
 // keeps the height: a wrapper without a CSS height is as tall as the
@@ -156,6 +163,70 @@
 //		return
 //	}
 //	renderPage(w, region)
+//
+// # Select and brush
+//
+// The extension turns a click (or Enter) on a chart into an
+// htmx:plot:select event, and a drag across a chart inside an
+// hx-plot:brush container into an htmx:plot:brush event. An hx-trigger
+// on either makes an ordinary htmx request, to which the extension adds
+// the gesture as parameters: hp-chart, hp-x and hp-series for a select,
+// hp-chart, hp-x0 and hp-x1 for a brush ([ParamChart] and the other
+// Param constants). A drill-down:
+//
+//	<div hx-get="/detail" hx-trigger="htmx:plot:select" hx-target="#detail">
+//	  {{.Chart}}
+//	</div>
+//
+// [Selected] reads the select. Its X is the row key the chart carries for
+// that x value (an RFC 3339 time in UTC, a number, or the category), so
+// the handler can match it exactly or parse it:
+//
+//	func detail(w http.ResponseWriter, r *http.Request) {
+//		sel, ok := hx.Selected(r)
+//		if !ok {
+//			w.WriteHeader(http.StatusNoContent) // nothing selected: keep the page
+//			return
+//		}
+//		at, err := sel.Time()
+//		if err != nil {
+//			w.WriteHeader(http.StatusNoContent) // not a key of ours: ignore it
+//			return
+//		}
+//		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+//		fmt.Fprintf(w, "<p>%s at %s</p>", html.EscapeString(sel.Series), at.Format(time.Kitchen))
+//	}
+//
+// [Brushed] reads a brush. A brush and a poll often share a URL, and the
+// handler tells them apart by whether Brushed reports one. [Brush.Times]
+// (or [Brush.Floats] on a linear axis) orders the range; values that do
+// not parse are ignored, and the handler re-renders the chart with its x
+// domain fixed to the range, so the axes and labels are the server's
+// again (docs/spec.md §5.3, §5.4):
+//
+//	func zoom(w http.ResponseWriter, r *http.Request) {
+//		width, _ := hx.Size(r, 640, 0)
+//		chart := latencyChart(width, 320)
+//		if b, ok := hx.Brushed(r); ok {
+//			if t0, t1, err := b.Times(); err == nil {
+//				chart.X.TimeDomain = [2]time.Time{t0, t1}
+//			}
+//		}
+//		svg, err := chart.Render()
+//		if err != nil {
+//			log.Print(err)
+//			w.WriteHeader(http.StatusNoContent)
+//			return
+//		}
+//		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+//		w.Write(svg)
+//	}
+//
+// The parameters are plain form fields, so links and forms send the same
+// requests without the extension: a link per table row for select, and a
+// from/to form of <input type="datetime-local"> fields named hp-x0 and
+// hp-x1 for a zoom. [Brush.TimesIn] reads such values, which have no
+// offset, in the chart's time zone.
 //
 // # Multiple targets with hx-partial
 //

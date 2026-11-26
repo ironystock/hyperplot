@@ -186,3 +186,49 @@ jobs:
       - name: node --test
         working-directory: client
         run: node --test
+
+  browser:
+    name: Browser tests (Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # harness.mjs builds and runs examples/dashboard.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      # The dev dependencies only: playwright-core (which downloads no
+      # browser) and the htmx.org files the tests serve in place of the CDN,
+      # so the tests need no network once installed.
+      - name: npm ci
+        working-directory: client
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      # ubuntu-latest ships Google Chrome and points CHROME_BIN at it
+      # (actions/runner-images, install-google-chrome.sh). Fail clearly if
+      # an image ever drops it, rather than inside the first test.
+      - name: Find Chrome
+        run: |
+          chrome="${CHROME_BIN:-/usr/bin/google-chrome}"
+          if [ ! -x "$chrome" ]; then
+            echo "::error::No Chrome at $chrome on this runner image."
+            exit 1
+          fi
+          "$chrome" --version
+          echo "CHROME_PATH=$chrome" >> "$GITHUB_ENV"
+
+      - name: npm run test:browser
+        working-directory: client
+        env:
+          HP_BROWSER_TMP: ${{ runner.temp }}/hyperplot
+        run: npm run test:browser

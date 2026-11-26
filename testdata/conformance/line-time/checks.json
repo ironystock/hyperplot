@@ -1,0 +1,109 @@
+{
+  "fixture": "line-time",
+  "about": "One time-x line series: the root contract, geometry attributes, mode x metadata with row keys, the table with row ids, hover, select and brush on a time axis.",
+  "level": 3,
+  "input": "input.json",
+  "reference": { "chart": "chart.svg", "table": "table.html" },
+  "forbid": {
+    "elements": ["script", "foreignObject"], "attrs": ["style"], "attrPrefixes": ["on"],
+    "where": [
+      { "sel": "svg", "attrs": ["transform"] },
+      { "sel": "g.hp-marks", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-labels", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-axis-x", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-hover", "attrs": ["transform"], "deep": true },
+      { "sel": "rect.hp-band-hl", "attrs": ["transform"] }
+    ]
+  },
+  "server": [
+    {
+      "sel": "svg", "count": 1, "classes": ["hp", "hp-anim"],
+      "attrs": { "id": "lt", "role": "img", "tabindex": "0", "aria-labelledby": "lt-title", "aria-describedby": "lt-desc", "data-hp": "1" },
+      "match": {
+        "viewBox": "^0 0 [0-9.]+ [0-9.]+$",
+        "data-hp-plot": "^-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)?$",
+        "data-hp-x": "^time -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)?$",
+        "data-hp-y": "^linear -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)? -?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?(e[+-][1-9][0-9]*)?$"
+      }
+    },
+    { "sel": "svg > title", "count": 1, "attrs": { "id": "lt-title" }, "text": "Latency" },
+    { "sel": "svg > desc", "count": 1, "attrs": { "id": "lt-desc" } },
+    { "sel": "g.hp-marks > g.hp-series", "count": 1, "classes": ["hp-s1"], "attrs": { "data-hp-series": "p50" } },
+    { "sel": "g.hp-series", "count": 1, "attrs": { "id": "lt-s-2e119f3a" }, "should": true },
+    { "sel": "g.hp-series > path.hp-line", "count": 1, "should": true },
+    { "sel": "g.hp-hover > line.hp-crosshair", "count": 1, "attrs": { "visibility": "hidden" } },
+    {
+      "sel": "g.hp-hover > metadata.hp-tips", "count": 1,
+      "tips": {
+        "mode": "x", "count": 3,
+        "k": ["2026-03-03T14:00:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:20:00Z"],
+        "names": ["p50"]
+      }
+    },
+    { "sel": "g.hp-hover > metadata.hp-tips", "count": 1, "tips": { "slots": [[1, "p50"]] }, "should": true },
+    { "in": "table", "sel": "table.hp-table", "count": 1, "attrs": { "id": "lt-table" } },
+    { "in": "table", "sel": "table > caption", "count": 1, "text": "Latency" },
+    { "in": "table", "sel": "thead > tr > th[scope=\"col\"]", "count": 2 },
+    { "in": "table", "sel": "tbody > tr", "count": 3 },
+    { "in": "table", "sel": "tbody > tr > th[scope=\"row\"]", "count": 3 },
+    { "in": "table", "sel": "tbody > tr#lt-r-f9457bc2", "count": 1, "should": true },
+    { "in": "table", "sel": "tbody > tr#lt-r-420dc8f8", "count": 1, "should": true }
+  ],
+  "client": {
+    "geometry": { "plot": [24, 8, 228, 98], "x": ["time", 1772546400000, 1772547600000], "y": ["linear", 40, 46] },
+    "tips": { "mode": "x", "n": 3, "ord": [0, 1, 2], "k": ["2026-03-03T14:00:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:20:00Z"] },
+    "hover": [
+      { "at": [130, 50], "index": 1 },
+      { "at": [75, 50], "index": 0, "note": "tie between 24 and 126: the lower index wins" },
+      { "at": [300, 50], "index": 2 },
+      { "at": [130, 105], "index": -1, "note": "below the plot (bottom 98)" }
+    ],
+    "select": [
+      {
+        "click": [130, 50], "target": "svg",
+        "detail": { "chart": "lt", "x": "2026-03-03T14:10:00Z", "series": "", "index": 1 },
+        "params": { "hp-chart": "lt", "hp-x": "2026-03-03T14:10:00Z" }
+      },
+      { "click": [130, 105], "target": "svg", "detail": null },
+      {
+        "keys": ["End", "Enter"],
+        "detail": { "chart": "lt", "x": "2026-03-03T14:20:00Z", "series": "", "index": 2 }
+      },
+      {
+        "keys": ["Home"], "click": [228, 50], "clickDetail": 0, "target": "svg",
+        "detail": { "chart": "lt", "x": "2026-03-03T14:00:00Z", "series": "", "index": 0 },
+        "note": "a click with detail 0 (assistive technology, synthetic) selects the active keyboard point, not the point under its coordinates"
+      },
+      { "click": [228, 50], "clickDetail": 0, "target": "svg", "detail": null, "note": "detail 0 and no active keyboard point: no event" }
+    ],
+    "brush": [
+      {
+        "from": 75, "to": 177,
+        "detail": { "chart": "lt", "x0": "2026-03-03T14:05:00Z", "x1": "2026-03-03T14:15:00Z" },
+        "params": { "hp-chart": "lt", "hp-x0": "2026-03-03T14:05:00Z", "hp-x1": "2026-03-03T14:15:00Z" },
+        "rect": { "x": 75, "y": 8, "width": 102, "height": 90 },
+        "note": "the click the browser fires after the release dispatches no htmx:plot:select"
+      },
+      { "from": 177, "to": 75, "detail": { "chart": "lt", "x0": "2026-03-03T14:05:00Z", "x1": "2026-03-03T14:15:00Z" } },
+      {
+        "from": 100, "to": 300,
+        "detail": { "chart": "lt", "x0": "2026-03-03T14:07:27.059Z", "x1": "2026-03-03T14:20:00Z" },
+        "note": "100 inverts to 447058.82 ms past 14:00, rounded to whole ms; 300 is clamped to the plot's right edge"
+      }
+    ],
+    "keyboardBrush": [
+      {
+        "keys": ["Home", "Shift+ArrowRight", "Shift+ArrowRight", "Enter"],
+        "detail": { "chart": "lt", "x0": "2026-03-03T14:00:00Z", "x1": "2026-03-03T14:20:00Z" },
+        "rect": { "x": 24, "y": 8, "width": 204, "height": 90 },
+        "note": "a keyboard range is drawn too, from the anchor row's x to the active row's x"
+      },
+      {
+        "keys": ["End", "Shift+Home", "Enter"],
+        "detail": { "chart": "lt", "x0": "2026-03-03T14:00:00Z", "x1": "2026-03-03T14:20:00Z" },
+        "note": "Shift+Home and Shift+End extend the range to the ends"
+      },
+      { "keys": ["Home", "Shift+ArrowRight", "Escape", "Enter"], "detail": null, "note": "Escape cancels the range and hides the point, so Enter has nothing to commit" }
+    ]
+  }
+}
