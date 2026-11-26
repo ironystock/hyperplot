@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="hyperplot">
+<!-- hyperplot mark. A trace on a scope screen that is also a lowercase h. The spot is Signal red:
+     the one place red appears in the identity. glass oklch(0.209 0.013 196) · phosphor oklch(0.909 0.18 102) · spot oklch(0.561 0.228 27) -->
+<defs>
+<linearGradient id="m-p" gradientUnits="userSpaceOnUse" x1="7" y1="0" x2="53.5" y2="0"><stop offset="0" stop-color="#fae431" stop-opacity=".28"/><stop offset=".5" stop-color="#fae431" stop-opacity=".78"/><stop offset="1" stop-color="#fae431"/></linearGradient>
+<filter id="m-g" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.8"/></filter>
+<clipPath id="m-c"><rect width="64" height="64" rx="14"/></clipPath>
+</defs>
+<rect width="64" height="64" rx="14" fill="#111a1a"/>
+<g clip-path="url(#m-c)"><g fill="none" stroke="#2c3b3b" stroke-linecap="round"><path d="M16 5V59M5 16H59M48 5V59M5 48H59" stroke-width=".7" stroke-dasharray=".1 3.2"/><path d="M5 32H59M32 5V59" stroke-width=".6" opacity=".9"/><path d="M8.0 31V33M31 8.0H33M11.2 31V33M31 11.2H33M14.4 31V33M31 14.4H33M17.6 31V33M31 17.6H33M20.8 31V33M31 20.8H33M24.0 31V33M31 24.0H33M27.2 31V33M31 27.2H33M30.4 31V33M31 30.4H33M33.6 31V33M31 33.6H33M36.8 31V33M31 36.8H33M40.0 31V33M31 40.0H33M43.2 31V33M31 43.2H33M46.4 31V33M31 46.4H33M49.6 31V33M31 49.6H33M52.8 31V33M31 52.8H33" stroke-width=".6"/></g>
+<path class="tr" pathLength="1" d="M7 46.5H19.5V14.5V30C19.5 25 23.5 22.5 28.75 22.5C34 22.5 38 25 38 31V46.5H53.5" fill="none" stroke="url(#m-p)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".42" filter="url(#m-g)"/>
+<path class="tr" pathLength="1" d="M7 46.5H19.5V14.5V30C19.5 25 23.5 22.5 28.75 22.5C34 22.5 38 25 38 31V46.5H53.5" fill="none" stroke="url(#m-p)" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<g class="spot" transform="translate(53.5 46.5)"><circle r="7.6" fill="#db0018" opacity=".35" filter="url(#m-g)"/><circle r="4.6" fill="#db0018"/><circle r="1.4" fill="#f5ede4"/></g></g>
+<rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" stroke="#2c3b3b"/>
+</svg>

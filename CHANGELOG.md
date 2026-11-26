@@ -16,6 +16,11 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
 
 ### Added
 
+- `TraceTheme()`, hyperplot's own branded palette: a phosphor trace on
+  dark glass, with slot 1 as the brand color and no red series. It is
+  opt-in; `DefaultTheme()` and `Stylesheet()` are unchanged. The brand
+  assets are in [docs/brand/](docs/brand/README.md), and the README now
+  opens with the lockup and a hero image.
 - The wire spec, [docs/spec.md](docs/spec.md) (spec version 1): the chart
   markup, hover payload, ids, geometry attributes and row keys a server
   writes; the `hx-plot:` attributes, `hp-*` request parameters and

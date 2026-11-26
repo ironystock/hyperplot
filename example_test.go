@@ -154,6 +154,14 @@ func ExampleTheme_CSS() {
 	// Output: true
 }
 
+func ExampleTraceTheme() {
+	// Serve TraceTheme().CSS() in place of Stylesheet() to give every
+	// chart on the page hyperplot's branded palette.
+	css := hyperplot.TraceTheme().CSS()
+	fmt.Println(strings.Contains(css, "--hp-series-1:#a88d00;"))
+	// Output: true
+}
+
 func ExampleMap() {
 	type row struct {
 		Day   string

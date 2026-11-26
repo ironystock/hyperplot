@@ -1,4 +1,9 @@
-# hyperplot
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.svg">
+    <img src="docs/brand/lockup.svg" alt="hyperplot" width="320">
+  </picture>
+</h1>
 
 **`hx-plot`: an htmx 4 extension for live charts that your server draws as SVG.
 No client chart library.**
@@ -6,6 +11,14 @@ No client chart library.**
 [![Go Reference](https://pkg.go.dev/badge/github.com/ironystock/hyperplot.svg)](https://pkg.go.dev/github.com/ironystock/hyperplot)
 [![CI](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml/badge.svg)](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/hero-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/brand/hero-light.svg">
+    <img src="docs/brand/hero-dark.svg" alt="A live latency chart drawn by hyperplot (p50, p95 and p99 over five minutes, with an SLO line at 250 ms), shown between the opening and closing tags of the div that fetches it: hx-get=&quot;/charts/latency&quot; hx-trigger=&quot;every 2s, htmx:plot:resize&quot; hx-swap=&quot;innerMorph&quot; hx-plot:autosize.">
+  </picture>
+</p>
 
 Your server renders each chart as SVG markup and sends it like any other
 fragment. htmx keeps it live with the requests you already know (polling,

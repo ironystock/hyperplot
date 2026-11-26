@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="hyperplot">
+<!-- hyperplot mark, one colour: the trace and spot take currentColor. For print, badges and forced colours. -->
+<path d="M7 46.5H19.5V14.5V30C19.5 25 23.5 22.5 28.75 22.5C34 22.5 38 25 38 31V46.5H49" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="53.5" cy="46.5" r="4.6" fill="currentColor"/>
+</svg>

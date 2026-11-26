@@ -272,6 +272,7 @@ func Stylesheet() string                                 // DefaultTheme().CSS()
 type Palette struct { Surface, Text, TextMuted, Grid, Axis string; Series [8]string }
 type Theme struct { Light, Dark Palette }
 func DefaultTheme() Theme; func (t Theme) CSS() string
+func TraceTheme() Theme                                  // opt-in branded palette (see "Trace theme")
 type Sparkline struct { Values []float64; Width, Height float64; Label string; Area bool; Unit string; Format func(float64) string }
 func (s Sparkline) Render() ([]byte, error)
 func (s Sparkline) WriteTo(w io.Writer) (int64, error)  // io.WriterTo
@@ -667,6 +668,44 @@ same-hue status cue away from a series in that slot (on a dark page, slot 6 for
 good; slots 2 and 8 sit near serious and critical). A page's own dark-mode
 status colors must not reuse a series token either. `TestStatusColorsDifferFromSeries`
 fails if any other series token equals a status color.
+
+### Trace theme (TraceTheme)
+
+`TraceTheme()` is hyperplot's own branded palette: a phosphor trace on an
+oscilloscope's dark glass, the "Trace" identity in [docs/brand/](brand/README.md).
+It is **opt-in**. `DefaultTheme()` and `Stylesheet()` are unchanged, so goldens,
+conformance fixtures and `client/hx-plot.css` are unaffected. Pages use it by
+serving `TraceTheme().CSS()` in place of `Stylesheet()`; standalone SVG uses it
+by setting `Chart.Theme`.
+
+| token | light (paper) | dark (glass) |
+|---|---|---|
+| surface | `#fbfaf6` | `#111a1a` |
+| text | `#101818` | `#efecd6` |
+| text-muted | `#525d5e` | `#a3b3a6` |
+| grid | `#e3e1db` | `#253432` |
+| axis | `#b3b1aa` | `#455755` |
+| series 1 trace | `#a88d00` | `#fae431` |
+| series 2 cyan | `#239cbe` | `#00aed4` |
+| series 3 magenta | `#940080` | `#ad368a` |
+| series 4 orange | `#df7100` | `#e77c00` |
+| series 5 sky | `#3080c5` | `#3f8ed3` |
+| series 6 umber | `#904900` | `#995602` |
+| series 7 violet | `#4936b6` | `#6054d4` |
+| series 8 green | `#008a2a` | `#24ae56` |
+
+Rules:
+- **Slot 1 is the brand color** in both modes. On glass it is the phosphor
+  `#fae431`. On paper it is `#a88d00`, because the phosphor is 1.2:1 on paper.
+- **No series is red.** Red (`#db0018`, the vibehyper Signal red) belongs only
+  to the spot in the mark.
+- It was validated with the same method as the default: 3:1 against the
+  surface, and adjacent slots distinguishable under the three color-vision
+  simulations. Dark slot 1 is lighter than the usual lightness band, on
+  purpose, so the trace leads.
+- `TestTraceTheme` checks contrast, that no series is red or a status color,
+  that every value survives `CSS()`, and slot 1.
+  `TestActivePointIndicatorsContrast` covers both themes.
 
 ### CSS (Theme.CSS)
 

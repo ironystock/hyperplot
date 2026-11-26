@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+<!-- hyperplot favicon: the mark re-cut on the 16 px grid. -->
+<rect width="16" height="16" rx="3.5" fill="#111a1a"/>
+<rect x=".5" y=".5" width="15" height="15" rx="3" fill="none" stroke="#556767"/>
+<path d="M2.5 12H5V3V8C5 6 6 5 7.5 5S10 6 10 8V12H11.5" fill="none" stroke="#fae431" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="13" cy="12" r="2" fill="#db0018"/>
+</svg>
