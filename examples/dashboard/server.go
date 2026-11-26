@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"path"
 	"strconv"
 	"time"
 
@@ -90,8 +91,23 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /stream/throughput", s.throughputStream)
 	mux.HandleFunc("GET /static/hyperplot.css", s.stylesheet)
 	mux.Handle("GET /static/hyperplot.js", client.Handler())
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", staticTypes(http.FileServerFS(static))))
 	return securityHeaders(mux)
+}
+
+// staticTypes sets the Content-Type of the static assets explicitly. The
+// file server otherwise asks package mime, which on Windows reads the
+// registry and may answer application/javascript for .js files.
+func staticTypes(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch path.Ext(r.URL.Path) {
+		case ".js":
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		case ".css":
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func securityHeaders(next http.Handler) http.Handler {

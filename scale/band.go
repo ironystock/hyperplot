@@ -43,8 +43,9 @@ func (s Band) layout() (start, step, bandwidth float64) {
 	po := max(0, s.PaddingOuter)
 	denom := max(1, n-pi+po*2)
 	step = (r1 - r0) / denom
-	start = r0 + (r1-r0-step*(n-pi))*clamp01(s.Align)
-	bandwidth = step * (1 - pi)
+	// Explicit conversions stop FMA fusion so arm64 and amd64 agree.
+	start = r0 + float64((r1-r0-float64(step*(n-pi)))*clamp01(s.Align))
+	bandwidth = float64(step * (1 - pi))
 	if reverse {
 		// Walk from the far end so the first category sits at r0.
 		start = r1 - (start - r0) - bandwidth
@@ -66,7 +67,7 @@ func (s Band) Map(key string) (float64, bool) {
 // MapIndex returns the start coordinate of the i-th band.
 func (s Band) MapIndex(i int) float64 {
 	start, step, _ := s.layout()
-	return start + step*float64(i)
+	return start + float64(step*float64(i)) // no FMA; see layout
 }
 
 // Index returns the position of key in the domain, or -1.

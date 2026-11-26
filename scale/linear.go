@@ -35,7 +35,10 @@ func (s Linear) Map(v float64) float64 {
 	if s.Clamp {
 		t = math.Max(0, math.Min(1, t))
 	}
-	return r0 + t*(r1-r0)
+	// The explicit conversion stops the compiler fusing the multiply-add
+	// into an FMA instruction (as it does on arm64), so every platform
+	// computes the same bits.
+	return r0 + float64(t*(r1-r0))
 }
 
 // Invert converts a range value back to a domain value.
@@ -49,7 +52,7 @@ func (s Linear) Invert(px float64) float64 {
 	if s.Clamp {
 		t = math.Max(0, math.Min(1, t))
 	}
-	return d0 + t*(d1-d0)
+	return d0 + float64(t*(d1-d0)) // no FMA; see Map
 }
 
 // Ticks returns roughly count evenly spaced, human-friendly values inside
