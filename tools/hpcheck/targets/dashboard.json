@@ -1,0 +1,15 @@
+{
+  "level": 3,
+  "pages": ["/"],
+  "charts": [
+    {"url": "/charts/latency", "ptag": true, "autosize": true, "table": true,
+     "brush": "/charts/latency", "select": null},
+    {"url": "/charts/requests", "ptag": true, "autosize": true, "table": true,
+     "brush": null, "select": "/detail/requests"},
+    {"url": "/charts/scatter", "ptag": true, "autosize": true, "table": true,
+     "brush": null, "select": null},
+    {"url": "/cards/throughput", "ptag": false, "autosize": true, "table": true,
+     "brush": null, "select": null}
+  ],
+  "sse": [{"url": "/stream/throughput", "frames": 2, "timeout": 10}]
+}

@@ -17,11 +17,11 @@ import (
 // This file checks the MUST requirements of docs/spec.md that hold for
 // every chart, whatever its data: the root contract (§3.2), the required
 // descendants and the no-transform rule (§3.3), the hover metadata (§3.5),
-// text safety (§3.6), the table (§3.8), identity (§4.1), the geometry
-// attributes (§4.2) and row keys (§4.3). TestConformance runs it on the
-// fixtures, TestGoldensMeetSpec on every golden chart, and FuzzRender on
-// every chart it renders, so the reference server meets the spec for
-// arbitrary input, not only for the fixtures.
+// text safety and no external references (§3.6), the table (§3.8),
+// identity (§4.1), the geometry attributes (§4.2) and row keys (§4.3).
+// TestConformance runs it on the fixtures, TestGoldensMeetSpec on every
+// golden chart, and FuzzRender on every chart it renders, so the reference
+// server meets the spec for arbitrary input, not only for the fixtures.
 
 const svgNS = "http://www.w3.org/2000/svg"
 
@@ -180,16 +180,58 @@ func checkRoot(r *specReport, root *xnode) string {
 	return id
 }
 
+// refAttrs are the attributes that load something: href and xlink:href
+// (parseDOM keeps only the local name of a prefixed attribute) and src.
+// urlAttrs are the presentation attributes that take a url(...) paint
+// server, clip, mask, filter or marker. tools/hpcheck/hpcheck.py checks the
+// same lists, so the two checkers agree.
+var (
+	refAttrs = []string{"href", "src"}
+	urlAttrs = []string{"clip-path", "fill", "stroke", "mask", "filter", "marker-start", "marker-mid", "marker-end"}
+	// urlRe matches url(...) with its target double-quoted, single-quoted
+	// or bare (Go's regexp has no backreferences, hence three groups).
+	urlRe = regexp.MustCompile(`(?i)url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)`)
+)
+
 // checkSafety checks §3.6: no script or foreignObject, no style or on*
-// attributes.
+// attributes and, in a chart, no references to external resources:
+// href and src point at an id (#...), and url(...) at an id in the chart.
+// A javascript: link counts as external.
 func checkSafety(r *specReport, root *xnode, doc string) {
+	ids := map[string]bool{}
+	root.walk(func(n *xnode) {
+		if v, ok := n.attr("id"); ok {
+			ids[v] = true
+		}
+	})
 	root.walk(func(n *xnode) {
 		if n.name == "script" || n.name == "foreignObject" {
 			r.addf("§3.6: %s holds <%s>", doc, n.name)
 		}
 		for _, a := range n.attrs {
-			if a.Name.Local == "style" || strings.HasPrefix(strings.ToLower(a.Name.Local), "on") {
-				r.addf("§3.6: %s carries the attribute %s", n.path(), a.Name.Local)
+			k, v := a.Name.Local, a.Value
+			if k == "style" || strings.HasPrefix(strings.ToLower(k), "on") {
+				r.addf("§3.6: %s carries the attribute %s", n.path(), k)
+			}
+			if doc != "chart" {
+				continue
+			}
+			switch {
+			case slices.Contains(refAttrs, k):
+				if !strings.HasPrefix(strings.TrimSpace(v), "#") {
+					r.addf("§3.6: %s %s=%q refers outside the chart", n.path(), k, v)
+				}
+			case slices.Contains(urlAttrs, k) && strings.Contains(strings.ToLower(v), "url("):
+				refs := urlRe.FindAllStringSubmatch(v, -1)
+				if len(refs) == 0 {
+					r.addf("§3.6: %s %s=%q is not url(#id)", n.path(), k, v)
+				}
+				for _, m := range refs {
+					ref := m[1] + m[2] + m[3] // only one group matched
+					if id, ok := strings.CutPrefix(ref, "#"); !ok || !ids[id] {
+						r.addf("§3.6: %s %s=%q does not point at an id in the chart", n.path(), k, v)
+					}
+				}
 			}
 		}
 	})
@@ -686,6 +728,7 @@ func TestSpecCheckCatchesViolations(t *testing.T) {
 		{"non-canonical key", `"k":"2026-03-03T14:10:00Z"`, `"k":"2026-03-03T14:10:00.000Z"`},
 		{"foreign id", `id="lt-s-2e119f3a"`, `id="other"`},
 		{"style", `<g class="hp-hover"`, `<g style="x" class="hp-hover"`},
+		{"on* attribute", `<g class="hp-hover"`, `<g onclick="x()" class="hp-hover"`},
 		{"focus ring", `<metadata`, `<circle class="hp-focus"/><metadata`},
 	}
 	for _, m := range mutations {
@@ -746,6 +789,50 @@ func TestSpecCheckCatchesViolations(t *testing.T) {
 		if v := checkSpec(dots, []byte(strings.Replace(string(dt), m.from, m.to, 1))); len(v) == 0 {
 			t.Errorf("%s: not reported", m.name)
 		}
+	}
+}
+
+// TestSpecCheckExternalReferences checks the §3.6 rule that a chart
+// refers to nothing outside itself, with the same cases as
+// tools/hpcheck/test_hpcheck.py, so the Go and Python checkers agree. The
+// references that stay inside the chart must pass.
+func TestSpecCheckExternalReferences(t *testing.T) {
+	c := &Chart{
+		ID: "lt", Title: "Latency", Width: 240, Height: 120,
+		Marks: []Mark{Line{Name: "p50", X: minutes(3, 10), Y: []float64{42, 45, 41}}},
+	}
+	good := mustRender(t, c)
+	const hover = `<g class="hp-hover"`
+	const clip = `clip-path="url(#lt-clip)"`
+	tests := []struct {
+		name, from, to string
+		bad            bool
+	}{
+		{"javascript: link", hover, `<a href="javascript:x()"><text>x</text></a>` + hover, true},
+		{"external image", hover, `<image href="https://x.example/i.png"/>` + hover, true},
+		{"external use", hover, `<use xlink:href="https://x.example/s.svg#a"/>` + hover, true},
+		{"relative src", hover, `<g src="i.png"/>` + hover, true},
+		{"external paint", hover, `<g fill="url(https://x.example/f)" class="hp-hover"`, true},
+		{"quoted external paint", hover, `<g fill="url('https://x.example/f')" class="hp-hover"`, true},
+		{"url() to no id", clip, `clip-path="url(#lt-nope)"`, true},
+		{"unclosed url()", clip, `clip-path="url(#lt-clip"`, true},
+		{"second url() external", clip, `clip-path="url(#lt-clip) url(https://x.example/c)"`, true},
+		{"use of an id", hover, `<use href="#lt-clip"/>` + hover, false},
+		{"quoted url() to an id", clip, `clip-path="url(&quot;#lt-clip&quot;)"`, false},
+		{"spaced URL() to an id", clip, `clip-path="URL( #lt-clip )"`, false},
+		{"plain paint", hover, `<g fill="currentColor" class="hp-hover"`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !bytes.Contains(good, []byte(tt.from)) {
+				t.Fatalf("%q not in the chart:\n%s", tt.from, good)
+			}
+			v := checkSpec(bytes.Replace(good, []byte(tt.from), []byte(tt.to), 1), nil)
+			got := slices.ContainsFunc(v, func(m string) bool { return strings.HasPrefix(m, "§3.6:") })
+			if got != tt.bad {
+				t.Errorf("§3.6 reported = %v, want %v: %v", got, tt.bad, v)
+			}
+		})
 	}
 }
 

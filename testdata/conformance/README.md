@@ -7,7 +7,8 @@ kinds of consumers read them:
   assertions in `checks.json` against their own output. Their bytes will
   differ from ours (layout and number formatting are theirs to choose); the
   assertions only test what the spec requires, and those that test a SHOULD
-  are marked.
+  are marked. [hpcheck](../../tools/hpcheck/README.md) runs them, and the
+  spec's universal checks, on your renderer's output.
 - **The Go reference renderer** (`go test . -run Conformance`) must reproduce
   every reference file byte for byte and pass every assertion.
 - **The client** (`client/` tests under `node --test`) loads the reference
