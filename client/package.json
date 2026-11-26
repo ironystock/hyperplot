@@ -1,0 +1,45 @@
+{
+  "name": "hyperplot",
+  "version": "0.1.0",
+  "description": "Tooltips, crosshair, keyboard reading and live-update support for server-rendered hyperplot SVG charts. An htmx 4 extension with no dependencies.",
+  "license": "MIT",
+  "author": "hyperplot contributors",
+  "homepage": "https://github.com/ironystock/hyperplot#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ironystock/hyperplot.git",
+    "directory": "client"
+  },
+  "bugs": {
+    "url": "https://github.com/ironystock/hyperplot/issues"
+  },
+  "keywords": [
+    "htmx",
+    "htmx-extension",
+    "hypermedia",
+    "chart",
+    "charts",
+    "svg",
+    "tooltip",
+    "data-visualization",
+    "server-side-rendering",
+    "go"
+  ],
+  "main": "./hyperplot.js",
+  "browser": "./hyperplot.js",
+  "unpkg": "./hyperplot.js",
+  "jsdelivr": "./hyperplot.js",
+  "exports": {
+    ".": "./hyperplot.js",
+    "./hyperplot.js": "./hyperplot.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "hyperplot.js",
+    "README.md"
+  ],
+  "sideEffects": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

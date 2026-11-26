@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a new chart type, option, or integration.
+title: "feat: "
+labels: [enhancement, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        hyperplot aims for a small API with correct defaults. Before proposing a
+        feature, please skim the goals and non-goals in docs/DESIGN.md (for
+        example, pie charts and dual y-axes are deliberately out of scope).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to show or build, and what gets in the way today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The API you have in mind, as a Go snippet if you can.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, or how you work around it now.
+
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Fit with the design
+      options:
+        - label: This works with server-side rendering and needs no client-side data processing.
+        - label: I'd be willing to open a pull request for this.

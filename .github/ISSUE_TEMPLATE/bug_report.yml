@@ -1,0 +1,73 @@
+name: Bug report
+description: Something renders wrong, errors unexpectedly, or breaks a live update.
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. A minimal reproduction makes
+        it much faster to fix. **Security issues:** please don't file them here;
+        see SECURITY.md.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect to see instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: |
+        The smallest Go program or `hyperplot.Chart{...}` literal that shows the
+        problem. If it is visual, attach the SVG output or a screenshot.
+      render: go
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Rendering (SVG output, layout, marks)
+        - Scales, ticks, or number formatting
+        - Theme / CSS / dark mode
+        - Accessibility (title, description, table, keyboard)
+        - hx package (ptag, SSE, partials, sizing)
+        - Client extension (tooltips, crosshair, autosize)
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: hyperplot version
+      description: Output of `go list -m github.com/ironystock/hyperplot`, or a commit hash.
+    validations:
+      required: true
+
+  - type: input
+    id: go
+    attributes:
+      label: Go version and OS
+      placeholder: go1.24.4 linux/amd64
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and htmx version (for client or live-update issues)
+      placeholder: Firefox 140, htmx 4.0.2
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs, error messages, links to related issues.

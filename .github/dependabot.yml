@@ -1,0 +1,33 @@
+version: 2
+
+updates:
+  # The core has no dependencies; this watches for any that sneak in and
+  # keeps the go directive honest.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "build(deps)"
+    labels: [dependencies, go]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(deps)"
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The client has no runtime dependencies; this covers any dev tooling
+  # added to client/package.json later.
+  - package-ecosystem: npm
+    directory: /client
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "build(deps)"
+    labels: [dependencies, javascript]

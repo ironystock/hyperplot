@@ -1,0 +1,26 @@
+# Git hooks, managed by lefthook (https://lefthook.dev).
+# Install once per clone with: lefthook install
+# Skip in an emergency with: LEFTHOOK=0 git commit ...
+
+pre-commit:
+  # Run in order: format first, so vet sees the formatted files.
+  parallel: false
+  commands:
+    1_gofumpt:
+      glob: "*.go"
+      # Format staged Go files in place and re-stage them.
+      run: gofumpt -w {staged_files}
+      stage_fixed: true
+    2_vet:
+      glob: "*.go"
+      # go vet works on packages, so vet the whole module. It is fast.
+      run: go vet ./...
+    3_lf_endings:
+      # Refuse CRLF line endings in staged text files; golden tests compare bytes.
+      glob: "*.{go,js,mjs,json,md,yml,yaml,svg,html,css,mod}"
+      run: |
+        cr=$(printf '\r')
+        bad=$(grep -l "$cr" {staged_files} || true)
+        if [ -n "$bad" ]; then
+          echo "CRLF line endings found in:"; echo "$bad"; exit 1
+        fi

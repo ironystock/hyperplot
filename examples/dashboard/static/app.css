@@ -1,0 +1,546 @@
+/* Page chrome for the hyperplot dashboard demo. The charts themselves are
+   styled by /static/hyperplot.css; this file only lays out the page around
+   them. Spacing follows an 8px grid. There are no inline styles anywhere,
+   so the page runs under a strict Content-Security-Policy. */
+
+:root {
+  color-scheme: light;
+  --page: #f5f5f5;
+  --card: #ffffff;
+  --line: #e7e7e7;
+  --line-strong: #c2c2c2;
+  --ink: #191919;
+  --ink-2: #666666;
+  --wash: rgb(0 0 0 / 0.04);
+  --focus: #257de0;
+  /* Status colors: reserved for good and bad changes, never for series. */
+  --good: #0aac23;
+  --bad: #dc3c3d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #101010;
+    --card: #191919;
+    --line: #2b2b2b;
+    --line-strong: #474747;
+    --ink: #efefef;
+    --ink-2: #9c9c9c;
+    --wash: rgb(255 255 255 / 0.05);
+    --focus: #338ced;
+    --bad: #eb6263;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #101010;
+  --card: #191919;
+  --line: #2b2b2b;
+  --line-strong: #474747;
+  --ink: #efefef;
+  --ink-2: #9c9c9c;
+  --wash: rgb(255 255 255 / 0.05);
+  --focus: #338ced;
+  --bad: #eb6263;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+code {
+  font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--wash);
+}
+
+/* ---- Header ---------------------------------------------------------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.brand-name {
+  font-weight: 650;
+  font-size: 15px;
+}
+
+.brand-sub {
+  color: var(--ink-2);
+}
+
+.wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 32px;
+  font-weight: 650;
+}
+
+.lede {
+  margin: 0 0 24px;
+  color: var(--ink-2);
+}
+
+/* ---- Segmented controls (range, bar layout, theme) -------------------- */
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--page);
+}
+
+.seg-item {
+  position: relative;
+  display: block;
+}
+
+.seg-item input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.seg-item input + span,
+.seg button {
+  display: block;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.seg-item:hover input + span,
+.seg button:hover {
+  color: var(--ink);
+}
+
+.seg-item input:checked + span,
+.seg button[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.seg-item input:focus-visible + span {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.seg-sm .seg-item input + span {
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+/* ---- Filter row ------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+  margin-bottom: 16px;
+}
+
+.filters fieldset,
+fieldset.seg {
+  margin: 0;
+  min-width: 0;
+}
+
+.filters fieldset {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+}
+
+/* A floated legend leaves the fieldset border and sits inline. */
+.filters legend {
+  float: left;
+  margin-right: 12px;
+  padding: 0;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.check:hover {
+  border-color: var(--line-strong);
+}
+
+.check input {
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.swatch {
+  flex: none;
+}
+
+.apply {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+}
+
+.scope {
+  margin: 0 0 16px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---- KPI tiles -------------------------------------------------------- */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "value spark"
+    "delta delta";
+  align-items: end;
+  gap: 4px 16px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tile-label {
+  grid-area: label;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tile-value {
+  grid-area: value;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tile-unit {
+  margin-left: 4px;
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.tile-spark {
+  grid-area: spark;
+  padding-bottom: 4px;
+}
+
+.tile-spark .hp {
+  display: block;
+}
+
+/* The trend is context, so it wears the muted ink; the end dot, the
+   current value, is the accent. */
+.tile-spark .hp-s1 {
+  color: var(--hp-text-muted);
+}
+
+.tile-spark .hp-end {
+  fill: var(--hp-text);
+}
+
+.tile-delta {
+  grid-area: delta;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  color: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.icon {
+  flex: none;
+}
+
+.delta-good .icon {
+  color: var(--good);
+}
+
+.delta-bad .icon {
+  color: var(--bad);
+}
+
+.delta-neutral .icon {
+  color: var(--ink-2);
+}
+
+/* ---- Chart cards ------------------------------------------------------ */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.card {
+  min-width: 0;
+  padding: 16px 16px 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.card-sub {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.card-foot {
+  margin: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+/* The polled cards point hx-indicator at their badge, so the dot lights
+   up while a poll is in flight instead of dimming the chart. */
+.badge.htmx-request .dot,
+.badge-live .dot {
+  background: var(--ink-2);
+}
+
+.chart .hp {
+  display: block;
+}
+
+/* ---- Data tables -------------------------------------------------------- */
+
+.table-view {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.table-view summary {
+  padding: 8px 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.table-view summary:hover {
+  color: var(--ink);
+}
+
+.table-scroll {
+  max-height: 320px;
+  margin-bottom: 8px;
+  overflow: auto;
+}
+
+.table-scroll .hp-table {
+  width: 100%;
+}
+
+.table-scroll .hp-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+
+/* ---- Notes -------------------------------------------------------------- */
+
+.notes dl {
+  margin: 0 0 8px;
+}
+
+.notes dt {
+  font-weight: 600;
+}
+
+.notes dd {
+  margin: 0 0 12px;
+  color: var(--ink-2);
+}
+
+.foot {
+  padding-top: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---- Small screens ------------------------------------------------------ */
+
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .top,
+  .wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .filters fieldset {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filters legend {
+    float: none;
+    width: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .tile,
+  .card,
+  .check,
+  .seg {
+    border-color: CanvasText;
+  }
+}

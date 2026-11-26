@@ -1,0 +1,41 @@
+# Build and test output
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+coverage.*
+cover.html
+
+# Go workspace files are per-developer
+go.work
+go.work.sum
+
+# Node (client/ has no dependencies; these only appear if someone runs npm)
+node_modules/
+npm-debug.log*
+*.tgz
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local visual QA screenshots and wrappers
+.qa/
+
+# Local tool state
+.claude/settings.local.json
+lefthook-local.yml
+
+# Environment
+.env
+.env.*

@@ -1,0 +1,147 @@
+# golangci-lint v2 configuration. Run `golangci-lint config verify` after
+# editing, and `make lint` to lint the tree.
+#
+# The set below is strict about correctness, safety and API documentation,
+# and deliberately quiet about taste: no line-length, function-length,
+# cyclomatic-complexity or "magic number" linters. Chart layout code is
+# full of legitimate pixel constants.
+version: "2"
+
+run:
+  # Lint against the oldest Go version the module supports.
+  go: "1.24"
+  tests: true
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exptostd
+    - gocheckcompilerdirectives
+    - gocritic
+    - goprintffuncname
+    - gosec
+    - intrange
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - predeclared
+    - reassign
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      # Writes to an http.ResponseWriter or bytes.Buffer are checked where
+      # it matters; everything else must be handled.
+      exclude-functions:
+        - (*bytes.Buffer).WriteString
+        - (*bytes.Buffer).WriteByte
+        - (*bytes.Buffer).WriteRune
+        - (*strings.Builder).WriteString
+        - (*strings.Builder).WriteByte
+        - (*strings.Builder).WriteRune
+
+    govet:
+      enable-all: true
+      disable:
+        # Struct field order follows the documented API, not memory layout.
+        - fieldalignment
+        # Shadowing err is idiomatic and rarely a bug.
+        - shadow
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        # Chart options are passed by value on purpose (Theme, Sparkline).
+        - hugeParam
+
+    gosec:
+      excludes:
+        # Integer conversions in layout math are bounded by validation.
+        - G115
+
+    misspell:
+      locale: US
+
+    nakedret:
+      max-func-lines: 5
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Tests may ignore errors from helpers and use weak randomness.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - unparam
+      # Examples are documentation; keep them short.
+      - path: examples/
+        linters:
+          - gosec
+          - noctx
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/ironystock/hyperplot
+  exclusions:
+    generated: lax

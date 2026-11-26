@@ -1,0 +1,190 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="A live service dashboard rendered as server-side SVG by hyperplot and kept live by htmx 4.">
+<!-- noSwap: error pages from a proxy, a timeout or middleware never replace a
+     chart (and hx-ptag can't pin one in place). morphIgnore: morphs keep a
+     <details> the reader opened open. Both arrays replace htmx's defaults. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"],"morphIgnore":["data-htmx-powered","open"]}'>
+<title>Service overview · hyperplot</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hyperplot.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<script defer src="/static/hyperplot.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><span class="brand-name">hyperplot</span><span class="brand-sub">live demo</span></a>
+  <div class="seg theme" role="group" aria-label="Color theme" hidden>
+    <button type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+    <button type="button" data-theme-choice="system" aria-pressed="true">System</button>
+  </div>
+</header>
+<main class="wrap">
+  <h1>Service overview</h1>
+  <p class="lede">Simulated traffic for one API in three regions. Every chart is SVG rendered on the server and kept live by htmx 4.</p>
+
+  <form id="filters" class="filters" action="/" method="get"
+        hx-get="/" hx-trigger="change, submit" hx-target="#charts" hx-swap="innerMorph" hx-indicator="#charts">
+    <fieldset>
+      <legend>Range</legend>
+      <div class="seg">
+        {{- range .Ranges}}
+        <label class="seg-item"><input type="radio" name="range" value="{{.Key}}"{{if .Checked}} checked{{end}}><span aria-hidden="true">{{.Key}}</span><span class="sr-only">{{.Title}}</span></label>
+        {{- end}}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Regions</legend>
+      <input type="hidden" name="region" value="">
+      <div class="checks">
+        {{- range .Regions}}
+        <label class="check"><input type="checkbox" name="region" value="{{.Key}}"{{if .Checked}} checked{{end}}>{{template "swatch" .Slot}}{{.Key}}</label>
+        {{- end}}
+      </div>
+    </fieldset>
+    <noscript><button type="submit" class="apply">Apply</button></noscript>
+  </form>
+
+  <div id="charts">
+    {{template "charts" .Charts}}
+  </div>
+</main>
+<footer class="foot wrap">
+  Rendered by <a href="https://github.com/ironystock/hyperplot">hyperplot</a> with htmx 4.0.2. The data is simulated and deterministic per time bucket.
+</footer>
+</body>
+</html>
+{{- end}}
+
+{{define "swatch" -}}
+<svg class="hp swatch" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect class="hp-s{{.}}" width="10" height="10" rx="2" fill="currentColor"/></svg>
+{{- end}}
+
+{{define "charts" -}}
+{{- /*
+  Each chart container polls its own URL. Its first request ("load") fits
+  the chart to the container's real width. The trigger is "load delay:1ms"
+  rather than "load" because htmx 4.0.2 fires load while it initializes the
+  element, before the ptag extension has read the seeded hx-ptag attribute;
+  one tick later the seed is sent, so a chart that is already right (after
+  a filter change, say) costs a 304.
+*/ -}}
+<p class="scope">{{.Scope}}</p>
+<section id="kpis" class="kpis" aria-label="Key metrics">{{template "kpis" .KPIs}}</section>
+<div class="grid">
+  <section class="card wide" aria-labelledby="latency-heading">
+    <header class="card-head">
+      <div>
+        <h2 id="latency-heading">Latency</h2>
+        <p class="card-sub">p50, p95 and p99 across the selected regions, against a 250 ms objective</p>
+      </div>
+      <span class="badge" id="latency-status"><span class="dot" aria-hidden="true"></span>Polled every 2 s</span>
+    </header>
+    <div id="latency-body" class="chart" data-hp-autosize
+         hx-get="{{.LatencyURL}}" hx-trigger="load delay:1ms, every 2s, hp:resize" hx-swap="innerMorph"
+         hx-ptag="{{.LatencyTag}}" hx-indicator="#latency-status">{{.Latency}}</div>
+  </section>
+
+  <section class="card" aria-labelledby="throughput-heading">
+    <header class="card-head">
+      <div>
+        <h2 id="throughput-heading">Throughput</h2>
+        <p class="card-sub">Requests per second by region, stacked</p>
+      </div>
+      <span class="badge badge-live"><span class="dot" aria-hidden="true"></span>Streamed live</span>
+    </header>
+    {{- /*
+      The stream element is replaced, never morphed: a resize or a filter
+      change swaps in a new one (plain innerHTML, after the filter response
+      has been applied), and removing the old one ends its stream. With
+      hx-sse 4.0.2, morphing a new hx-sse:connect URL into the same element
+      leaves the old stream reconnecting, and a node that htmx processes
+      twice while connecting opens two streams.
+    */}}
+    <div id="throughput-body" class="chart" data-hp-autosize hx-morph-skip-children
+         hx-get="/cards/throughput" hx-include="#filters" hx-trigger="hp:resize, filters-applied from:body"
+         hx-swap="innerHTML">{{template "stream" .Stream}}</div>
+  </section>
+
+  <section class="card" aria-labelledby="requests-heading">
+    <header class="card-head">
+      <div>
+        <h2 id="requests-heading">Requests by region</h2>
+        <p class="card-sub">Closed windows only, so this changes rarely</p>
+      </div>
+      <fieldset class="seg seg-sm" hx-get="/charts/requests" hx-trigger="change" hx-target="#requests-body"
+                hx-swap="innerMorph" hx-include="#filters, [form=filters]" hx-indicator="#requests-status">
+        <legend class="sr-only">Bar layout</legend>
+        <label class="seg-item"><input type="radio" form="filters" name="bars" value="grouped"{{if not .Stacked}} checked{{end}}><span>Grouped</span></label>
+        <label class="seg-item"><input type="radio" form="filters" name="bars" value="stacked"{{if .Stacked}} checked{{end}}><span>Stacked</span></label>
+      </fieldset>
+    </header>
+    <div id="requests-body" class="chart" data-hp-autosize
+         hx-get="{{.RequestsURL}}" hx-trigger="load delay:1ms, every 5s, hp:resize" hx-swap="innerMorph"
+         hx-include="[name=bars]" hx-ptag="{{.RequestsTag}}" hx-indicator="#requests-status">{{.Requests}}</div>
+    <p class="card-foot"><span class="badge" id="requests-status"><span class="dot" aria-hidden="true"></span>Polled every 5 s</span></p>
+  </section>
+
+  <section class="card" aria-labelledby="scatter-heading">
+    <header class="card-head">
+      <div>
+        <h2 id="scatter-heading">Latency vs payload size</h2>
+        <p class="card-sub">A sample of {{.ScatterN}} requests per region</p>
+      </div>
+      <span class="badge"><span class="dot" aria-hidden="true"></span>Updates with the filters</span>
+    </header>
+    <div id="scatter-body" class="chart" data-hp-autosize
+         hx-get="{{.ScatterURL}}" hx-trigger="load delay:1ms, hp:resize" hx-swap="innerMorph"
+         hx-ptag="{{.ScatterTag}}">{{.Scatter}}</div>
+  </section>
+
+  <section class="card notes" aria-labelledby="notes-heading">
+    <header class="card-head"><h2 id="notes-heading">How this page works</h2></header>
+    <dl>
+      <dt>Polling with a tag</dt>
+      <dd>Latency polls every 2 s. The server hashes each render with <code>hx.Tag</code>, and <code>hx.CheckPTag</code> answers an unchanged chart with a bodiless 304, so htmx skips the swap. The KPI tiles ride along as an <code>&lt;hx-partial&gt;</code>.</dd>
+      <dt>Streaming</dt>
+      <dd>Throughput is one server-sent event stream (<code>hx-sse:connect</code>) that morphs the chart once a second.</dd>
+      <dt>Filters</dt>
+      <dd>The filter row re-renders every chart with one request and <code>innerMorph</code>. Each region pins a color slot, so it keeps its color when others are hidden.</dd>
+      <dt>Sizing</dt>
+      <dd>Resize the window: each chart re-renders at its container's width (<code>hp:resize</code> and <code>hx.Size</code>).</dd>
+      <dt>Reading the data</dt>
+      <dd>Hover or focus a chart and use the arrow keys, or open <q>View as table</q> under it.</dd>
+    </dl>
+  </section>
+</div>
+{{- end}}
+
+{{define "kpis" -}}
+{{range .}}<article class="tile" id="{{.ID}}">
+  <h3 class="tile-label">{{.Label}}</h3>
+  <p class="tile-value">{{.Value}}{{with .Unit}}<span class="tile-unit">{{.}}</span>{{end}}</p>
+  <div class="tile-spark">{{.Spark}}</div>
+  <p class="tile-delta"><span class="delta delta-{{.Tone}}">{{template "arrow" .Dir}}{{.Delta}}</span> vs {{.Period}}{{with .Judge}}<span class="sr-only">, {{.}}</span>{{end}}</p>
+</article>{{end}}
+{{- end}}
+
+{{define "arrow" -}}
+<svg class="icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+{{- if eq . "up"}}<path d="M6 10V2M2.5 5.5 6 2l3.5 3.5"/>{{else if eq . "down"}}<path d="M6 2v8M2.5 6.5 6 10l3.5-3.5"/>{{else}}<path d="M2.5 6h7"/>{{end -}}
+</svg>
+{{- end}}
+
+{{define "chart-body" -}}
+{{.SVG}}<input type="hidden" form="filters" name="w-{{.ID}}" value="{{.Width}}"/><details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+{{- end}}
+
+{{define "stream" -}}
+<div class="stream" hx-sse:connect="{{.URL}}" hx-swap="innerMorph">{{.Body}}</div>
+{{- end}}

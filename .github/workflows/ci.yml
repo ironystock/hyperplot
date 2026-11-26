@@ -1,0 +1,185 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: CI only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GOFUMPT_VERSION: v0.12.0
+  GOLANGCI_LINT_VERSION: v2.13
+  # Pinned so a new release cannot fail every build with no code change;
+  # keep in step with STATICCHECK_VERSION in the Makefile.
+  STATICCHECK_VERSION: "2026.2.2"
+  GOTOOLCHAIN: local
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      - name: LF line endings only
+        run: |
+          if git grep -lI $'\r' -- . ; then
+            echo "::error::CRLF line endings found in the files above."
+            exit 1
+          fi
+
+      - name: Zero dependencies
+        run: |
+          deps="$(go list -m all | tail -n +2)"
+          if [ -n "$deps" ]; then
+            echo "::error::hyperplot must depend only on the standard library. Found:"
+            echo "$deps"
+            exit 1
+          fi
+          go mod tidy -diff
+
+      - name: gofumpt
+        run: |
+          unformatted="$(go run mvdan.cc/gofumpt@${GOFUMPT_VERSION} -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofumpt-formatted (run 'make fmt'):"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: ${{ env.STATICCHECK_VERSION }}
+          install-go: false
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+  test:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go: ["1.24.x", stable]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test with race detector and coverage
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      # Run each benchmark once, so a benchmark that stops working fails
+      # CI rather than the next 'make bench'.
+      - name: Benchmarks run
+        if: matrix.os == 'ubuntu-latest' && matrix.go == 'stable'
+        run: go test -run '^$' -bench . -benchtime 1x ./...
+
+      - name: Coverage summary
+        run: |
+          total="$(go tool cover -func=coverage.out | tail -n 1)"
+          echo "$total"
+          echo "### Coverage (${{ matrix.os }}, Go ${{ matrix.go }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "$total" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Golden files are up to date
+        run: |
+          if [ -n "$(git status --porcelain -- testdata)" ]; then
+            echo "::error::Tests changed files under testdata/. Run 'make golden' and commit the result."
+            git status --porcelain -- testdata
+            exit 1
+          fi
+
+  fuzz:
+    name: Fuzz smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      # Runs every Fuzz* target in the module briefly. Long fuzzing runs
+      # belong on a developer machine: make fuzz FUZZTIME=10m
+      - name: Fuzz each target for 15s
+        run: |
+          set -e
+          for pkg in $(go list ./...); do
+            for target in $(go test -list '^Fuzz' "$pkg" | grep '^Fuzz' || true); do
+              echo "::group::$pkg $target"
+              go test "$pkg" -run '^$' -fuzz "^${target}\$" -fuzztime 15s
+              echo "::endgroup::"
+            done
+          done
+
+      # A failing input exists only on the runner; keep it so it can be
+      # reproduced and committed as a regression seed.
+      - name: Upload failing fuzz inputs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-failures
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore
+
+  client:
+    name: Client (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+
+      # The client has no dependencies and no build step.
+      - name: node --test
+        working-directory: client
+        run: node --test
