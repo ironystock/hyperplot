@@ -78,7 +78,7 @@ func TestPage(t *testing.T) {
 }
 
 // TestCard checks the stream element: its URL carries the container's
-// width, clamped like any hp-w (docs/spec.md §4.6).
+// width, clamped like any hp-w (spec/spec.md §4.6).
 func TestCard(t *testing.T) {
 	h := fixedServer().routes()
 	for _, tt := range []struct{ query, width string }{
@@ -166,7 +166,7 @@ func readMessages(t *testing.T, r io.Reader, n int) []message {
 
 // TestStream reads frames as hx-sse would: each message is one complete
 // chart at the stream's width, with an id, and the first carries retry:
-// (docs/spec.md §4.5).
+// (spec/spec.md §4.5).
 func TestStream(t *testing.T) {
 	srv := httptest.NewServer(tickingServer().routes())
 	defer srv.Close()
@@ -248,7 +248,7 @@ type noFlush struct{ http.ResponseWriter }
 
 // TestStreamCannotStart checks the failure answer: 503, which makes a
 // reconnecting hx-sse back off, with HX-Reswap: none, so htmx swaps no
-// error body over the chart (docs/spec.md §4.5).
+// error body over the chart (spec/spec.md §4.5).
 func TestStreamCannotStart(t *testing.T) {
 	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream/throughput", nil)
 	w := httptest.NewRecorder()

@@ -54,7 +54,7 @@ type sensor struct {
 	Kind  *kind
 	// Warn and Alarm are the high limits. Readings at or above Warn raise
 	// a warning, at or above Alarm an alarm. The detail chart draws both
-	// as rules (hyperplot.RuleY).
+	// as rules (plot.RuleY).
 	Warn, Alarm float64
 
 	base  float64 // typical reading

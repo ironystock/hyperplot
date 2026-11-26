@@ -189,9 +189,9 @@ export async function startDashboard({ speed: s = speed } = {}) {
 }
 
 const client = join(here, '..')
-const fixtures = join(root, 'testdata', 'conformance')
+const fixtures = join(root, 'spec', 'conformance')
 
-/** fixture returns a file of testdata/conformance as text. */
+/** fixture returns a file of spec/conformance as text. */
 export const fixture = (path) => readFileSync(join(fixtures, path), 'utf8')
 
 // stylesheet returns the reference stylesheet: client/hx-plot.css once the
@@ -199,7 +199,7 @@ export const fixture = (path) => readFileSync(join(fixtures, path), 'utf8')
 function stylesheet() {
   const css = join(client, 'hx-plot.css')
   if (existsSync(css)) return readFileSync(css, 'utf8')
-  const svg = readFileSync(join(root, 'testdata', 'preview', 'lines_direct_labels.svg'), 'utf8')
+  const svg = readFileSync(join(root, 'plot', 'testdata', 'preview', 'lines_direct_labels.svg'), 'utf8')
   return /<style>([\s\S]*?)<\/style>/.exec(svg)[1]
 }
 

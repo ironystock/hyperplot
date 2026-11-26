@@ -8,7 +8,7 @@
 **`hx-plot`: an htmx 4 extension for live charts that your server draws as SVG.
 No client chart library.**
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/ironystock/hyperplot.svg)](https://pkg.go.dev/github.com/ironystock/hyperplot)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ironystock/hyperplot/plot.svg)](https://pkg.go.dev/github.com/ironystock/hyperplot/plot)
 [![CI](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml/badge.svg)](https://github.com/ironystock/hyperplot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -30,8 +30,8 @@ that become ordinary htmx requests. The browser never receives a data API,
 and never formats a number.
 
 Any server language can produce the charts. The contract between server and
-extension is a short [wire spec](docs/spec.md) with
-[conformance fixtures](testdata/conformance/README.md). The Go library in
+extension is a short [wire spec](spec/spec.md) with
+[conformance fixtures](spec/conformance/README.md). The Go library in
 this repository is the reference server, and the
 [server guide](docs/implementing-a-server.md) builds one in Python.
 
@@ -99,7 +99,7 @@ Load htmx 4 and the extension with plain script tags, no build step and no
 `hx-plot.js` and the stylesheet `hx-plot.css` come from the npm package
 `htmx-ext-plot`. It isn't published yet: until it is, copy them from
 [`client/`](client/) (the stylesheet is the Go library's
-`hyperplot.Stylesheet()`), or serve them from Go with the `client` package.
+`plot.Stylesheet()`), or serve them from Go with the `client` package.
 The extension registers itself as `plot`; a page that restricts
 `htmx.config.extensions` must list it.
 
@@ -174,7 +174,7 @@ it exactly. The server answers the brush with a zoomed polling element and
 it. Drill-down and zoom are hypermedia exchanges, with no client state.
 Because the parameters are plain form fields, a link per table row and a
 from/to form send the same requests without a pointer, or without script
-([spec §5.5](docs/spec.md#55-equivalents-in-plain-html)).
+([spec §5.5](spec/spec.md#55-equivalents-in-plain-html)).
 
 ## Live updates
 
@@ -215,12 +215,12 @@ spec, and its `hx` package reads and writes the htmx side: polling tags, SSE
 streams, sizes and gestures. It uses only the standard library.
 
 ```go
-chart := hyperplot.Chart{
+chart := plot.Chart{
 	Title: "Latency",
-	Y:     hyperplot.Axis{Label: "ms", Unit: " ms"},
-	Marks: []hyperplot.Mark{
-		hyperplot.Line{Name: "p50", X: hyperplot.Times(times), Y: p50},
-		hyperplot.Line{Name: "p99", X: hyperplot.Times(times), Y: p99},
+	Y:     plot.Axis{Label: "ms", Unit: " ms"},
+	Marks: []plot.Mark{
+		plot.Line{Name: "p50", X: plot.Times(times), Y: p50},
+		plot.Line{Name: "p99", X: plot.Times(times), Y: p99},
 	},
 }
 svg, err := chart.Render() // []byte of well-formed, deterministic SVG
@@ -229,7 +229,7 @@ svg, err := chart.Render() // []byte of well-formed, deterministic SVG
 ### Install
 
 ```sh
-go get github.com/ironystock/hyperplot
+go get github.com/ironystock/hyperplot/plot
 ```
 
 It requires Go 1.24 or later. No version is tagged yet, so this fetches the
@@ -252,7 +252,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var page = template.Must(template.New("page").Parse(`<!doctype html>
@@ -263,14 +263,14 @@ var page = template.Must(template.New("page").Parse(`<!doctype html>
 func main() {
 	http.HandleFunc("/hyperplot.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
-		_, _ = io.WriteString(w, hyperplot.Stylesheet())
+		_, _ = io.WriteString(w, plot.Stylesheet())
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		chart := hyperplot.Chart{
+		chart := plot.Chart{
 			Title: "Deploys per day",
-			Marks: []hyperplot.Mark{hyperplot.Bar{
+			Marks: []plot.Mark{plot.Bar{
 				Name: "deploys",
-				X:    hyperplot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
+				X:    plot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
 				Y:    []float64{12, 19, 7, 15, 22},
 			}},
 		}
@@ -317,7 +317,7 @@ A polling handler renders at the width the extension reports and lets
 ```go
 func latency(w http.ResponseWriter, r *http.Request) {
 	width, _ := hx.Size(r, 640, 0)    // hp-w from hx-plot:autosize; keep the height
-	chart := latencyChart(width, 320) // a *hyperplot.Chart with ID and Animate set
+	chart := latencyChart(width, 320) // a *plot.Chart with ID and Animate set
 	svg, err := chart.Render()
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent) // keep the last good chart
@@ -390,8 +390,8 @@ Pin each series to a colour `Slot` when filters can hide some of them, so a
 series keeps its colour:
 
 ```go
-hyperplot.Line{Name: "eu-west", Slot: 1, X: hyperplot.Times(ts), Y: eu}
-hyperplot.Line{Name: "us-east", Slot: 2, X: hyperplot.Times(ts), Y: us}
+plot.Line{Name: "eu-west", Slot: 1, X: plot.Times(ts), Y: eu}
+plot.Line{Name: "us-east", Slot: 2, X: plot.Times(ts), Y: us}
 ```
 
 ### Chart types
@@ -419,7 +419,7 @@ output. See the goals and non-goals in the [design document](docs/DESIGN.md).
 ## Implement a server in your language
 
 A server in Python, PHP, Ruby or anything else implements the
-[wire spec](docs/spec.md) and gets the same extension behaviour. The spec is
+[wire spec](spec/spec.md) and gets the same extension behaviour. The spec is
 in three cumulative levels, so you can start small:
 
 | Level | Your server | The page gets |
@@ -431,12 +431,12 @@ in three cumulative levels, so you can start small:
 - [Implementing a server](docs/implementing-a-server.md) builds a Level 3
   server in about 320 lines of standard-library Python, step by step, and
   ends with a conformance checklist.
-- [The spec's Appendix B](docs/spec.md#appendix-b-an-exchange-and-helpers-in-python)
+- [The spec's Appendix B](spec/spec.md#appendix-b-an-exchange-and-helpers-in-python)
   has the value-form, escaping and parsing helpers in Python.
-- [`testdata/conformance/`](testdata/conformance/README.md) has
+- [`spec/conformance/`](spec/conformance/README.md) has
   language-neutral fixtures: chart inputs, reference output, and assertions
   any server's output can be checked against.
-- [`tools/hpcheck`](tools/hpcheck/README.md) checks them for you: one
+- [`spec/hpcheck`](spec/hpcheck/README.md) checks them for you: one
   standard-library Python file that runs the fixtures' assertions on your
   renderer's output and the spec's wire rules against your running server.
 - [`examples/python`](examples/python/) and [`examples/node`](examples/node/)
@@ -491,7 +491,7 @@ spec.
 
 ## Documentation
 
-- [Wire spec](docs/spec.md): the contract between any server and the
+- [Wire spec](spec/spec.md): the contract between any server and the
   extension, with conformance levels.
 - [Implementing a server](docs/implementing-a-server.md): a step-by-step
   guide in Python.
@@ -509,17 +509,17 @@ spec.
   chart gallery, and ten [Go recipes](examples/recipes/README.md) that
   each show one pattern. [`examples/basic`](examples/basic/) is the Go
   quick start.
-- [hpcheck](tools/hpcheck/README.md): the conformance checker for a server
+- [hpcheck](spec/hpcheck/README.md): the conformance checker for a server
   in any language.
-- Go API reference on [pkg.go.dev](https://pkg.go.dev/github.com/ironystock/hyperplot)
+- Go API reference on [pkg.go.dev](https://pkg.go.dev/github.com/ironystock/hyperplot/plot)
   (available once a version is tagged).
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
-the [code of conduct](CODE_OF_CONDUCT.md). Report security issues privately as
-described in [SECURITY.md](SECURITY.md). Project decisions follow
-[GOVERNANCE.md](GOVERNANCE.md).
+Contributions are welcome. Please read [CONTRIBUTING.md](.github/CONTRIBUTING.md) and
+the [code of conduct](.github/CODE_OF_CONDUCT.md). Report security issues privately as
+described in [SECURITY.md](.github/SECURITY.md). Project decisions follow
+[GOVERNANCE.md](.github/GOVERNANCE.md).
 
 ## License
 

@@ -36,20 +36,20 @@ go run ./examples/recipes/static-page -addr :9000
 | `Chart.HTML()` puts the chart in the page, escaped | `main.go`: `page` |
 | `Chart.Table()` beside it in `<details>` | `main.go`: `page`, `page.html` |
 | `<script defer src="/static/hx-plot.js">`, no htmx | `page.html` |
-| `client.Handler()` serves the script, `hyperplot.Stylesheet()` the CSS | `main.go`: `routes` |
+| `client.Handler()` serves the script, `plot.Stylesheet()` the CSS | `main.go`: `routes` |
 | An explicit, stable `Chart.ID` | `main.go`: `latencyChart`, `regionsChart` |
 | Data as a function of the minute, so a reload within a minute is identical | `main.go`: `latencyChart`, `noise` |
 
 ## How it works
 
 When `hx-plot.js` runs and finds no htmx, it starts in standalone mode
-([spec §6.10](../../../docs/spec.md#610-without-htmx)): every inline chart
+([spec §6.10](../../../spec/spec.md#610-without-htmx)): every inline chart
 gets the pointer and keyboard behaviour of
-[§6.5](../../../docs/spec.md#65-pointer-and-keyboard-level-1), read from the
+[§6.5](../../../spec/spec.md#65-pointer-and-keyboard-level-1), read from the
 JSON in the chart's `<metadata class="hp-tips">`. There are no swaps, so
 nothing else applies. Without script at all, the chart falls back to native
-titles ([§3.7](../../../docs/spec.md#37-native-fallback)) and the table
-([§3.8](../../../docs/spec.md#38-the-table-equivalent)). See
+titles ([§3.7](../../../spec/spec.md#37-native-fallback)) and the table
+([§3.8](../../../spec/spec.md#38-the-table-equivalent)). See
 [Tooltips, keyboard reading and tables](../../../docs/htmx.md#tooltips-keyboard-reading-and-tables)
 in the htmx guide.
 

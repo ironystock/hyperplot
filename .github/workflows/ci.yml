@@ -123,9 +123,9 @@ jobs:
 
       - name: Golden files are up to date
         run: |
-          if [ -n "$(git status --porcelain -- testdata)" ]; then
-            echo "::error::Tests changed files under testdata/. Run 'make golden' and commit the result."
-            git status --porcelain -- testdata
+          if [ -n "$(git status --porcelain -- plot/testdata)" ]; then
+            echo "::error::Tests changed files under plot/testdata/. Run 'make golden' and commit the result."
+            git status --porcelain -- plot/testdata
             exit 1
           fi
 
@@ -188,7 +188,7 @@ jobs:
         run: node --test
 
       # The Node example server (node: built-ins only, no package.json).
-      # Its tests read client/, docs/spec.md and testdata/conformance/, so
+      # Its tests read client/, spec/spec.md and spec/conformance/, so
       # they run on every change, not only changes under examples/node.
       - name: node --test (examples/node)
         working-directory: examples/node
@@ -213,14 +213,14 @@ jobs:
           python-version: ${{ matrix.python }}
 
       # Standard library only: nothing to install. test_wire.py checks that
-      # hp_wire.py still equals docs/spec.md Appendix B.
+      # hp_wire.py still equals spec/spec.md Appendix B.
       - name: unittest (Python example)
         run: python -m unittest discover examples/python
 
       # The checker's self-tests: every reference fixture passes, and each
       # mutation of a valid chart, table or server fails with its section.
       - name: unittest (checker)
-        run: python -m unittest discover tools/hpcheck
+        run: python -m unittest discover spec/hpcheck
 
   # The checker against the Python and Node fixture renderers' output and
   # against the dashboard, Python and Node servers over HTTP. The example

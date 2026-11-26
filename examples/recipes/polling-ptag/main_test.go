@@ -138,7 +138,7 @@ func TestPTag(t *testing.T) {
 }
 
 // TestDeterministic checks that the same instant gives the same bytes,
-// which is what makes the tags meaningful (docs/spec.md §4.4).
+// which is what makes the tags meaningful (spec/spec.md §4.4).
 func TestDeterministic(t *testing.T) {
 	now := epoch
 	h := testServer(&now)

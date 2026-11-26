@@ -20,7 +20,7 @@ func queryRequest(tb testing.TB, query string) *http.Request {
 	return httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/c?"+query, nil)
 }
 
-// paramsCase is one "server" case of testdata/conformance/params.json
+// paramsCase is one "server" case of spec/conformance/params.json
 // (format in that directory's README).
 type paramsCase struct {
 	Query string `json:"query"`
@@ -55,7 +55,7 @@ func isError(raw json.RawMessage) bool { return strings.TrimSpace(string(raw)) =
 // TestConformanceParams runs the server cases of the shared conformance
 // fixture, which servers in every language read too.
 func TestConformanceParams(t *testing.T) {
-	b, err := os.ReadFile("../testdata/conformance/params.json")
+	b, err := os.ReadFile("../spec/conformance/params.json")
 	if err != nil {
 		t.Fatal(err)
 	}

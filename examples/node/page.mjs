@@ -87,7 +87,7 @@ ${HTMX}
   <section class="card" aria-labelledby="latency-heading">
     <h2 id="latency-heading">Latency</h2>
     <p class="sub">p50 and p95 per 5 s, polled every 2 s. Drag across the chart to zoom (or focus it, Shift+arrows, Enter).</p>
-    <!-- Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader
+    <!-- Brush to zoom (spec/spec.md §5.4). hx-plot:brush lets the reader
          mark a range; the extension dispatches htmx:plot:brush, which this
          element turns into a GET with hp-chart, hp-x0 and hp-x1. The answer
          replaces the polling element whole (outerMorph), because its hx-get
@@ -115,7 +115,7 @@ ${HTMX}
   <section class="card" aria-labelledby="throughput-heading">
     <h2 id="throughput-heading">Throughput</h2>
     <p class="sub">Requests per second, streamed over server-sent events once a second.</p>
-    <!-- The stream container (docs/spec.md §4.5). The page renders the first
+    <!-- The stream container (spec/spec.md §4.5). The page renders the first
          frame without a stream; "load" fetches the stream element at the
          container's real width (hp-w, from hx-plot:autosize), so only one
          stream opens. A resize fetches a new one, and innerHTML removes the
@@ -129,7 +129,7 @@ ${HTMX}
   <section class="card" aria-labelledby="requests-heading">
     <h2 id="requests-heading">Requests by region</h2>
     <p class="sub">Closed minutes only, polled every 5 s. Click a bar (or focus the chart, arrows, Enter) for that minute in detail.</p>
-    <!-- Select to drill down (docs/spec.md §5.2). A click on a bar makes
+    <!-- Select to drill down (spec/spec.md §5.2). A click on a bar makes
          the extension dispatch htmx:plot:select, which bubbles here and
          becomes a GET with hp-chart, hp-x (the bar's category) and
          hp-series (its region). Enter on a focused chart selects the
@@ -153,7 +153,7 @@ ${HTMX}
 
 /**
  * poller is the latency polling element. A zoom replaces it whole, so its
- * hx-get carries the zoom and later polls stay zoomed (docs/spec.md §5.4).
+ * hx-get carries the zoom and later polls stay zoomed (spec/spec.md §5.4).
  * src is its URL, tag the HX-PTag of body.
  */
 export function poller({ src, tag, body }) {
@@ -210,7 +210,7 @@ export function detailCard({ heading, chart }) {
 }
 
 /**
- * partial updates another element from the same response (docs/spec.md
+ * partial updates another element from the same response (spec/spec.md
  * §4.5, "Several targets"): htmx 4 swaps each <hx-partial> into its own
  * target. The live regions use it, so they stay in place and announce.
  */

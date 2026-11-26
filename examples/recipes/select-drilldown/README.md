@@ -47,14 +47,14 @@ A click on a bar, or Enter on a keyboard point, makes `hx-plot.js` fire
 `htmx:plot:select` on the chart. It bubbles to the wrapper, whose
 `hx-trigger` turns it into a GET of `/detail`, and the extension adds the
 selection as parameters
-([spec §5.2](../../../docs/spec.md#52-select)). On a band axis `hp-x` is the
+([spec §5.2](../../../spec/spec.md#52-select)). On a band axis `hp-x` is the
 category itself, so the handler matches it exactly against its own list;
 a missing or unknown value is no selection, and an echo goes through
 `html/template`. The answer is morphed into `#detail`, where the status
 line keeps its id, so its new text is announced.
 
 Not every reader can click a bar, so the page also offers the same request
-as plain links ([§5.5](../../../docs/spec.md#55-equivalents-in-plain-html)).
+as plain links ([§5.5](../../../spec/spec.md#55-equivalents-in-plain-html)).
 See [Pattern 5: drill-down on select](../../../docs/htmx.md#pattern-5-drill-down-on-select)
 in the htmx guide; the [dashboard](../../dashboard/) does the same on a
 polled chart.

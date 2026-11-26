@@ -84,7 +84,7 @@
 {{define "swatch" -}}
 {{- /*
   A region's color key, in the slot its series uses in every chart. The
-  root class is hp-spark, not hp: the extension and docs/spec.md §6.4 treat
+  root class is hp-spark, not hp: the extension and spec/spec.md §6.4 treat
   every svg.hp as a chart, so a decoration marked hp would be hovered,
   focused and styled as one. hx-plot.css declares the --hp-series-N tokens
   on .hp-spark as well, so hp-sN still picks the series color, and it
@@ -114,7 +114,7 @@
       <span class="badge" id="latency-status"><span class="dot" aria-hidden="true"></span>Polled every 2 s</span>
     </header>
     {{- /*
-      Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader drag
+      Brush to zoom (spec/spec.md §5.4). hx-plot:brush lets the reader drag
       a range across the chart (or mark one with Shift+arrows and Enter);
       the extension dispatches htmx:plot:brush, which this element turns
       into a request with hp-x0 and hp-x1. The answer replaces the polling
@@ -168,7 +168,7 @@
       </fieldset>
     </header>
     {{- /*
-      Select to drill down (docs/spec.md §5.2). A click on a bar, or Enter
+      Select to drill down (spec/spec.md §5.2). A click on a bar, or Enter
       on a focused one, makes the extension dispatch htmx:plot:select, which
       bubbles to this element and becomes a request with hp-chart, hp-x (the
       bar's category) and hp-series (the clicked bar's region). The detail

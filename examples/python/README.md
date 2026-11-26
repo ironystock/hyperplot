@@ -1,7 +1,7 @@
 # hx-plot from Python
 
 A live dashboard served by Python's standard library alone, implementing the
-[hx-plot wire spec](../../docs/spec.md) at Level 3 with no Go, as proof that
+[hx-plot wire spec](../../spec/spec.md) at Level 3 with no Go, as proof that
 the htmx extension works with a server in any language.
 
 ## Run
@@ -88,33 +88,33 @@ the browser needs network access. The server reads `hx-plot.js`,
 route per fragment, and every route answers HTML, as in any htmx app. It
 decides what to draw and [`render.py`](render.py) draws it: the root
 attributes, ids and geometry that the extension reads
-([§3](../../docs/spec.md#3-the-chart-document-level-1),
-[§4.1](../../docs/spec.md#41-identity),
-[§4.2](../../docs/spec.md#42-geometry-attributes)), and the table equivalent
-([§3.8](../../docs/spec.md#38-the-table-equivalent)).
+([§3](../../spec/spec.md#3-the-chart-document-level-1),
+[§4.1](../../spec/spec.md#41-identity),
+[§4.2](../../spec/spec.md#42-geometry-attributes)), and the table equivalent
+([§3.8](../../spec/spec.md#38-the-table-equivalent)).
 [`data.py`](data.py) makes up values that depend only on their time bucket,
 so an unchanged window renders the same bytes and its poll costs a 304.
 [`hp_wire.py`](hp_wire.py) is the spec's
-[Appendix B](../../docs/spec.md#appendix-b-an-exchange-and-helpers-in-python),
+[Appendix B](../../spec/spec.md#appendix-b-an-exchange-and-helpers-in-python),
 copied verbatim: number and time forms, escaping, the tips JSON and SSE
 messages.
 
 The htmx patterns are the ones the integration guide describes for Go:
 
 - polling with tags: [Pattern 1](../../docs/htmx.md#pattern-1-polling-with-content-tags)
-  and [spec §4.5](../../docs/spec.md#45-transports);
+  and [spec §4.5](../../spec/spec.md#45-transports);
 - the stream: [Pattern 2](../../docs/htmx.md#pattern-2-server-sent-events),
   with the container of spec §4.5 so that a resize opens a new stream;
 - the live region in the same response:
   [Pattern 4](../../docs/htmx.md#pattern-4-multi-target-updates);
 - select: [Pattern 5](../../docs/htmx.md#pattern-5-drill-down-on-select) and
-  [spec §5.2](../../docs/spec.md#52-select);
+  [spec §5.2](../../spec/spec.md#52-select);
 - brush: [Pattern 6](../../docs/htmx.md#pattern-6-brush-to-zoom) and
-  [spec §5.4](../../docs/spec.md#54-example-brush-to-zoom-a-live-chart);
+  [spec §5.4](../../spec/spec.md#54-example-brush-to-zoom-a-live-chart);
 - sliding windows: [Pattern 7](../../docs/htmx.md#pattern-7-sliding-windows)
-  and [spec §4.4](../../docs/spec.md#44-frame-stability);
+  and [spec §4.4](../../spec/spec.md#44-frame-stability);
 - sizing: [autosize](../../docs/htmx.md#responsive-charts-with-autosize) and
-  [spec §4.6](../../docs/spec.md#46-size-parameters).
+  [spec §4.6](../../spec/spec.md#46-size-parameters).
 
 [Implementing an hx-plot server](../../docs/implementing-a-server.md) builds a
 smaller version of this server step by step. Everything is in UTC: the axes,
@@ -130,16 +130,16 @@ python3 -m unittest discover examples/python
 
 - `test_wire.py`: `hp_wire.py` equals the spec's Appendix B; the keys of
   Appendix A; the parameter readers against the server cases of
-  [`params.json`](../../testdata/conformance/params.json) (the time-zone
+  [`params.json`](../../spec/conformance/params.json) (the time-zone
   cases are skipped on a Python without a tz database, such as Windows
   without the `tzdata` package).
 - `test_render.py`: the renderer against the
-  [conformance fixtures](../../testdata/conformance/README.md) it can draw.
+  [conformance fixtures](../../spec/conformance/README.md) it can draw.
 - `test_server.py`: a server on a free port with a fixed clock: CSP, XML
   well-formedness, 304s, `hp-w`, brush, select, the stream, and that no
   parameter gets a 5xx.
 
-The language-neutral checker in [`tools/hpcheck/`](../../tools/hpcheck/README.md)
+The language-neutral checker in [`spec/hpcheck/`](../../spec/hpcheck/README.md)
 checks the same output against every assertion of the fixtures, and a
 running server against the spec. The fixtures go to a scratch directory
 outside the repository:
@@ -147,9 +147,9 @@ outside the repository:
 ```sh
 out=$(mktemp -d)
 python3 examples/python/render_fixtures.py "$out"
-python3 tools/hpcheck/hpcheck.py fixtures --out "$out" \
+python3 spec/hpcheck/hpcheck.py fixtures --out "$out" \
     --require line-time,empty,bars-band,escaping,collisions
-python3 tools/hpcheck/hpcheck.py server http://127.0.0.1:8080 \
+python3 spec/hpcheck/hpcheck.py server http://127.0.0.1:8080 \
     --config examples/python/hpcheck.json \
     --spawn "python3 examples/python/server.py --addr 127.0.0.1:{port}"
 ```

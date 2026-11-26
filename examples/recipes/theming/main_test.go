@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var update = flag.Bool("update", false, "rewrite the files in preview/")
@@ -91,7 +91,7 @@ func TestAllSlots(t *testing.T) {
 
 func TestStylesheets(t *testing.T) {
 	h := newServer(time.Now, time.UTC).routes()
-	if got := get(t, h, "/static/hx-plot.css").Body.String(); got != hyperplot.Stylesheet() {
+	if got := get(t, h, "/static/hx-plot.css").Body.String(); got != plot.Stylesheet() {
 		t.Error("hx-plot.css is not the default stylesheet")
 	}
 	w := get(t, h, "/static/brand.css")
@@ -153,10 +153,10 @@ func TestDisplayAddr(t *testing.T) {
 //	go test ./examples/recipes/theming -update
 func TestPreview(t *testing.T) {
 	brand := brandTheme()
-	dark := hyperplot.Theme{Light: brand.Dark, Dark: brand.Dark}
+	dark := plot.Theme{Light: brand.Dark, Dark: brand.Dark}
 	for _, p := range []struct {
 		name  string
-		theme *hyperplot.Theme
+		theme *plot.Theme
 	}{{"brand-light.svg", &brand}, {"brand-dark.svg", &dark}} {
 		c := regionsChart(epoch.Truncate(time.Hour), time.UTC)
 		c.Standalone, c.Theme = true, p.theme

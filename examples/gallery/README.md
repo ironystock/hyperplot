@@ -54,7 +54,7 @@ exported pages carry their Content Security Policy in a `<meta>` tag
 
 | What | Where |
 |---|---|
-| One func per card, returning a `*hyperplot.Chart` | `charts.go` |
+| One func per card, returning a `*plot.Chart` | `charts.go` |
 | The cards, in page order (a slice, so the page is deterministic) | `gallery.go`: `sections` |
 | `//go:embed charts.go`, then `go/parser` cuts out each declaration | `source.go`: `parseDecls` |
 | The card's source looked up by the name of the func it calls | `source.go`: `funcName`; `gallery.go`: `build` |
@@ -77,11 +77,11 @@ that again, and that every chart func in `charts.go` is on the page.
 
 The page has no htmx. `hx-plot.js` finds every inline chart and adds the
 tooltip, the crosshair and keyboard reading on its own
-([spec §6.10](../../docs/spec.md#610-without-htmx)). Without script, bars
+([spec §6.10](../../spec/spec.md#610-without-htmx)). Without script, bars
 and dots keep native tooltips
-([§3.7](../../docs/spec.md#37-native-fallback)), and the data table is
-the chart's equivalent ([§3.8](../../docs/spec.md#38-the-table-equivalent)).
-All text is escaped ([§3.6](../../docs/spec.md#36-text-and-safety)), so
+([§3.7](../../spec/spec.md#37-native-fallback)), and the data table is
+the chart's equivalent ([§3.8](../../spec/spec.md#38-the-table-equivalent)).
+All text is escaped ([§3.6](../../spec/spec.md#36-text-and-safety)), so
 the page runs under a CSP with no inline script or style
 ([Content Security Policy](../../docs/htmx.md#content-security-policy)).
 Dark mode is the stylesheet's `data-theme` switch
@@ -97,7 +97,7 @@ gestures), see the [dashboard](../dashboard/README.md).
 
 ```sh
 go test ./examples/gallery
-python3 tools/hpcheck/hpcheck.py file out/gallery/index.html  # after -out out/gallery
+python3 spec/hpcheck/hpcheck.py file out/gallery/index.html  # after -out out/gallery
 ```
 
 They render every entry (no error, every SVG and table well-formed XML,

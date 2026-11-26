@@ -29,20 +29,20 @@ test: ## Run Go, client, Python, Node and checker tests, then the conformance ch
 
 # The Python and Node example servers and the checker are not Go packages,
 # so go test ./... skips them. Their tests compare against files the Go
-# side owns (docs/spec.md Appendix B, testdata/conformance/, client/), so a
+# side owns (spec/spec.md Appendix B, spec/conformance/, client/), so a
 # change there can break them: run them with every test run.
 # docs/wiring_test.go fails if a suite stops being run here or in CI.
 .PHONY: py
-py: ## Run the Python tests (unittest in examples/python and tools/hpcheck).
+py: ## Run the Python tests (unittest in examples/python and spec/hpcheck).
 	$(PYTHON) -m unittest discover examples/python
-	$(PYTHON) -m unittest discover tools/hpcheck
+	$(PYTHON) -m unittest discover spec/hpcheck
 
 # Like the client, node --test must run inside the directory.
 .PHONY: nodeex
 nodeex: ## Run the Node example tests (node --test in examples/node).
 	cd examples/node && node --test
 
-# The checker (tools/hpcheck) against what the example tests cannot see:
+# The checker (spec/hpcheck) against what the example tests cannot see:
 # the files the Python and Node fixture renderers write, the gallery's
 # static export (every chart kind, checked with the universal rules), and
 # the dashboard, Python and Node servers over HTTP, each started on a free port by
@@ -50,7 +50,7 @@ nodeex: ## Run the Node example tests (node --test in examples/node).
 # with go run, so stopping it stops the server and not only go run. The
 # output goes to a scratch directory that is removed afterwards; pwd -W
 # turns it into a path the Windows Python can start a program from.
-HPCHECK   = $(PYTHON) tools/hpcheck/hpcheck.py
+HPCHECK   = $(PYTHON) spec/hpcheck/hpcheck.py
 HPREQUIRE = line-time,empty,bars-band,escaping,collisions
 
 .PHONY: conformance
@@ -66,7 +66,7 @@ conformance: ## Check the Python and Node fixture output, the gallery export and
 	$(GO) run ./examples/gallery -out "$$out/gallery"; \
 	$(HPCHECK) file "$$out/gallery/index.html" "$$out/gallery/light.html" "$$out/gallery/dark.html"; \
 	$(GO) build -o "$$out/dashboard.exe" ./examples/dashboard; \
-	$(HPCHECK) server http://127.0.0.1:8080 --config tools/hpcheck/targets/dashboard.json \
+	$(HPCHECK) server http://127.0.0.1:8080 --config spec/hpcheck/targets/dashboard.json \
 		--spawn "$$out/dashboard.exe -addr 127.0.0.1:{port}"; \
 	$(HPCHECK) server http://127.0.0.1:8080 --config examples/python/hpcheck.json \
 		--spawn "$(PYTHON) examples/python/server.py --addr 127.0.0.1:{port}"; \
@@ -145,10 +145,10 @@ fuzz: ## Run every fuzz target for FUZZTIME each (default 30s).
 PREVIEW_PKGS = $(patsubst %/preview/,./%,$(wildcard examples/*/preview/ examples/*/*/preview/))
 
 .PHONY: golden
-golden: ## Regenerate golden SVG files in testdata/ and the examples' preview SVGs, then review the diff.
-	$(GO) test . -run Golden -update
+golden: ## Regenerate golden SVG files in plot/testdata/ and the examples' preview SVGs, then review the diff.
+	$(GO) test ./plot -run Golden -update
 	$(GO) test $(PREVIEW_PKGS) -run Preview -update
-	@echo "Golden files updated. Review them with: git diff --text testdata/ examples/"
+	@echo "Golden files updated. Review them with: git diff --text plot/testdata/ examples/"
 
 .PHONY: bench
 bench: ## Run benchmarks with allocation stats.
@@ -172,11 +172,11 @@ demo: ## Run the live dashboard example on http://localhost:8080.
 # smoke test (make fuzz).
 .PHONY: check
 check: lint ## Run the CI checks locally, except the fuzz smoke test and the OS/Go matrix.
-	@before="$$(git status --porcelain --untracked-files=all -- testdata)"; \
+	@before="$$(git status --porcelain --untracked-files=all -- plot/testdata)"; \
 	$(GO) test -race $(PKGS) || exit 1; \
-	after="$$(git status --porcelain --untracked-files=all -- testdata)"; \
+	after="$$(git status --porcelain --untracked-files=all -- plot/testdata)"; \
 	if [ "$$before" != "$$after" ]; then \
-		echo "Tests changed files under testdata/. Run 'make golden', review and commit the result."; \
+		echo "Tests changed files under plot/testdata/. Run 'make golden', review and commit the result."; \
 		exit 1; \
 	fi
 	$(GO) test -run '^$$' -bench . -benchtime 1x $(PKGS)

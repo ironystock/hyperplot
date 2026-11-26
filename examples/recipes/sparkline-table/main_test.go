@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var update = flag.Bool("update", false, "rewrite the files in preview/")
@@ -168,7 +168,7 @@ func TestPreview(t *testing.T) {
 	b.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ` + strconv.Itoa(width) + ` ` + height +
 		`" width="` + strconv.Itoa(width) + `" height="` + height + `" font-family="system-ui, sans-serif" font-size="13">`)
 	b.WriteString(`<style>.bg{fill:#fff}.name,.now{fill:#191919}@media (prefers-color-scheme:dark){.bg{fill:#191919}.name,.now{fill:#efefef}}` +
-		hyperplot.Stylesheet() + `</style><rect class="bg" width="100%" height="100%" rx="6"/>`)
+		plot.Stylesheet() + `</style><rect class="bg" width="100%" height="100%" rx="6"/>`)
 	for i, r := range rows {
 		y := strconv.Itoa(8 + rowH*i)
 		b.WriteString(`<g transform="translate(0 ` + y + `)"><text class="name" x="12" y="19">`)

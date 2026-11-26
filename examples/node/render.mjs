@@ -1,7 +1,7 @@
 // render.mjs: draws one frame of a chart as hx-plot SVG markup, and its table.
 //
 // A chart is described the way the conformance fixtures describe one
-// (testdata/conformance/*/input.json), with times as epoch ms:
+// (spec/conformance/*/input.json), with times as epoch ms:
 //
 //   { id, title, width, height, animate,
 //     x: { timeDomain: [t0, t1] },          // optional: the exact x window

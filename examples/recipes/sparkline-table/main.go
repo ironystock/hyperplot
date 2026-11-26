@@ -4,12 +4,12 @@
 //	go run ./examples/recipes/sparkline-table            # http://localhost:8080
 //	go run ./examples/recipes/sparkline-table -addr :9000
 //
-// The pattern: a hyperplot.Sparkline is a small, axis-free <svg
+// The pattern: a plot.Sparkline is a small, axis-free <svg
 // class="hp-spark"> that sits in a table cell like an image. It has no ids,
 // so it repeats freely, and its accessible name (aria-label) carries the
 // label, unit and first, lowest, highest and last values, so a screen
 // reader hears the trend that a sighted reader sees. A sparkline is not a
-// chart (docs/spec.md §6.4): it has no tooltip, and the hx-plot extension
+// chart (spec/spec.md §6.4): it has no tooltip, and the hx-plot extension
 // leaves it alone, so this page needs no JavaScript at all, only the
 // stylesheet that colors it. To keep the rows live, poll the table body
 // the way examples/builds polls its charts (docs/htmx.md, Pattern 1).
@@ -33,7 +33,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -78,7 +78,7 @@ func newServer(now func() time.Time, loc *time.Location) *server {
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.page)
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -106,7 +106,7 @@ func buildRows(end time.Time) ([]row, error) {
 	var rows []row
 	for _, svc := range services {
 		traffic, p95 := series(svc, end)
-		t, err := hyperplot.Sparkline{
+		t, err := plot.Sparkline{
 			Values: traffic,
 			Label:  svc + " requests per second, last 30 minutes", // the accessible name starts with this
 			Unit:   " req/s",
@@ -115,7 +115,7 @@ func buildRows(end time.Time) ([]row, error) {
 		if err != nil {
 			return nil, err
 		}
-		l, err := hyperplot.Sparkline{Values: p95, Label: svc + " p95 latency, last 30 minutes", Unit: " ms"}.HTML()
+		l, err := plot.Sparkline{Values: p95, Label: svc + " p95 latency, last 30 minutes", Unit: " ms"}.HTML()
 		if err != nil {
 			return nil, err
 		}

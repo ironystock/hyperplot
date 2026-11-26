@@ -10,7 +10,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <!-- noSwap: htmx 4 swaps every status this list does not name, so without
-     it an error page from a proxy would replace a chart (docs/spec.md §4.5,
+     it an error page from a proxy would replace a chart (spec/spec.md §4.5,
      "Errors"). 304 is the unchanged poll; 204 is "keep what is shown". -->
 <meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
 <title>hx-plot from Python</title>
@@ -46,7 +46,7 @@
     <h2 id="latency-heading">Latency</h2>
     <p class="sub">p50 and p95 per 10 seconds, polled every 2 seconds. Most polls are a bodiless
       304. Drag across the chart to zoom, or focus it and use Shift+arrows, then Enter.</p>
-    <!-- Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader
+    <!-- Brush to zoom (spec/spec.md §5.4). hx-plot:brush lets the reader
          mark a range; the extension dispatches htmx:plot:brush, which this
          element's hx-trigger turns into a GET with hp-chart, hp-x0 and
          hp-x1. The answer replaces the polling element whole (outerMorph)
@@ -57,7 +57,7 @@
          hx-target="#latency-body" hx-swap="outerMorph" hx-sync="replace">
       <p id="zoom-status" class="status" role="status">$zoom_status</p>
       $latency
-      <!-- The same zoom without a pointer (docs/spec.md §5.5): the form
+      <!-- The same zoom without a pointer (spec/spec.md §5.5): the form
            sends hp-x0 and hp-x1 like a brush does, on the same queue. With
            no script it submits to the page, which reads them too. -->
       <form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
@@ -76,7 +76,7 @@
   <section class="card" aria-labelledby="throughput-heading">
     <h2 id="throughput-heading">Throughput</h2>
     <p class="sub">Requests per second, streamed over server-sent events: one frame a second.</p>
-    <!-- The streamed chart (docs/spec.md §4.5, the container recipe). The
+    <!-- The streamed chart (spec/spec.md §4.5, the container recipe). The
          page draws the first frame without a stream. "load" then fetches
          the stream element at this container's real width, and a resize
          fetches a new one: innerHTML removes the old element, which ends
@@ -92,7 +92,7 @@
     <h2 id="requests-heading">Requests by region</h2>
     <p class="sub">Closed five-minute windows, so this changes rarely. Click a bar, or press Enter
       on a focused one, for that window in detail.</p>
-    <!-- Select to drill down (docs/spec.md §5.2). A click on a bar makes
+    <!-- Select to drill down (spec/spec.md §5.2). A click on a bar makes
          the extension dispatch htmx:plot:select; it bubbles to this element,
          whose request carries hp-chart, hp-x (the bar's category) and
          hp-series (its region). The detail lands in #requests-detail. -->
@@ -104,7 +104,7 @@
          its width (hp-w), so the detail chart fits. -->
     <div id="requests-detail" class="detail" hx-plot:autosize>$detail</div>
     <!-- A polite live region: the extension cannot know what a select did,
-         so the server says it, with an <hx-partial> (docs/spec.md §5.5). -->
+         so the server says it, with an <hx-partial> (spec/spec.md §5.5). -->
     <p id="detail-status" class="sr-only" role="status">$detail_status</p>
   </section>
 </main>

@@ -9,7 +9,7 @@
 // hx-plot:autosize on the element that holds the chart and make
 // htmx:plot:resize one of its triggers. The extension watches the element,
 // fires htmx:plot:resize when its width changes, and adds hp-w (its content
-// width) to every request that targets it (docs/spec.md §4.6, §6.7). The
+// width) to every request that targets it (spec/spec.md §4.6, §6.7). The
 // handler reads it with hx.Size and renders that wide, so the text keeps
 // its real size. hx-plot:autosize="both" adds hp-h too, for a container
 // whose height CSS sets on its own. Every chart is visible on the first
@@ -35,9 +35,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -78,7 +78,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /charts/width", s.width)
 	mux.HandleFunc("GET /charts/both", s.both)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -119,7 +119,7 @@ func (s *server) both(w http.ResponseWriter, r *http.Request) {
 // fragment writes a chart for an innerMorph swap. A render error answers
 // htmx with 204 No Content, which htmx does not swap, so the chart keeps
 // its last good render.
-func (s *server) fragment(w http.ResponseWriter, r *http.Request, c *hyperplot.Chart) {
+func (s *server) fragment(w http.ResponseWriter, r *http.Request, c *plot.Chart) {
 	svg, err := c.Render()
 	if err != nil {
 		log.Printf("%s: %v", r.URL.Path, err)
@@ -135,9 +135,9 @@ func (s *server) fragment(w http.ResponseWriter, r *http.Request, c *hyperplot.C
 
 // chart is requests per hour over the last day, at a given size. Its
 // visible title states that size, so the page shows what each request got.
-func (s *server) chart(id string, width, height float64) *hyperplot.Chart {
+func (s *server) chart(id string, width, height float64) *plot.Chart {
 	end := s.now().Truncate(time.Hour)
-	xs, ys := make(hyperplot.Times, 24), make([]float64, 24)
+	xs, ys := make(plot.Times, 24), make([]float64, 24)
 	for i := range 24 {
 		t := end.Add(time.Duration(i-23) * time.Hour)
 		b := t.Unix() / 3600
@@ -145,15 +145,15 @@ func (s *server) chart(id string, width, height float64) *hyperplot.Chart {
 		ys[i] = math.Round(3000 + 1200*math.Sin(float64(b)/4) + 500*noise("requests", b))
 	}
 	size := strconv.FormatFloat(width, 'f', -1, 64) + " × " + strconv.FormatFloat(height, 'f', -1, 64)
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:        id, // stable across sizes, so a resize morphs the chart in place
 		Title:     "Requests per hour, drawn at " + size + " px",
 		ShowTitle: true,
 		Width:     width,
 		Height:    height,
 		Location:  s.loc,
-		Y:         hyperplot.Axis{Unit: " req/h"},
-		Marks:     []hyperplot.Mark{hyperplot.Area{Name: "requests", X: xs, Y: ys}},
+		Y:         plot.Axis{Unit: " req/h"},
+		Marks:     []plot.Mark{plot.Area{Name: "requests", X: xs, Y: ys}},
 	}
 }
 

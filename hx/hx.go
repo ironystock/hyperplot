@@ -162,7 +162,7 @@ const maxSizeBody = 64 << 10
 // Size returns the chart size requested by the hx-plot client extension
 // (hx-plot.js), which adds parameters to every request whose target is,
 // or is inside, an element with the hx-plot:autosize attribute
-// (docs/spec.md §4.6, §6.7):
+// (spec/spec.md §4.6, §6.7):
 //
 //   - "hp-w" ([ParamWidth]) is the element's content width: clientWidth
 //     less horizontal padding, rounded to whole CSS pixels.

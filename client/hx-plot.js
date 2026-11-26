@@ -5,7 +5,7 @@
 // morph swaps and SSE messages, sliding windows that slide instead of
 // wobbling, live data tables that stay at their newest row and stay open,
 // responsive re-rendering, and select gestures that become htmx requests.
-// The wire contract is docs/spec.md (spec 1): it reads the
+// The wire contract is spec/spec.md (spec 1): it reads the
 // <metadata class="hp-tips"> JSON and the root's geometry attributes that a
 // server writes into every chart.
 //
@@ -171,7 +171,7 @@
 
   /**
    * frameOf reads a chart frame's geometry from its root attributes
-   * (docs/spec.md §4.2); get(name) returns an attribute's value or null. It
+   * (spec/spec.md §4.2); get(name) returns an attribute's value or null. It
    * returns {ok, anim, vb, plot: [left, top, right, bottom], kind, d0, d1}.
    * ok is false when the frame cannot slide or be brushed: it is not spec
    * version 1, its plot is not four finite numbers, or its x scale is not a
@@ -196,7 +196,7 @@
 
   /**
    * slideOf decides what a swap from frame o to frame n (both from frameOf)
-   * does, by the rules of docs/spec.md §6.8.3: {outcome, reason} with outcome
+   * does, by the rules of spec/spec.md §6.8.3: {outcome, reason} with outcome
    * "slide", "snap" or "none". A slide also carries a and b, which map a new
    * x to where the same data was drawn in o (x_old = a·x + b), s, the content
    * shift, and duration, the effective duration. Options: slide (the
@@ -231,7 +231,7 @@
   /**
    * startTransform returns the CSS transform that puts an element of the
    * new frame where its data was drawn in the old one, for a slide with a
-   * and b (docs/spec.md §6.8.3). Paths, rects, polylines, polygons and
+   * and b (spec/spec.md §6.8.3). Paths, rects, polylines, polygons and
    * whole series groups take the affine map; anything else (text, circles,
    * lines) only moves, by (a - 1)·x + b with x its own x position, so
    * glyphs and dots are never squeezed.
@@ -258,7 +258,7 @@
 
   /**
    * gestureParams returns the request parameters ([[name, value], …]) that
-   * the request's triggering event ev adds (docs/spec.md §6.7): hp-chart,
+   * the request's triggering event ev adds (spec/spec.md §6.7): hp-chart,
    * hp-x and hp-series for htmx:plot:select, hp-chart, hp-x0 and hp-x1 for
    * htmx:plot:brush, and nothing for any other event. Event names are
    * compared as htmx dispatches them, with the metaCharacter mc applied.
@@ -316,7 +316,7 @@
   const sizes = new WeakMap() // autosize element → {w, h, t}
   let api = null // htmx's extension API, from init
 
-  // Settings (docs/spec.md §6.3): the defaults, then htmx.config.plot, then
+  // Settings (spec/spec.md §6.3): the defaults, then htmx.config.plot, then
   // the request's hx-config "plot" object; strings merge one level deep.
   const DEFAULTS = {
     slide: true,
@@ -339,7 +339,7 @@
 
   // The container attributes hx-plot:autosize and hx-plot:brush in every
   // spelling htmx accepts: hx-plot and the prefixed data-hx-plot, joined to
-  // the name by ":" or htmx.config.metaCharacter (docs/spec.md §6.2). Set
+  // the name by ":" or htmx.config.metaCharacter (spec/spec.md §6.2). Set
   // with the mode (spellings).
   let NAMES, SEL, IGNORE
   const selOf = (names) => names.map((n) => `[${CSS.escape(n)}]`).join()
@@ -526,7 +526,7 @@
   }
 
   // hit returns the point that a pointer at client (x, y) activates on a
-  // chart with payload t and screen matrix m, or -1 (docs/spec.md §6.5).
+  // chart with payload t and screen matrix m, or -1 (spec/spec.md §6.5).
   function hit(t, m, x, y, touch) {
     const p = new DOMPoint(x, y).matrixTransform(m.inverse())
     if (t.mode === 'xy') return nearestPoint(t.pts, p.x, p.y, (touch ? 2 * HIT : HIT) / Math.hypot(m.a, m.b))
@@ -682,7 +682,7 @@
   const seriesOf = (el) => el?.closest?.('g.hp-series')?.getAttribute('data-hp-series')
 
   // select dispatches htmx:plot:select for point i of a chart
-  // (docs/spec.md §6.6). In mode xy the series is the point's own, found by
+  // (spec/spec.md §6.6). In mode xy the series is the point's own, found by
   // its slot; otherwise it is the series the reader clicked, if any.
   function select(svg, t, i, series) {
     const row = t?.rows[i]
@@ -764,7 +764,7 @@
     B('swap')
   }
 
-  // ---- Swaps: sliding windows and live tables (docs/spec.md §6.8). ----
+  // ---- Swaps: sliding windows and live tables (spec/spec.md §6.8). ----
   //
   // htmx runs htmx_before_swap with the old DOM, then morphs each task's
   // target and runs htmx_before_settle for it before the browser renders,
@@ -1039,7 +1039,7 @@
     }
   }
 
-  // params adds the extension's parameters to a request (docs/spec.md
+  // params adds the extension's parameters to a request (spec/spec.md
   // §6.7): hp-w (and, for hx-plot:autosize="both", hp-h) when the request
   // targets an autosize element or something inside one, and the gesture
   // parameters when a select or brush triggered it. It never replaces a

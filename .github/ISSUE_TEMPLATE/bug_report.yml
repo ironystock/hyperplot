@@ -23,7 +23,7 @@ body:
     attributes:
       label: Minimal reproduction
       description: |
-        The smallest Go program or `hyperplot.Chart{...}` literal that shows the
+        The smallest Go program or `plot.Chart{...}` literal that shows the
         problem. If it is visual, attach the SVG output or a screenshot.
       render: go
     validations:

@@ -1,5 +1,5 @@
 /*! hx-plot-brush 0.2.0 | MIT */
-// hx-plot-brush: brushing for hx-plot.js (docs/spec.md §6.6). Inside an
+// hx-plot-brush: brushing for hx-plot.js (spec/spec.md §6.6). Inside an
 // element with hx-plot:brush, a mouse or pen drag across a chart's plot, or
 // Shift+Arrow, Shift+Home and Shift+End from a keyboard point and then
 // Enter, marks an x range and dispatches htmx:plot:brush with detail
@@ -39,7 +39,7 @@
 
   /**
    * texts orders the data values vs and writes them as frame f's x axis
-   * requires (docs/spec.md §6.6): time values rounded to whole
+   * requires (spec/spec.md §6.6): time values rounded to whole
    * milliseconds, or numbers rounded to the fewest decimals (0 to 15) that
    * still resolve a tenth of a pixel.
    */

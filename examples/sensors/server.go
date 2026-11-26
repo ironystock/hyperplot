@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 //go:embed templates/*.html
@@ -52,7 +52,7 @@ func newServer(logger *log.Logger) (*server, error) {
 	if err != nil {
 		return nil, err
 	}
-	css := []byte(hyperplot.Stylesheet())
+	css := []byte(plot.Stylesheet())
 	return &server{
 		now:    time.Now,
 		loc:    time.Local,
@@ -228,7 +228,7 @@ func (s *server) theme(w http.ResponseWriter, r *http.Request) string {
 
 // liveFragment is one SSE message: the tile grid, swapped into the
 // connecting element, and the alerts as an <hx-partial>, which htmx swaps
-// into #alerts (docs/spec.md §4.5, "Several targets"). One stream carries
+// into #alerts (spec/spec.md §4.5, "Several targets"). One stream carries
 // both, so the page holds one connection, not two.
 func (s *server) liveFragment(now time.Time) ([]byte, error) {
 	ts, err := tiles(now)
@@ -253,14 +253,14 @@ func (s *server) tileStream(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Not an event stream, so htmx would swap an error body over the
 		// tiles. HX-Reswap: none prevents that, and a 503 (not a 204)
-		// makes a reconnecting hx-sse back off (docs/spec.md §4.5).
+		// makes a reconnecting hx-sse back off (spec/spec.md §4.5).
 		s.logger.Printf("%s %s: %v", r.Method, r.URL.Path, err)
 		w.Header().Set("HX-Reswap", "none")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 	// retry: tells hx-sse how long to wait before reconnecting after the
-	// stream drops (docs/spec.md §4.5 SHOULD).
+	// stream drops (spec/spec.md §4.5 SHOULD).
 	if err := stream.Retry(2 * time.Second); err != nil {
 		s.streamEnded(err)
 		return
@@ -317,7 +317,7 @@ func (s *server) overLimit(w http.ResponseWriter, r *http.Request) {
 
 // writeTagged writes a fragment unless the client already shows it. The tag
 // hashes the exact bytes, so an unchanged chart costs one bodiless 304
-// and htmx skips the swap (docs/spec.md §4.5, Polling).
+// and htmx skips the swap (spec/spec.md §4.5, Polling).
 func (s *server) writeTagged(w http.ResponseWriter, r *http.Request, b []byte, err error) {
 	if err != nil {
 		s.fail(w, r, err)
@@ -363,7 +363,7 @@ func (s *server) poller(sn sensor, z zoom, now time.Time, width float64) (poller
 // link and an alert link (sensor, and from and to for an alert) with the
 // detail panel, which the page morphs into #detail. A request that selects
 // nothing valid gets 204 No Content: htmx swaps nothing, and the detail
-// stays as it was (docs/spec.md §5.2).
+// stays as it was (spec/spec.md §5.2).
 func (s *server) detail(w http.ResponseWriter, r *http.Request) {
 	sn, ok := selectedSensor(r)
 	if !ok {
@@ -392,7 +392,7 @@ func (s *server) detail(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "detail", d)
 }
 
-// detailChart answers three kinds of request on one URL (docs/spec.md §5.4):
+// detailChart answers three kinds of request on one URL (spec/spec.md §5.4):
 //
 //   - a brush (hp-x0 and hp-x1, from a drag or the zoom form) zooms in;
 //   - zoom=out (the "Back to live" link) returns to the live window;
@@ -451,7 +451,7 @@ func (s *server) zoomTo(w http.ResponseWriter, r *http.Request, sn sensor, z zoo
 		return
 	}
 	// The toolbar's status line is a polite live region, so the zoom is
-	// announced (docs/spec.md §5.5).
+	// announced (spec/spec.md §5.5).
 	b.Write(hx.Partial("#detail-zoom", "innerMorph", bar.Bytes()))
 	h := w.Header()
 	h.Set("Cache-Control", "no-cache")
@@ -472,7 +472,7 @@ func (s *server) stylesheet(w http.ResponseWriter, r *http.Request) {
 // ---- Helpers ------------------------------------------------------------------
 
 // chartWidth is the width that the client extension reported for the
-// request's autosize container (hp-w, docs/spec.md §4.6), or the default.
+// request's autosize container (hp-w, spec/spec.md §4.6), or the default.
 // hx.Size clamps it and ignores values that are not positive numbers.
 func chartWidth(r *http.Request) float64 {
 	w, _ := hx.Size(r, defaultWidth, 0)
@@ -480,7 +480,7 @@ func chartWidth(r *http.Request) float64 {
 }
 
 // body renders a chart with its data table.
-func (s *server) body(c *hyperplot.Chart) (template.HTML, error) {
+func (s *server) body(c *plot.Chart) (template.HTML, error) {
 	svg, err := c.HTML()
 	if err != nil {
 		return "", err

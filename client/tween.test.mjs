@@ -1,5 +1,5 @@
 // Tests for hx-plot-tween.js, the JavaScript d tween for browsers whose CSS
-// cannot transition d (docs/spec.md §6.8.4). The fake browser has no
+// cannot transition d (spec/spec.md §6.8.4). The fake browser has no
 // layout, so its feature test finds no CSS d, as Safari would. They drive
 // the swap hooks of hx-plot.js the way htmx 4 calls them. Run with:
 // node --test

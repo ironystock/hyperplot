@@ -8,7 +8,7 @@ import (
 	"github.com/ironystock/hyperplot/hx"
 )
 
-// The two gestures of docs/spec.md §5, as this page uses them. Both are
+// The two gestures of spec/spec.md §5, as this page uses them. Both are
 // ordinary htmx requests: the extension adds hp-* parameters, the server
 // answers with HTML.
 //
@@ -25,7 +25,7 @@ import (
 // selectedSensor reads which sensor a /detail request opens: a select of
 // the over-limit chart (hp-chart, hp-x), or a plain sensor parameter from
 // a tile or alert link. A select of another chart or of an unknown code is
-// no selection (docs/spec.md §5.2), and neither is a missing one.
+// no selection (spec/spec.md §5.2), and neither is a missing one.
 func selectedSensor(r *http.Request) (sensor, bool) {
 	if sel, ok := hx.Selected(r); ok {
 		if sel.Chart != "" && sel.Chart != overLimitID {
@@ -66,7 +66,7 @@ func (z zoom) on() bool { return !z.To.IsZero() }
 // whole minutes, inside the data (from maxBack before the last closed
 // minute to that minute) and between minZoom and maxZoom long. It reports
 // false for a range that lies wholly outside the data, such as a brush
-// from year 1 or in year 9999: docs/spec.md §7 says to bound such a range
+// from year 1 or in year 9999: spec/spec.md §7 says to bound such a range
 // by the data and otherwise ignore it (§5.3).
 //
 // Fed its own result with the same now, it returns it unchanged. A later
@@ -74,7 +74,7 @@ func (z zoom) on() bool { return !z.To.IsZero() }
 // instead of clipping again.
 func newZoom(t0, t1, now time.Time) (zoom, bool) {
 	if t1.Before(t0) {
-		t0, t1 = t1, t0 // docs/spec.md §5.3: never assume hp-x0 ≤ hp-x1
+		t0, t1 = t1, t0 // spec/spec.md §5.3: never assume hp-x0 ≤ hp-x1
 	}
 	last := now.Truncate(minute)
 	oldest := last.Add(-maxBack)
@@ -177,7 +177,7 @@ func pageURL(s sensor, z zoom) string {
 // ---- Zoom toolbar -------------------------------------------------------------
 
 // zoomBar is the toolbar above the detail chart: what the chart shows (a
-// polite live region, so a zoom is announced, docs/spec.md §5.5) and the
+// polite live region, so a zoom is announced, spec/spec.md §5.5) and the
 // from/to form that zooms without a pointer.
 type zoomBar struct {
 	Zoomed   bool

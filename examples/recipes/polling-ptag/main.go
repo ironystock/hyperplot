@@ -10,7 +10,7 @@
 // render with a hash of its bytes (hx.Tag) and sends it as the HX-PTag
 // response header; htmx echoes the tag on the next poll, and hx.CheckPTag
 // answers a matching tag with a bodiless 304, which htmx does not swap
-// (docs/spec.md §4.5). The data here changes every 10 seconds, so about
+// (spec/spec.md §4.5). The data here changes every 10 seconds, so about
 // four polls in five are 304s.
 package main
 
@@ -32,9 +32,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -74,7 +74,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /{$}", s.page)
 	mux.HandleFunc("GET /charts/connections", s.connections)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -121,27 +121,27 @@ func (s *server) connections(w http.ResponseWriter, r *http.Request) {
 
 // chart is open connections over the last five minutes. Its values are a
 // pure function of the bucket, so any instant renders the same bytes.
-func (s *server) chart() *hyperplot.Chart {
+func (s *server) chart() *plot.Chart {
 	end := s.now().Truncate(step)
 	n := int(window / step)
 	// One bucket before the window is drawn too (clipped), so the line
-	// reaches the left edge while it slides (docs/spec.md §4.4).
-	xs, ys := make(hyperplot.Times, n+1), make([]float64, n+1)
+	// reaches the left edge while it slides (spec/spec.md §4.4).
+	xs, ys := make(plot.Times, n+1), make([]float64, n+1)
 	for i := range n + 1 {
 		t := end.Add(time.Duration(i-n) * step)
 		b := t.Unix() / int64(step/time.Second)
 		xs[i] = t
 		ys[i] = math.Round(420 + 90*math.Sin(float64(b)/7) + 60*noise("connections", b))
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "connections", // stable, so the morph updates the chart in place
 		Title:    "Open connections, last 5 minutes",
 		Animate:  true, // hx-plot.js slides the line when the window moves
 		Height:   280,
 		Location: s.loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{end.Add(-window), end}},
-		Y:        hyperplot.Axis{Zero: true},
-		Marks:    []hyperplot.Mark{hyperplot.Line{Name: "connections", X: xs, Y: ys}},
+		X:        plot.Axis{TimeDomain: [2]time.Time{end.Add(-window), end}},
+		Y:        plot.Axis{Zero: true},
+		Marks:    []plot.Mark{plot.Line{Name: "connections", X: xs, Y: ys}},
 	}
 }
 

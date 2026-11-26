@@ -5,7 +5,7 @@
     python3 examples/python/server.py --speed 5             # time runs 5x faster
 
 It serves one page of live charts and implements the hx-plot wire spec
-(docs/spec.md) at Level 3 without any Go: it is the proof that the htmx
+(spec/spec.md) at Level 3 without any Go: it is the proof that the htmx
 extension does not care what language the server is written in.
 
 The htmx pattern is the same as in any htmx app: every chart is HTML that
@@ -86,7 +86,7 @@ STATIC = {
 # ---- Request parameters (spec §4.6, §5) ------------------------------------
 # hp-* values come from the browser and can be anything (spec §7). These
 # helpers read them strictly; test_wire.py runs them against the server
-# cases of testdata/conformance/params.json.
+# cases of spec/conformance/params.json.
 
 def query(url: str) -> dict[str, str]:
     """The query string's parameters, first value of each, blanks kept."""

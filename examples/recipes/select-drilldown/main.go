@@ -4,7 +4,7 @@
 //	go run ./examples/recipes/select-drilldown -addr :9000
 //
 // The pattern (docs/htmx.md, "Pattern 5: drill-down on select", and
-// docs/spec.md §5.2, §5.5): a click on a bar, or Enter on a focused one,
+// spec/spec.md §5.2, §5.5): a click on a bar, or Enter on a focused one,
 // makes hx-plot.js fire htmx:plot:select on the chart. The event bubbles to
 // an element whose hx-trigger turns it into an ordinary request, and the
 // extension adds hp-chart, hp-x (the bar's category, the key the server
@@ -34,9 +34,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -80,12 +80,12 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /{$}", s.page)
 	mux.HandleFunc("GET /detail", s.detail)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
 
-// link is a select as a plain link (docs/spec.md §5.5): Href loads the
+// link is a select as a plain link (spec/spec.md §5.5): Href loads the
 // page with the detail open; Get fetches only the detail through htmx.
 type link struct{ Label, Href, Get string }
 
@@ -144,7 +144,7 @@ func (s *server) detail(w http.ResponseWriter, r *http.Request) {
 
 // selection reads hp-chart, hp-x and hp-series. They come from the browser,
 // so they are checked against the server's own keys; a missing or unknown
-// value is no selection, not an error (docs/spec.md §5.2).
+// value is no selection, not an error (spec/spec.md §5.2).
 func (s *server) selection(r *http.Request) (detailView, error) {
 	sel, ok := hx.Selected(r)
 	if !ok || (sel.Chart != "" && sel.Chart != "errors") {
@@ -177,9 +177,9 @@ func (s *server) selection(r *http.Request) (detailView, error) {
 }
 
 // hours are the last 24 closed hours.
-func (s *server) hours() hyperplot.Times {
+func (s *server) hours() plot.Times {
 	end := s.now().Truncate(time.Hour)
-	ts := make(hyperplot.Times, 24)
+	ts := make(plot.Times, 24)
 	for i := range ts {
 		ts[i] = end.Add(time.Duration(i-24) * time.Hour)
 	}
@@ -194,8 +194,8 @@ func errorsAt(svc, class string, base float64, t time.Time) float64 {
 
 // bars is the chart people click: errors in the last 24 hours, one group
 // of bars per service. Its band keys are the service names, so hp-x is one.
-func (s *server) bars() *hyperplot.Chart {
-	var marks []hyperplot.Mark
+func (s *server) bars() *plot.Chart {
+	var marks []plot.Mark
 	for _, c := range classes {
 		ys := make([]float64, len(services))
 		for i, svc := range services {
@@ -203,17 +203,17 @@ func (s *server) bars() *hyperplot.Chart {
 				ys[i] += errorsAt(svc, c.name, c.base, t)
 			}
 		}
-		marks = append(marks, hyperplot.Bar{Name: c.name, Slot: c.slot, X: hyperplot.Categories(services), Y: ys})
+		marks = append(marks, plot.Bar{Name: c.name, Slot: c.slot, X: plot.Categories(services), Y: ys})
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID: "errors", Title: "Errors by service, last 24 hours", Height: 280,
-		Y: hyperplot.Axis{Unit: " errors"}, Marks: marks,
+		Y: plot.Axis{Unit: " errors"}, Marks: marks,
 	}
 }
 
 // hourly is the detail: one service hour by hour, one class or both.
-func (s *server) hourly(svc, only string) *hyperplot.Chart {
-	var marks []hyperplot.Mark
+func (s *server) hourly(svc, only string) *plot.Chart {
+	var marks []plot.Mark
 	for _, c := range classes {
 		if only != "" && c.name != only {
 			continue
@@ -222,11 +222,11 @@ func (s *server) hourly(svc, only string) *hyperplot.Chart {
 		for i, t := range s.hours() {
 			ys[i] = errorsAt(svc, c.name, c.base, t)
 		}
-		marks = append(marks, hyperplot.Line{Name: c.name, Slot: c.slot, X: s.hours(), Y: ys, Points: true})
+		marks = append(marks, plot.Line{Name: c.name, Slot: c.slot, X: s.hours(), Y: ys, Points: true})
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID: "service-errors", Title: "Errors per hour for " + svc, Height: 240, Location: s.loc,
-		Y: hyperplot.Axis{Unit: " errors", Zero: true}, Marks: marks,
+		Y: plot.Axis{Unit: " errors", Zero: true}, Marks: marks,
 	}
 }
 

@@ -34,9 +34,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -84,7 +84,7 @@ func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.page)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -134,7 +134,7 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// One URL, two bodies: caches must keep the page and the fragment
-	// apart (docs/spec.md §4.5).
+	// apart (spec/spec.md §4.5).
 	w.Header().Add("Vary", hx.HeaderRequest+", "+hx.HeaderRequestType)
 	w.Header().Set("Cache-Control", "no-cache")
 	writeHTML(w, b.Bytes())
@@ -183,18 +183,18 @@ func (s *server) view(f filters) (view, error) {
 // chart is one metric over the selected range, one line per selected
 // region (bars for requests, one bar per region). The id is fixed, not
 // derived from the series, so a filter change morphs the chart in place.
-func (s *server) chart(f filters, id, title, unit string) *hyperplot.Chart {
+func (s *server) chart(f filters, id, title, unit string) *plot.Chart {
 	rg := ranges[f.Range]
 	end := s.now().Truncate(rg.step)
-	c := &hyperplot.Chart{
+	c := &plot.Chart{
 		ID: id, Title: title + ", " + rg.Title, ShowTitle: true, Height: 220, Location: s.loc,
-		Animate: true, Y: hyperplot.Axis{Unit: unit, Zero: true}, Stack: id == "requests",
+		Animate: true, Y: plot.Axis{Unit: unit, Zero: true}, Stack: id == "requests",
 	}
 	for i, reg := range regions {
 		if !f.Regions[i] {
 			continue
 		}
-		var xs hyperplot.Times
+		var xs plot.Times
 		var ys []float64
 		total := 0.0
 		for t := end.Add(-rg.span); !t.After(end); t = t.Add(rg.step) {
@@ -203,10 +203,10 @@ func (s *server) chart(f filters, id, title, unit string) *hyperplot.Chart {
 		}
 		if id == "requests" {
 			// Stack draws one full-width bar for each region's own category.
-			c.Marks = append(c.Marks, hyperplot.Bar{Name: reg.Key, Slot: reg.slot, X: hyperplot.Categories{reg.Key}, Y: []float64{total}})
+			c.Marks = append(c.Marks, plot.Bar{Name: reg.Key, Slot: reg.slot, X: plot.Categories{reg.Key}, Y: []float64{total}})
 			continue
 		}
-		c.Marks = append(c.Marks, hyperplot.Line{Name: reg.Key, Slot: reg.slot, X: xs, Y: ys})
+		c.Marks = append(c.Marks, plot.Line{Name: reg.Key, Slot: reg.slot, X: xs, Y: ys})
 	}
 	return c
 }

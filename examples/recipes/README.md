@@ -8,7 +8,7 @@ puts the live patterns together on one page; the recipes take them apart.
 
 One htmx pattern each, in the order of the
 [htmx guide](../../docs/htmx.md). The level is the
-[spec's server level](../../docs/spec.md#21-server-levels) the recipe
+[spec's server level](../../spec/spec.md#21-server-levels) the recipe
 needs.
 
 | Recipe | Pattern | Level | Shows | Run |
@@ -58,7 +58,7 @@ from jsDelivr, so the browser needs network access.
   setup and page head are repeated in every recipe on purpose, so each
   reads alone.
 - Every comment at an htmx attribute, header or parameter says why it is
-  there and cites the section of the [wire spec](../../docs/spec.md).
+  there and cites the section of the [wire spec](../../spec/spec.md).
 - Every page sends a strict Content Security Policy that allows only the
   scripts it loads: the live pages and sizing load htmx 4.0.2 and only the
   extensions they use from pinned URLs with Subresource Integrity, and

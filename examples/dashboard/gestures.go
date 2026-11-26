@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
-// The two gesture demos of docs/spec.md §5. Both are ordinary requests:
+// The two gesture demos of spec/spec.md §5. Both are ordinary requests:
 // the extension turns a brush or a select into an htmx request with hp-*
 // parameters, and the server answers with HTML.
 //
@@ -150,7 +150,7 @@ func brushZoom(r *http.Request, now time.Time, loc *time.Location) (zoom, bool) 
 // the live window it draws one bucket beyond each edge, clipped, so the
 // lines reach both sides; buckets that have not closed yet are left out
 // and fill in on later polls.
-func zoomedLatencyChart(f filters, z zoom, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+func zoomedLatencyChart(f filters, z zoom, now time.Time, w float64, loc *time.Location) *plot.Chart {
 	step := z.step()
 	first := z.From.Truncate(step)
 	if !first.Before(z.From) {
@@ -172,7 +172,7 @@ func zoomedLatencyChart(f filters, z zoom, now time.Time, w float64, loc *time.L
 
 // zoomBar is the toolbar above the latency chart: what the chart shows (a
 // polite live region, so a zoom is announced) and the from/to form that
-// zooms without a pointer (docs/spec.md §5.5).
+// zooms without a pointer (spec/spec.md §5.5).
 type zoomBar struct {
 	Zoomed   bool
 	Status   string
@@ -358,7 +358,7 @@ func repeated(labels []string) map[string]bool {
 }
 
 // windowLink is one "details" link under the requests chart: the select
-// gesture as a plain link (docs/spec.md §5.5).
+// gesture as a plain link (spec/spec.md §5.5).
 type windowLink struct {
 	ID    string // stable while the window is shown, so a poll's morph keeps the node with its window
 	Label string
@@ -415,7 +415,7 @@ type detailData struct {
 
 // selectedWindow reads a select of the requests chart. A select that names
 // another chart, a window no longer shown or nothing at all is no
-// selection (docs/spec.md §5.2). The region is the clicked bar's series
+// selection (spec/spec.md §5.2). The region is the clicked bar's series
 // when it is one of the selected regions, and otherwise every selected
 // region: Enter on a band chart names no series.
 func selectedWindow(r *http.Request, f filters, ws []window) (w window, rs []region, notice string, ok bool) {
@@ -445,22 +445,22 @@ func selectedWindow(r *http.Request, f filters, ws []window) (w window, rs []reg
 // starts at start, in detailBuckets buckets, stacked. Its first point is
 // the bucket that ends where the window starts, so the areas begin at the
 // left edge.
-func detailChart(f filters, rs []region, start time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+func detailChart(f filters, rs []region, start time.Time, w float64, loc *time.Location) *plot.Chart {
 	step := f.Range.Window / detailBuckets
 	ends := make([]time.Time, detailBuckets+1)
 	for i := range ends {
 		ends[i] = start.Add(time.Duration(i) * step)
 	}
-	marks := make([]hyperplot.Mark, len(rs))
+	marks := make([]plot.Mark, len(rs))
 	for i, g := range rs {
-		marks[i] = hyperplot.Area{
+		marks[i] = plot.Area{
 			Name: g.Key,
-			X:    hyperplot.Times(ends),
-			Y:    hyperplot.Map(ends, func(e time.Time) float64 { return math.Round(g.rate(e.Add(-step), step)) }),
+			X:    plot.Times(ends),
+			Y:    plot.Map(ends, func(e time.Time) float64 { return math.Round(g.rate(e.Add(-step), step)) }),
 			Slot: g.Slot,
 		}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "drill",
 		Title:    "Requests per second, " + regionNames(rs) + ", " + rangeText(start, start.Add(f.Range.Window), loc),
 		Width:    w,
@@ -468,8 +468,8 @@ func detailChart(f filters, rs []region, start time.Time, w float64, loc *time.L
 		Animate:  true,
 		Location: loc,
 		Stack:    true,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{start, start.Add(f.Range.Window)}},
-		Y:        hyperplot.Axis{Label: "Requests per second", Unit: " req/s"},
+		X:        plot.Axis{TimeDomain: [2]time.Time{start, start.Add(f.Range.Window)}},
+		Y:        plot.Axis{Label: "Requests per second", Unit: " req/s"},
 		Marks:    marks,
 	}
 }

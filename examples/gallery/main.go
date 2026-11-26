@@ -10,7 +10,7 @@
 // binary and parsed at startup (source.go), so the two cannot drift apart.
 //
 // The page needs no htmx. It is rendered once and served as is; hx-plot.js
-// alone runs in standalone mode (docs/spec.md §6.10) and adds tooltips, a
+// alone runs in standalone mode (spec/spec.md §6.10) and adds tooltips, a
 // crosshair and arrow-key reading to every inline chart. Light and dark are
 // plain links (?theme=light, ?theme=dark): the server writes data-theme on
 // <html>, which hyperplot's stylesheet honors. With -out, the same page is
@@ -35,8 +35,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -102,7 +102,7 @@ func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.page)
 	mux.Handle("GET /static/hx-plot.js", client.Handler()) // the extension, embedded in the client package
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -139,7 +139,7 @@ func export(dir string, g *gallery) error {
 	}
 	files := map[string][]byte{
 		"static/hx-plot.js":  client.JS(),
-		"static/hx-plot.css": []byte(hyperplot.Stylesheet()),
+		"static/hx-plot.css": []byte(plot.Stylesheet()),
 		"static/app.css":     []byte(appCSS),
 	}
 	for _, t := range themes {

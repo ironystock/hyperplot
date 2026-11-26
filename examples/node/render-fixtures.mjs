@@ -1,6 +1,6 @@
 // render-fixtures.mjs renders the conformance fixtures this example's
 // renderer supports, so a checker can test the output against each
-// fixture's checks.json (testdata/conformance/README.md).
+// fixture's checks.json (spec/conformance/README.md).
 //
 //   node examples/node/render-fixtures.mjs OUT
 //
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { render } from './render.mjs'
 import { parseTimeValue } from './wire.mjs'
 
-const fixtures = fileURLToPath(new URL('../../testdata/conformance/', import.meta.url))
+const fixtures = fileURLToPath(new URL('../../spec/conformance/', import.meta.url))
 
 /** chartFromInput turns a fixture's chart description into render()'s input: RFC 3339 times become epoch ms. */
 export function chartFromInput(c) {

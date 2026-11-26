@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -22,7 +22,7 @@ const (
 )
 
 // Chart ids. They are explicit and stable, because live updates pair the
-// old and new chart by id (docs/spec.md §4.1). The detail keeps its id
+// old and new chart by id (spec/spec.md §4.1). The detail keeps its id
 // when it switches sensors, so a select morphs one chart into the next.
 const (
 	trendID     = "trend"
@@ -42,8 +42,8 @@ func chartHeight(w, h float64) float64 {
 // hours ending with the last closed minute) or over a zoom. Like the
 // dashboard's latency chart it draws one bucket beyond the left edge,
 // clipped, so the line reaches the edge while the window slides
-// (docs/spec.md §4.4).
-func detailChart(s sensor, z zoom, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+// (spec/spec.md §4.4).
+func detailChart(s sensor, z zoom, now time.Time, w float64, loc *time.Location) *plot.Chart {
 	last := now.Truncate(minute)
 	from, to := last.Add(-liveSpan), last
 	if z.on() {
@@ -62,22 +62,22 @@ func detailChart(s sensor, z zoom, now time.Time, w float64, loc *time.Location)
 	}
 	ends, vals := s.series(first, end)
 	k := s.Kind
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       trendID,
 		Title:    s.Name() + " (" + s.Code + ")",
 		Width:    w,
 		Height:   chartHeight(w, 300),
 		Animate:  true,
 		Location: loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{from, to}},
-		Y:        hyperplot.Axis{Label: k.Axis, Unit: k.axisUnit()},
-		Marks: []hyperplot.Mark{
-			hyperplot.Line{Name: s.Code, X: hyperplot.Times(ends), Y: vals, Curve: hyperplot.CurveMonotone, Slot: k.Slot},
+		X:        plot.Axis{TimeDomain: [2]time.Time{from, to}},
+		Y:        plot.Axis{Label: k.Axis, Unit: k.axisUnit()},
+		Marks: []plot.Mark{
+			plot.Line{Name: s.Code, X: plot.Times(ends), Y: vals, Curve: plot.CurveMonotone, Slot: k.Slot},
 			// Thresholds are annotations, not series: no color slot, no
 			// legend entry, and the y domain always reaches them, so both
 			// limits stay in view.
-			hyperplot.RuleY{Y: s.Warn, Label: "Warning " + s.format(s.Warn)},
-			hyperplot.RuleY{Y: s.Alarm, Label: "Alarm " + s.format(s.Alarm)},
+			plot.RuleY{Y: s.Warn, Label: "Warning " + s.format(s.Warn)},
+			plot.RuleY{Y: s.Alarm, Label: "Alarm " + s.format(s.Alarm)},
 		},
 	}
 }
@@ -92,11 +92,11 @@ func (s sensor) format(v float64) string {
 // overLimitChart stacks, per sensor, the minutes of the last hour spent at
 // the warning and at the alarm level. Its categories are the sensor
 // codes, so a click on a bar (or Enter on a focused one) sends that code
-// back as hp-x (docs/spec.md §5.2). It changes once a minute at most, so
+// back as hp-x (spec/spec.md §5.2). It changes once a minute at most, so
 // nearly all of its polls are answered with 304 Not Modified.
-func overLimitChart(now time.Time, w float64) *hyperplot.Chart {
+func overLimitChart(now time.Time, w float64) *plot.Chart {
 	last := now.Truncate(minute)
-	codes := make(hyperplot.Categories, len(sensors))
+	codes := make(plot.Categories, len(sensors))
 	warn := make([]float64, len(sensors))
 	alarm := make([]float64, len(sensors))
 	for i, s := range sensors {
@@ -104,18 +104,18 @@ func overLimitChart(now time.Time, w float64) *hyperplot.Chart {
 		wm, am := minutesOver(s, last)
 		warn[i], alarm[i] = float64(wm), float64(am)
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:      overLimitID,
 		Title:   "Minutes over limit in the last hour",
 		Width:   w,
 		Height:  chartHeight(w, 260),
 		Animate: true,
 		Stack:   true,
-		X:       hyperplot.Axis{Label: "Sensor"},
-		Y:       hyperplot.Axis{Label: "Minutes", Unit: " min"},
-		Marks: []hyperplot.Mark{
-			hyperplot.Bar{Name: "Warning", X: codes, Y: warn, Slot: 4},
-			hyperplot.Bar{Name: "Alarm", X: codes, Y: alarm, Slot: 2},
+		X:       plot.Axis{Label: "Sensor"},
+		Y:       plot.Axis{Label: "Minutes", Unit: " min"},
+		Marks: []plot.Mark{
+			plot.Bar{Name: "Warning", X: codes, Y: warn, Slot: 4},
+			plot.Bar{Name: "Alarm", X: codes, Y: alarm, Slot: 2},
 		},
 	}
 }
@@ -145,7 +145,7 @@ func tiles(now time.Time) ([]tile, error) {
 	for i, s := range sensors {
 		_, vals := s.series(last.Add(-sparkSpan+minute), last)
 		v := s.live(now)
-		spark, err := hyperplot.Sparkline{
+		spark, err := plot.Sparkline{
 			Values: append(vals, v),
 			Width:  128,
 			Height: 32,

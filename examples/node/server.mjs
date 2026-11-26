@@ -1,6 +1,6 @@
 // server.mjs: a live dashboard served by Node's own http module, with no
 // dependencies and no framework, speaking the hx-plot wire spec
-// (docs/spec.md) at Level 3.
+// (spec/spec.md) at Level 3.
 //
 //   node examples/node/server.mjs [--addr localhost:8080] [--speed 1]
 //
@@ -11,7 +11,7 @@
 //   - /charts/latency: a line chart polled with hx-get every 2 s and
 //     hx-swap="innerMorph". Each frame carries an HX-PTag (a hash of the
 //     body); a poll that sends back the current tag gets a bodiless 304
-//     (docs/spec.md §4.5). A brush (hp-x0, hp-x1) zooms it, and the zoom
+//     (spec/spec.md §4.5). A brush (hp-x0, hp-x1) zooms it, and the zoom
 //     becomes a URL with HX-Push-Url (§5.3).
 //   - /cards/throughput and /stream/throughput: a chart streamed over
 //     server-sent events with hx-sse:connect, using the container of §4.5.
@@ -56,7 +56,7 @@ const STALL_MS = 30_000
 
 // The page allows scripts from this origin and the one pinned htmx release,
 // and no inline script or style at all. Charts carry classes and
-// presentation attributes, never style="" (docs/spec.md §7). This is the
+// presentation attributes, never style="" (spec/spec.md §7). This is the
 // dashboard's policy (examples/dashboard/server.go).
 export const CSP = "default-src 'self'; " +
   "script-src 'self' https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/; " +
@@ -74,7 +74,7 @@ const STATIC = {
   '/static/app.css': ['static/app.css', 'text/css'],
 }
 
-/** ptag is a polling tag: a content hash of the body, quoted like an ETag (docs/spec.md §4.5). */
+/** ptag is a polling tag: a content hash of the body, quoted like an ETag (spec/spec.md §4.5). */
 export function ptag(body) {
   return `"hp-${createHash('sha256').update(String(body)).digest('hex').slice(0, 16)}"`
 }

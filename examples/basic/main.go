@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var page = template.Must(template.New("page").Parse(`<!doctype html>
@@ -21,14 +21,14 @@ var page = template.Must(template.New("page").Parse(`<!doctype html>
 func main() {
 	http.HandleFunc("/hyperplot.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
-		_, _ = io.WriteString(w, hyperplot.Stylesheet())
+		_, _ = io.WriteString(w, plot.Stylesheet())
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		chart := hyperplot.Chart{
+		chart := plot.Chart{
 			Title: "Deploys per day",
-			Marks: []hyperplot.Mark{hyperplot.Bar{
+			Marks: []plot.Mark{plot.Bar{
 				Name: "deploys",
-				X:    hyperplot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
+				X:    plot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
 				Y:    []float64{12, 19, 7, 15, 22},
 			}},
 		}

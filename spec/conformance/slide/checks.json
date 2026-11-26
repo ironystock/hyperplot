@@ -1,0 +1,134 @@
+{
+  "fixture": "slide",
+  "about": "The sliding-window decision (spec/spec.md, 'Sliding windows'). frame-a and frame-b are complete reference renders; frame-b also draws one point of overscan (14:00) before its window, which is clipped and is not in the metadata. The other frames are root-attribute sets derived from real renders (frame-c: auto y domain; frame-d: a 60-minute span; frame-e: the chart 320 px wide; frame-f: the window moved half its span; frame-g: frame-b with a window 0.2% longer, as when a server's window follows jittery data; frame-h: frame-b moved by 1 s). Note that frame-a and frame-b differ in their plot's right edge (216.76 and 228): the last x tick label sits on the edge in frame-a and needs room, so the slide maps between two different plot widths.",
+  "level": 2,
+  "input": "input.json",
+  "reference": { "frame-a": "frame-a.svg", "frame-b": "frame-b.svg" },
+  "forbid": {
+    "elements": ["script", "foreignObject"], "attrs": ["style"], "attrPrefixes": ["on"],
+    "where": [
+      { "sel": "svg", "attrs": ["transform"] },
+      { "sel": "g.hp-marks", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-labels", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-axis-x", "attrs": ["transform"], "elements": ["svg", "symbol", "use"], "deep": true },
+      { "sel": "g.hp-hover", "attrs": ["transform"], "deep": true },
+      { "sel": "rect.hp-band-hl", "attrs": ["transform"] }
+    ]
+  },
+  "server": [
+    {
+      "frame": "frame-a", "sel": "svg", "count": 1, "classes": ["hp", "hp-anim"],
+      "attrs": { "id": "sl", "data-hp": "1", "data-hp-x": "time 1772546400000 1772548200000", "data-hp-y": "linear 0 100" }
+    },
+    {
+      "frame": "frame-b", "sel": "svg", "count": 1, "classes": ["hp", "hp-anim"],
+      "attrs": { "id": "sl", "data-hp": "1", "data-hp-x": "time 1772546700000 1772548500000", "data-hp-y": "linear 0 100" }
+    },
+    { "frame": "frame-a", "sel": "g.hp-series", "count": 1, "attrs": { "id": "sl-s-9f07c3c1" }, "should": true },
+    { "frame": "frame-b", "sel": "g.hp-series", "count": 1, "attrs": { "id": "sl-s-9f07c3c1" }, "should": true },
+    {
+      "frame": "frame-b", "sel": "g.hp-hover > metadata.hp-tips", "count": 1,
+      "tips": {
+        "mode": "x", "count": 7,
+        "k": [
+          "2026-03-03T14:05:00Z", "2026-03-03T14:10:00Z", "2026-03-03T14:15:00Z", "2026-03-03T14:20:00Z",
+          "2026-03-03T14:25:00Z", "2026-03-03T14:30:00Z", "2026-03-03T14:35:00Z"
+        ],
+        "names": ["p99"]
+      },
+      "note": "the input has 8 points; the overscan point at 14:00 lies outside the x domain, so it is drawn but has no row"
+    }
+  ],
+  "stable": [
+    { "sel": "g.hp-series", "attr": "id", "note": "a series keeps its id in every frame" },
+    { "sel": "svg", "attr": "id" }
+  ],
+  "client": {
+    "frames": {
+      "frame-c": {
+        "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "24 8 228 98", "data-hp-x": "time 1772546700000 1772548500000", "data-hp-y": "linear 20 80"
+      },
+      "frame-d": {
+        "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 225.44 98", "data-hp-x": "time 1772546400000 1772550000000", "data-hp-y": "linear 0 100"
+      },
+      "frame-e": {
+        "class": "hp hp-anim", "viewBox": "0 0 320 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 308 98", "data-hp-x": "time 1772546700000 1772548500000", "data-hp-y": "linear 0 100"
+      },
+      "frame-f": {
+        "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 216.76 98", "data-hp-x": "time 1772547300000 1772549100000", "data-hp-y": "linear 0 100"
+      },
+      "frame-g": {
+        "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 228 98", "data-hp-x": "time 1772546700000 1772548503600", "data-hp-y": "linear 0 100"
+      },
+      "frame-h": {
+        "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 228 98", "data-hp-x": "time 1772546701000 1772548501000", "data-hp-y": "linear 0 100"
+      },
+      "frame-v0": { "class": "hp hp-anim", "viewBox": "0 0 240 120", "data-hp": "" },
+      "frame-b-static": {
+        "class": "hp", "viewBox": "0 0 240 120", "data-hp": "1",
+        "data-hp-plot": "28.82 8 228 98", "data-hp-x": "time 1772546700000 1772548500000", "data-hp-y": "linear 0 100"
+      },
+      "bars-band": { "file": "../bars-band/chart.svg" }
+    },
+    "tolerance": 1e-6,
+    "slide": [
+      {
+        "from": "frame-a", "to": "frame-b", "result": "slide",
+        "s": 31.32333333, "a": 0.94356863, "b": 32.94968538,
+        "note": "s = 5/30 of the old plot width; a = 187.94/199.18; b = 28.82 + s - a * 28.82"
+      },
+      {
+        "from": "frame-a", "to": "frame-c", "result": "slide",
+        "s": 31.32333333, "a": 0.92127451, "b": 38.0327451,
+        "note": "the y domain changed: the marks still slide and their vertical change snaps"
+      },
+      {
+        "from": "frame-a", "to": "frame-g", "result": "slide",
+        "s": 31.32333333, "a": 0.94545577, "b": 32.89529808,
+        "note": "a span that differs slightly is part of a; it does not stop the slide"
+      },
+      { "from": "frame-a", "to": "frame-d", "result": "snap", "reason": "scale", "note": "a zoom from 30 to 60 minutes: a = 1.91 is outside [0.9, 1.1], and a vertex tween would wobble" },
+      { "from": "frame-b", "to": "frame-e", "result": "none", "reason": "still", "note": "a resize with the same x domain: the stylesheet's d transition is a clean stretch" },
+      { "from": "frame-a", "to": "frame-e", "result": "snap", "reason": "size" },
+      { "from": "frame-a", "to": "frame-f", "result": "snap", "reason": "far", "s": 93.97, "note": "more than a quarter of the plot width" },
+      { "from": "frame-b", "to": "frame-b", "result": "none", "reason": "still" },
+      { "from": "frame-b", "to": "frame-h", "result": "snap", "reason": "tiny", "note": "the content moves 0.11 viewBox units, under half a CSS px at scale 1" },
+      {
+        "from": "frame-b", "to": "frame-h", "scale": 5, "result": "slide", "s": 0.11065556, "a": 1, "b": 0.11065556,
+        "note": "drawn 5 CSS px per viewBox unit, the same move is 0.55 px and slides"
+      },
+      { "from": "frame-a", "to": "frame-b", "config": { "slide": false }, "result": "snap", "reason": "off" },
+      { "from": "frame-a", "to": "frame-v0", "result": "none", "reason": "unsupported" },
+      { "from": "frame-a", "to": "frame-b-static", "result": "none", "reason": "static" },
+      { "from": "bars-band", "to": "bars-band", "result": "none", "reason": "unsupported", "note": "band axes never slide" }
+    ],
+    "anchored": {
+      "frame": "frame-b",
+      "count": 3,
+      "selectors": ["g.hp-series > *", "g.hp-labels text.hp-dot-label", "g.hp-axis-x text.hp-tick", ".hp-xa"],
+      "notAnchored": ["g.hp-labels > circle.hp-end", "g.hp-labels > text.hp-direct", "text.hp-empty"],
+      "effects": [
+        { "sel": "g.hp-series > path.hp-line", "effect": "affine", "transform": "translateX(32.94968538px) scaleX(0.94356863)" },
+        { "sel": "g.hp-axis-x > text.hp-tick", "text": "2:15 PM", "effect": "translate", "transform": "translateX(27.5769px)" }
+      ],
+      "positions": [
+        { "sel": "g.hp-axis-x > text.hp-tick", "text": "2:15 PM", "attr": "x", "to": 95.21, "from": 122.79 },
+        { "sel": "g.hp-axis-x > text.hp-tick", "text": "2:30 PM", "attr": "x", "to": 194.8, "from": 216.76 }
+      ],
+      "positionTolerance": 0.01,
+      "note": "from = a * to + b: at the start of the slide every anchored element sits where the same data was drawn in frame-a. Paths take the affine map; text and circles only translate by (a - 1) * x + b, with x their own x or cx, so glyphs and dots are never squeezed. The end dot and direct labels sit at the newest point; they move to their new place at once while the line's head slides in under them."
+    },
+    "brushAcrossSwap": {
+      "before": "frame-a", "after": "frame-b", "from": 100, "to": 180,
+      "detail": { "chart": "sl", "x0": "2026-03-03T14:11:21.728Z", "x1": "2026-03-03T14:27:46.222Z" },
+      "anchorAfter": 71.0603,
+      "note": "the press is converted to a time through frame-a's geometry at pointerdown (14:11:21.728); after the swap the brush rectangle is redrawn from that time (viewBox x 71.06 in frame-b); the release at 180 is read through frame-b. Reading the press pixel through frame-b would send 14:15:43.257."
+    }
+  }
+}

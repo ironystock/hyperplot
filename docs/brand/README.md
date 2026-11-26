@@ -24,10 +24,10 @@ The library ships the palette as an opt-in theme. The default theme is
 unchanged.
 
 ```go
-css := hyperplot.TraceTheme().CSS()      // serve in place of hyperplot.Stylesheet()
+css := plot.TraceTheme().CSS()      // serve in place of plot.Stylesheet()
 
 chart.Standalone = true
-theme := hyperplot.TraceTheme()
+theme := plot.TraceTheme()
 chart.Theme = &theme                     // standalone SVG in the brand colors
 ```
 

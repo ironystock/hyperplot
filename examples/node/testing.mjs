@@ -1,9 +1,9 @@
 // testing.mjs: helpers for this example's tests (not a test file itself).
 //
 // Node has no XML parser built in, so parseXml is a small strict one: it
-// is enough to prove that a chart is well-formed XML (docs/spec.md §3.1)
+// is enough to prove that a chart is well-formed XML (spec/spec.md §3.1)
 // and to query it. select() implements the selector subset of
-// testdata/conformance/README.md, and fixtureProblems() runs a fixture's
+// spec/conformance/README.md, and fixtureProblems() runs a fixture's
 // checks.json server assertions on this renderer's output, so the tests
 // need neither Go nor the Python checker.
 import { readFileSync } from 'node:fs'
@@ -150,7 +150,7 @@ export function select(root, sel) {
   return elements(root).filter((el) => matchAt(el, steps.length - 1))
 }
 
-const fixtures = new URL('../../testdata/conformance/', import.meta.url)
+const fixtures = new URL('../../spec/conformance/', import.meta.url)
 
 /** fixture reads a conformance fixture file as text. */
 export const fixture = (path) => readFileSync(new URL(path, fixtures), 'utf8')

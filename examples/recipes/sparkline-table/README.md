@@ -31,11 +31,11 @@ go run ./examples/recipes/sparkline-table -addr :9000
 
 | What | Where |
 |---|---|
-| `hyperplot.Sparkline{Values, Label, Unit, Area}.HTML()` | `main.go`: `buildRows` |
+| `plot.Sparkline{Values, Label, Unit, Area}.HTML()` | `main.go`: `buildRows` |
 | `Label` and `Unit` make the accessible name | `main.go`: `buildRows` |
 | `<th scope="row">`, `<caption>`, the scrolling region | `page.html` |
 | `.spark .hp-spark { display: block }` drops the baseline gap | `app.css` |
-| `hyperplot.Stylesheet()` colors the sparklines; nothing else is loaded | `main.go`: `routes` |
+| `plot.Stylesheet()` colors the sparklines; nothing else is loaded | `main.go`: `routes` |
 | `scale.FormatNumber` for the figures, with thousands separators | `main.go`: `buildRows` |
 
 ## How it works
@@ -44,7 +44,7 @@ A sparkline renders a 2 px line, an optional area wash and a dot on the
 last value, with no axes, title, tooltip or ids, so it repeats freely on a
 page (see [Sparkline](../../../docs/DESIGN.md#sparkline) in the design). Its
 root class is `hp-spark`, not `hp`: the extension and the wire spec treat
-every `svg.hp` as a chart ([spec §6.4](../../../docs/spec.md#64-finding-charts)),
+every `svg.hp` as a chart ([spec §6.4](../../../spec/spec.md#64-finding-charts)),
 and a sparkline does not meet a chart's contract. Inside, it uses the chart
 classes (`hp-s1`, `hp-line`, `hp-area`, `hp-end`), so one stylesheet, and
 its dark mode ([Dark mode](../../../docs/htmx.md#dark-mode)), covers both.

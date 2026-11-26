@@ -22,8 +22,8 @@ import (
 	"time"
 	_ "time/tzdata" // zones with clock changes for TestRequestWindowsZones, even without system zoneinfo
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -80,7 +80,7 @@ var svgClassRe = regexp.MustCompile(`\sclass="([^"]*)"`)
 
 // checkSVGs asserts that body holds at least minCount <svg> elements, that
 // each one is well-formed XML, and that each svg.hp is a chart: the client
-// treats every svg.hp as one (docs/spec.md §6.4), so a decoration such as
+// treats every svg.hp as one (spec/spec.md §6.4), so a decoration such as
 // a legend swatch must not carry the class hp.
 func checkSVGs(t *testing.T, name, body string, minCount int) {
 	t.Helper()
@@ -355,7 +355,7 @@ func TestSSE(t *testing.T) {
 	if len(msgs) < 2 {
 		t.Fatalf("got %d messages, want at least 2 (scan error: %v)", len(msgs), sc.Err())
 	}
-	// docs/spec.md §4.5: a server SHOULD send retry:. hx-sse 4.0.2 applies
+	// spec/spec.md §4.5: a server SHOULD send retry:. hx-sse 4.0.2 applies
 	// it only on a message that carries data, so the first one must have it.
 	if msgs[0].retry != "2000" {
 		t.Errorf("first message retry %q, want 2000", msgs[0].retry)
@@ -783,7 +783,7 @@ func TestSlidingWindowsOverscan(t *testing.T) {
 	firstX := regexp.MustCompile(`class="hp-(?:line|area)" d="M(-?[\d.]+),`)
 	for _, tc := range []struct {
 		name string
-		c    *hyperplot.Chart
+		c    *plot.Chart
 		now  time.Time
 	}{
 		// On a bucket boundary: buckets end at now-span-step (outside the
@@ -969,7 +969,7 @@ func attr(re *regexp.Regexp, body string) string {
 	return ""
 }
 
-// TestBrushZoomsLatency plays the whole exchange of docs/spec.md §5.4: a
+// TestBrushZoomsLatency plays the whole exchange of spec/spec.md §5.4: a
 // brush is answered with the polling element, whose hx-get carries the
 // zoom, plus the toolbar as a partial and HX-Push-Url; a poll of that
 // hx-get stays zoomed and its first answer matches the seeded tag; zoom=out
@@ -1051,7 +1051,7 @@ func TestBrushZoomsLatency(t *testing.T) {
 }
 
 // TestBrushIgnored checks that a brush the server cannot read changes
-// nothing: 204, which htmx does not swap (docs/spec.md §5.3).
+// nothing: 204, which htmx does not swap (spec/spec.md §5.3).
 func TestBrushIgnored(t *testing.T) {
 	h := newTestServer(t).routes()
 	for _, q := range []string{
@@ -1178,7 +1178,7 @@ func TestRequestWindowsZones(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ws := requestWindows(tt.f, tt.now, tt.loc)
-			labels := hyperplot.Map(ws, func(w window) string { return w.Label })
+			labels := plot.Map(ws, func(w window) string { return w.Label })
 			if got := strings.Join(labels, ","); got != tt.want {
 				t.Errorf("labels %s, want %s", got, tt.want)
 			}

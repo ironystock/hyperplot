@@ -766,7 +766,7 @@ test('htmx:plot:resize takes the metaCharacter spelling, and is a CustomEvent wi
   assert.deepEqual(got, [[false, { width: 700, height: 324 }]])
 })
 
-// ---- Select (docs/spec.md §6.6) ----
+// ---- Select (spec/spec.md §6.6) ----
 
 // selects returns the htmx:plot:select details dispatched so far.
 const selects = (env) => plain(env.events.filter((e) => e.type === 'htmx:plot:select').map((e) => e.detail))

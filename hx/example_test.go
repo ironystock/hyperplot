@@ -195,7 +195,7 @@ func ExampleSelected() {
 
 // A zoom handler tells a brush from a poll of the same URL by the
 // presence of hp-x0 and hp-x1, orders the range, and fixes the chart's x
-// domain to it. Values that do not parse are ignored (docs/spec.md §5.3).
+// domain to it. Values that do not parse are ignored (spec/spec.md §5.3).
 // A plain datetime-local from/to form sends the same parameters without
 // an offset; TimesIn reads them in the chart's time zone.
 func ExampleBrushed() {

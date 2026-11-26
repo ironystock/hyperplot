@@ -11,7 +11,7 @@ import (
 
 // repoPath matches a mention of a path under examples/ or tools/ in prose,
 // a code span, a code block or a source comment: "go run
-// ./examples/dashboard", "python tools/hpcheck/hpcheck.py", "see
+// ./examples/dashboard", "python spec/hpcheck/hpcheck.py", "see
 // examples/recipes/polling-ptag". Placeholders such as
 // examples/recipes/<name>/ stop at the first character a path cannot
 // hold, so they match only the part that names a real directory. A path
@@ -30,7 +30,7 @@ var mentionExts = map[string]bool{
 // repository mentions exists, not only the ones in Markdown links
 // (TestMarkdownLinks). Run lines, code spans and comments point readers at
 // commands and directories too, and a README that says "python
-// tools/hpcheck/hpcheck.py" or "see examples/recipes/polling-ptag" before
+// spec/hpcheck/hpcheck.py" or "see examples/recipes/polling-ptag" before
 // those exist sends them to "No such file".
 func TestRepoPathMentions(t *testing.T) {
 	var files []string

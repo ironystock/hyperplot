@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -52,7 +52,7 @@ func newServer(logger *log.Logger) (*server, error) {
 	if err != nil {
 		return nil, err
 	}
-	css := []byte(hyperplot.Stylesheet())
+	css := []byte(plot.Stylesheet())
 	return &server{
 		now:    time.Now,
 		loc:    time.Local,
@@ -342,7 +342,7 @@ func (s *server) durationsPoller(v view, z zoom, width float64) (poller, error) 
 	return poller{URL: u, Tag: hx.Tag([]byte(body)), Body: body}, nil
 }
 
-// durations answers three kinds of request on one URL (docs/spec.md §5.4):
+// durations answers three kinds of request on one URL (spec/spec.md §5.4):
 //
 //   - a brush (hp-x0 and hp-x1, from a drag or the zoom form) zooms in;
 //   - zoom=out (the "Show all" link) returns to the whole range;
@@ -480,7 +480,7 @@ func (s *server) trends(w http.ResponseWriter, r *http.Request) {
 // writeTagged writes a fragment unless the client already shows it. The
 // tag hashes the exact bytes (hx.Tag), and hx.CheckPTag answers a poll
 // that echoes it (the HX-PTag request header) with a bodiless 304, which
-// htmx does not swap (docs/spec.md §4.5).
+// htmx does not swap (spec/spec.md §4.5).
 func (s *server) writeTagged(w http.ResponseWriter, r *http.Request, b []byte, err error) {
 	if err != nil {
 		s.fail(w, r, err)
@@ -502,7 +502,7 @@ func (s *server) stylesheet(w http.ResponseWriter, r *http.Request) {
 }
 
 // chartWidth is the width the extension reported for the request's
-// hx-plot:autosize container (hp-w, docs/spec.md §4.6), or the default.
+// hx-plot:autosize container (hp-w, spec/spec.md §4.6), or the default.
 // The height stays the server's: the container is as tall as its chart.
 func chartWidth(r *http.Request) float64 {
 	w, _ := hx.Size(r, defaultWidth, 0)
@@ -511,7 +511,7 @@ func chartWidth(r *http.Request) float64 {
 
 // body renders a chart with its data table. widthName names the hidden
 // input that reports the chart's width to the filter form, if any.
-func (s *server) body(c *hyperplot.Chart, widthName string, extra template.HTML) (template.HTML, error) {
+func (s *server) body(c *plot.Chart, widthName string, extra template.HTML) (template.HTML, error) {
 	svg, err := c.HTML()
 	if err != nil {
 		return "", err

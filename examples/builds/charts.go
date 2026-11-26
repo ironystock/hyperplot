@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -45,8 +45,8 @@ func height(w, h float64) float64 {
 // twice their pipeline's typical time get a label with their number, which
 // the renderer draws beside the point where it fits (and always puts in the
 // tooltip and the table).
-func durationsChart(f filters, bs []build, from, to time.Time, w float64, loc *time.Location) *hyperplot.Chart {
-	marks := make([]hyperplot.Mark, len(f.Pipelines))
+func durationsChart(f filters, bs []build, from, to time.Time, w float64, loc *time.Location) *plot.Chart {
+	marks := make([]plot.Mark, len(f.Pipelines))
 	for i, p := range f.Pipelines {
 		var xs []time.Time
 		var ys []float64
@@ -64,25 +64,25 @@ func durationsChart(f filters, bs []build, from, to time.Time, w float64, loc *t
 			}
 			labels = append(labels, label)
 		}
-		marks[i] = hyperplot.Dot{Name: p.Key, X: hyperplot.Times(xs), Y: ys, Slot: p.Slot, Labels: labels}
+		marks[i] = plot.Dot{Name: p.Key, X: plot.Times(xs), Y: ys, Slot: p.Slot, Labels: labels}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "durations", // explicit and stable: morphs and selects match on it
 		Title:    "Build durations",
 		Width:    w,
 		Height:   height(w, 320),
 		Animate:  true,
 		Location: loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{from, to}},
-		Y:        hyperplot.Axis{Label: "Duration (min)", Unit: " min", Zero: true},
+		X:        plot.Axis{TimeDomain: [2]time.Time{from, to}},
+		Y:        plot.Axis{Label: "Duration (min)", Unit: " min", Zero: true},
 		Marks:    marks,
 	}
 }
 
 // daysChart stacks passed and failed builds per day. Its categories are
 // the day labels, which a select sends back as hp-x.
-func daysChart(f filters, ds []day, bs []build, w float64) *hyperplot.Chart {
-	cats := hyperplot.Categories(hyperplot.Map(ds, func(d day) string { return d.Label }))
+func daysChart(f filters, ds []day, bs []build, w float64) *plot.Chart {
+	cats := plot.Categories(plot.Map(ds, func(d day) string { return d.Label }))
 	passed := make([]float64, len(ds))
 	failed := make([]float64, len(ds))
 	for j := range bs {
@@ -96,7 +96,7 @@ func daysChart(f filters, ds []day, bs []build, w float64) *hyperplot.Chart {
 			failed[i]++
 		}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "days",
 		Title:    "Builds per day, " + f.Range.Title,
 		Width:    w,
@@ -104,11 +104,11 @@ func daysChart(f filters, ds []day, bs []build, w float64) *hyperplot.Chart {
 		Animate:  true,
 		Stack:    true,
 		BarWidth: 48, // the default 24 px looks thin with a week of days
-		X:        hyperplot.Axis{Label: "Day"},
-		Y:        hyperplot.Axis{Label: "Builds", Format: func(v float64) string { return scale.FormatNumber(v, 0) }},
-		Marks: []hyperplot.Mark{
-			hyperplot.Bar{Name: "passed", X: cats, Y: passed, Slot: slotPassed},
-			hyperplot.Bar{Name: "failed", X: cats, Y: failed, Slot: slotFailed},
+		X:        plot.Axis{Label: "Day"},
+		Y:        plot.Axis{Label: "Builds", Format: func(v float64) string { return scale.FormatNumber(v, 0) }},
+		Marks: []plot.Mark{
+			plot.Bar{Name: "passed", X: cats, Y: passed, Slot: slotPassed},
+			plot.Bar{Name: "failed", X: cats, Y: failed, Slot: slotFailed},
 		},
 	}
 }
@@ -127,7 +127,7 @@ func trendLayout(w float64, charts int) (cols int, chartW float64) {
 // rather than six lines in one, keeps the percentile colors the same in
 // every chart. They share a y domain, so the pipelines compare at a glance,
 // and their width comes from the container's (trendLayout).
-func trendCharts(f filters, ds []day, bs []build, w float64) (charts []*hyperplot.Chart, cols int) {
+func trendCharts(f filters, ds []day, bs []build, w float64) (charts []*plot.Chart, cols int) {
 	type series struct{ p50, p95 []float64 }
 	all := make([]series, len(f.Pipelines))
 	yMax := 10.0
@@ -150,21 +150,21 @@ func trendCharts(f filters, ds []day, bs []build, w float64) (charts []*hyperplo
 		all[j] = s
 	}
 	yMax = math.Ceil(yMax/10) * 10
-	xs := hyperplot.Times(hyperplot.Map(ds, func(d day) time.Time { return d.Start }))
+	xs := plot.Times(plot.Map(ds, func(d day) time.Time { return d.Start }))
 	cols, chartW := trendLayout(w, len(f.Pipelines))
 	for j, p := range f.Pipelines {
-		charts = append(charts, &hyperplot.Chart{
+		charts = append(charts, &plot.Chart{
 			ID:       "trend-" + p.Key,
 			Title:    p.Key + " build duration, daily p50 and p95",
 			Width:    chartW,
 			Height:   220,
 			Animate:  true,
 			Location: ds[0].Start.Location(),
-			X:        hyperplot.Axis{TimeDomain: [2]time.Time{ds[0].Start, ds[len(ds)-1].Start}},
-			Y:        hyperplot.Axis{Label: p.Key + " (min)", Unit: " min", Domain: [2]float64{0, yMax}},
-			Marks: []hyperplot.Mark{
-				hyperplot.Line{Name: "p50", X: xs, Y: all[j].p50, Slot: slotP50, Points: true},
-				hyperplot.Line{Name: "p95", X: xs, Y: all[j].p95, Slot: slotP95, Points: true},
+			X:        plot.Axis{TimeDomain: [2]time.Time{ds[0].Start, ds[len(ds)-1].Start}},
+			Y:        plot.Axis{Label: p.Key + " (min)", Unit: " min", Domain: [2]float64{0, yMax}},
+			Marks: []plot.Mark{
+				plot.Line{Name: "p50", X: xs, Y: all[j].p50, Slot: slotP50, Points: true},
+				plot.Line{Name: "p95", X: xs, Y: all[j].p95, Slot: slotP95, Points: true},
 			},
 		})
 	}

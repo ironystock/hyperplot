@@ -3,7 +3,7 @@
 //	go run ./examples/recipes/brush-zoom            # http://localhost:8080
 //	go run ./examples/recipes/brush-zoom -addr :9000
 //
-// The pattern (docs/htmx.md, "Pattern 6: brush to zoom", and docs/spec.md
+// The pattern (docs/htmx.md, "Pattern 6: brush to zoom", and spec/spec.md
 // §5.3 to §5.5): with hx-plot-brush.js loaded, a drag across a chart inside
 // an hx-plot:brush element (or Shift+arrows and Enter) fires
 // htmx:plot:brush. That element's hx-trigger turns it into an ordinary
@@ -34,9 +34,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -79,7 +79,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /charts/latency", s.latency)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
 	mux.Handle("GET /static/hx-plot-brush.js", client.BrushHandler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -149,7 +149,7 @@ func (s *server) latency(w http.ResponseWriter, r *http.Request) {
 	if _, brush := hx.Brushed(r); brush {
 		z, ok := s.brushed(r)
 		if !ok {
-			// docs/spec.md §5.3: ignore a brush that does not parse (or
+			// spec/spec.md §5.3: ignore a brush that does not parse (or
 			// that lies wholly outside the data, or is another chart's).
 			// htmx swaps nothing for a 204, so the chart stays as it was.
 			w.WriteHeader(http.StatusNoContent)
@@ -230,10 +230,10 @@ func (s *server) zoomTo(w http.ResponseWriter, z zoom) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	// The toolbar holds the polite status line (docs/spec.md §5.5) and
+	// The toolbar holds the polite status line (spec/spec.md §5.5) and
 	// the form's from/to values; htmx swaps it after the main swap.
 	b.Write(hx.Partial("#zoom-bar", "innerMorph", bar.Bytes()))
-	// The page URL of this view, not the fragment's (docs/spec.md §5.3).
+	// The page URL of this view, not the fragment's (spec/spec.md §5.3).
 	push := "/"
 	if q := z.query(); q != "" {
 		push += "?" + q
@@ -273,7 +273,7 @@ func (s *server) execute(w io.Writer, name string, z zoom) error {
 }
 
 // chart is request latency over a zoom, or over the live window.
-func (s *server) chart(z zoom) *hyperplot.Chart {
+func (s *server) chart(z zoom) *plot.Chart {
 	latest := s.now().Truncate(res)
 	from, to := z.from, z.to
 	if from.IsZero() {
@@ -282,8 +282,8 @@ func (s *server) chart(z zoom) *hyperplot.Chart {
 	// The point spacing grows with the range, so a zoom reveals detail.
 	step := res * time.Duration(math.Ceil(float64(to.Sub(from))/float64(maxPoints*res)))
 	// One point beyond each end is drawn too (clipped), so the lines reach
-	// both edges (docs/spec.md §4.4).
-	var xs hyperplot.Times
+	// both edges (spec/spec.md §4.4).
+	var xs plot.Times
 	var p50, p95 []float64
 	for t := from.Truncate(step).Add(-step); !t.After(latest) && !t.After(to.Add(step)); t = t.Add(step) {
 		b := t.Unix() / int64(res/time.Second)
@@ -291,18 +291,18 @@ func (s *server) chart(z zoom) *hyperplot.Chart {
 		p50 = append(p50, math.Round(80+20*math.Sin(float64(b)/40)+15*noise("p50", b)))
 		p95 = append(p95, math.Round(190+60*math.Sin(float64(b)/40)+90*noise("p95", b)*noise("spike", b)))
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "latency", // stable, so zooms and polls morph the chart in place
 		Title:    "Request latency",
 		Animate:  true,
 		Width:    720,
 		Height:   300,
 		Location: s.loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{from, to}},
-		Y:        hyperplot.Axis{Unit: " ms", Zero: true},
-		Marks: []hyperplot.Mark{
-			hyperplot.Line{Name: "p50", X: xs, Y: p50},
-			hyperplot.Line{Name: "p95", X: xs, Y: p95},
+		X:        plot.Axis{TimeDomain: [2]time.Time{from, to}},
+		Y:        plot.Axis{Unit: " ms", Zero: true},
+		Marks: []plot.Mark{
+			plot.Line{Name: "p50", X: xs, Y: p50},
+			plot.Line{Name: "p95", X: xs, Y: p95},
 		},
 	}
 }

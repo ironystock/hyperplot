@@ -1,8 +1,8 @@
 # hx-plot on Node
 
 A live dashboard served by Node's own `http` module, with no dependencies
-and no framework, that speaks the [hx-plot wire spec](../../docs/spec.md) at
-[Level 3](../../docs/spec.md#21-server-levels): polled and streamed charts,
+and no framework, that speaks the [hx-plot wire spec](../../spec/spec.md) at
+[Level 3](../../spec/spec.md#21-server-levels): polled and streamed charts,
 brush to zoom and click to drill down, all drawn as SVG by about 250 lines
 of JavaScript.
 
@@ -92,30 +92,30 @@ from npm or loads it from a CDN.
 | [page.mjs](page.mjs) | the page and its fragments, written with an `html` tagged template that escapes everything it interpolates |
 | [charts.mjs](charts.mjs) | the four charts as data for a time window, and the bounds on zooms and selects |
 | [render.mjs](render.mjs) | one frame of a line chart (time axis) or a bar chart (band axis) as SVG, and its table |
-| [wire.mjs](wire.mjs) | a port of the spec's [Appendix B](../../docs/spec.md#appendix-b-an-exchange-and-helpers-in-python) helpers (`number`, `timeValue`, `parseTimeValue`, `xmlText`, `tipsJson`, `sseMessage`, …), the [FNV-1a keys](../../docs/spec.md#appendix-a-fnv-1a-keys), and readers for the `hp-*` parameters |
+| [wire.mjs](wire.mjs) | a port of the spec's [Appendix B](../../spec/spec.md#appendix-b-an-exchange-and-helpers-in-python) helpers (`number`, `timeValue`, `parseTimeValue`, `xmlText`, `tipsJson`, `sseMessage`, …), the [FNV-1a keys](../../spec/spec.md#appendix-a-fnv-1a-keys), and readers for the `hp-*` parameters |
 | [data.mjs](data.mjs) | stand-in data: each value a pure function of its series and time bucket |
 
 There is no JSON API: every response is HTML, and htmx swaps it in. The
 server draws each chart, formats every value, and gives every chart, series,
-bar and table row a stable id ([§4.1](../../docs/spec.md#41-identity)); the
+bar and table row a stable id ([§4.1](../../spec/spec.md#41-identity)); the
 extension reads the markup and the hover JSON
-([§3.5](../../docs/spec.md#35-hover-metadata)) and handles the pointer, the
+([§3.5](../../spec/spec.md#35-hover-metadata)) and handles the pointer, the
 keyboard, the morph and the slide.
 
-- Polling with tags: [spec §4.5](../../docs/spec.md#45-transports),
+- Polling with tags: [spec §4.5](../../spec/spec.md#45-transports),
   [htmx guide, pattern 1](../../docs/htmx.md#pattern-1-polling-with-content-tags).
 - Server-sent events and the stream container:
-  [spec §4.5](../../docs/spec.md#45-transports),
+  [spec §4.5](../../spec/spec.md#45-transports),
   [pattern 2](../../docs/htmx.md#pattern-2-server-sent-events).
-- Drill-down: [spec §5.2](../../docs/spec.md#52-select),
+- Drill-down: [spec §5.2](../../spec/spec.md#52-select),
   [pattern 5](../../docs/htmx.md#pattern-5-drill-down-on-select).
-- Brush to zoom: [spec §5.3](../../docs/spec.md#53-brush) and
-  [§5.4](../../docs/spec.md#54-example-brush-to-zoom-a-live-chart),
+- Brush to zoom: [spec §5.3](../../spec/spec.md#53-brush) and
+  [§5.4](../../spec/spec.md#54-example-brush-to-zoom-a-live-chart),
   [pattern 6](../../docs/htmx.md#pattern-6-brush-to-zoom).
 - Sliding windows and the overscan point:
-  [spec §4.4](../../docs/spec.md#44-frame-stability),
+  [spec §4.4](../../spec/spec.md#44-frame-stability),
   [pattern 7](../../docs/htmx.md#pattern-7-sliding-windows).
-- Sizes: [spec §4.6](../../docs/spec.md#46-size-parameters),
+- Sizes: [spec §4.6](../../spec/spec.md#46-size-parameters),
   [autosize](../../docs/htmx.md#responsive-charts-with-autosize).
 - Everything a server must get right, as a checklist:
   [implementing a server](../../docs/implementing-a-server.md#conformance-checklist).
@@ -138,7 +138,7 @@ cd examples/node && node --test
 ```
 
 `wire.test.mjs` checks the helpers against the spec's examples and every
-server case of [`params.json`](../../testdata/conformance/params.json).
+server case of [`params.json`](../../spec/conformance/params.json).
 `render.test.mjs` renders the `line-time`, `empty`, `bars-band`,
 `escaping`, `collisions` and `slide` fixtures and runs their `checks.json`
 assertions, `should` ones included, with a small XML parser and selector
@@ -149,14 +149,14 @@ parses, the `304`s, zoom, drill-down, the stream, `hp-w`, and that no
 parameter causes a `5xx`.
 
 To check the output with the repository's language-neutral checker,
-[`tools/hpcheck/`](../../tools/hpcheck/README.md), render the fixtures to
+[`spec/hpcheck/`](../../spec/hpcheck/README.md), render the fixtures to
 a scratch directory outside the repository and point it at them, or at
 the server (`--spawn` starts it on a free port and stops it afterwards):
 
 ```sh
 out=$(mktemp -d)
 node examples/node/render-fixtures.mjs "$out"
-python3 tools/hpcheck/hpcheck.py fixtures --out "$out" --require line-time,empty,bars-band,escaping,collisions
-python3 tools/hpcheck/hpcheck.py server http://127.0.0.1:8080 --config examples/node/hpcheck.json \
+python3 spec/hpcheck/hpcheck.py fixtures --out "$out" --require line-time,empty,bars-band,escaping,collisions
+python3 spec/hpcheck/hpcheck.py server http://127.0.0.1:8080 --config examples/node/hpcheck.json \
     --spawn "node examples/node/server.mjs --addr 127.0.0.1:{port}"
 ```

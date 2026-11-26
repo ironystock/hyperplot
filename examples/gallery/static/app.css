@@ -1,5 +1,5 @@
 /* Page styles for the gallery. The charts' own colors come from
-   hx-plot.css (hyperplot.Stylesheet); this file lays out the cards and
+   hx-plot.css (plot.Stylesheet); this file lays out the cards and
    colors the code. */
 :root {
   --page: #f4f5f7;

@@ -14,10 +14,10 @@
 //
 //   - Build durations is a scatter, one series per pipeline, with the slow
 //     outliers labeled by build number. Drag across it to zoom (brush,
-//     docs/spec.md §5.3); the zoom becomes the page URL, so Back undoes it.
+//     spec/spec.md §5.3); the zoom becomes the page URL, so Back undoes it.
 //   - Builds per day stacks passed and failed builds. Click a segment (or
 //     focus a day and press Enter, or use the day links) to list that
-//     day's builds (select, docs/spec.md §5.2).
+//     day's builds (select, spec/spec.md §5.2).
 //   - Duration trends are small multiples, one per pipeline, with daily
 //     p50 and p95 lines; the server picks the column count from the
 //     container's width.

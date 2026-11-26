@@ -1,4 +1,4 @@
-// Tests for what the client does around htmx swaps (docs/spec.md §6.8):
+// Tests for what the client does around htmx swaps (spec/spec.md §6.8):
 // sliding windows, snaps, live tables that follow their end, and <details>
 // that stay open. They drive the extension's swap hooks the way htmx 4 calls
 // them (before_swap, the morph, before_settle, after_swap) against the fake
@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { load, Matrix } from './fakedom.mjs'
 
-// The slide fixture's first two frames (testdata/conformance/slide): the
+// The slide fixture's first two frames (spec/conformance/slide): the
 // window moves 5 of its 30 minutes, and the plot's right edge moves too.
 const A = { plot: '28.82 8 216.76 98', x: 'time 1772546400000 1772548200000' }
 const B = { plot: '28.82 8 228 98', x: 'time 1772546700000 1772548500000' }

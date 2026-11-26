@@ -3,7 +3,7 @@
 // streams, multi-target partial responses, client-reported chart sizes,
 // and the select and brush gestures of the hx-plot extension. Together
 // with the root package they are the reference server of the hx-plot
-// wire spec (docs/spec.md). The helpers work with any HTML fragment, not
+// wire spec (spec/spec.md). The helpers work with any HTML fragment, not
 // only charts.
 //
 // Every pattern below swaps with innerMorph. hyperplot output is
@@ -54,7 +54,7 @@
 //
 //	func latency(w http.ResponseWriter, r *http.Request) {
 //		width, _ := hx.Size(r, 640, 0)
-//		svg, err := latencyChart(width, 320).Render() // latencyChart returns a *hyperplot.Chart
+//		svg, err := latencyChart(width, 320).Render() // latencyChart returns a *plot.Chart
 //		if err != nil {
 //			log.Print(err)
 //			w.WriteHeader(http.StatusNoContent) // keep the last good chart
@@ -202,7 +202,7 @@
 // (or [Brush.Floats] on a linear axis) orders the range; values that do
 // not parse are ignored, and the handler re-renders the chart with its x
 // domain fixed to the range, so the axes and labels are the server's
-// again (docs/spec.md §5.3, §5.4):
+// again (spec/spec.md §5.3, §5.4):
 //
 //	func zoom(w http.ResponseWriter, r *http.Request) {
 //		width, _ := hx.Size(r, 640, 0)

@@ -45,9 +45,9 @@ htmx's `hx-ptag` extension stores the `HX-PTag` header of each response on
 the element and sends it back with the next request. The server renders
 the chart, hashes the bytes with `hx.Tag`, and `hx.CheckPTag` compares the
 two, ignoring a `W/` prefix, quotes and spaces: a match gets a `304` with
-no body ([spec §4.5](../../../docs/spec.md#45-transports)). That only works
+no body ([spec §4.5](../../../spec/spec.md#45-transports)). That only works
 because the output is deterministic: the same data renders the same bytes
-([§4.4](../../../docs/spec.md#44-frame-stability)), so the chart is drawn
+([§4.4](../../../spec/spec.md#44-frame-stability)), so the chart is drawn
 from the bucket, never from the clock's exact second. The page sets
 `noSwap` to `[204,304,"4xx","5xx"]`, so neither a `304` nor a proxy's error
 page is ever swapped over the chart. See

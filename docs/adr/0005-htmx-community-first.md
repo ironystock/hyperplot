@@ -66,9 +66,9 @@ option that lets any backend produce the charts while keeping the
 hypermedia design that sets hyperplot apart.
 
 The contract between server and extension becomes
-[docs/spec.md](../spec.md), versioned (spec 1), in RFC 2119 language, with
+[spec/spec.md](../../spec/spec.md), versioned (spec 1), in RFC 2119 language, with
 three conformance levels (static, live, interactive) and fixtures in
-`testdata/conformance/` that servers in any language can test against. The
+`spec/conformance/` that servers in any language can test against. The
 Go module stays `github.com/ironystock/hyperplot` and implements Level 3.
 The repository keeps its name.
 
@@ -160,13 +160,13 @@ are replaced without aliases, since nothing was published.
 
 ### Confirmation
 
-* `testdata/conformance/` fixtures: the Go renderer must reproduce the
+* `spec/conformance/` fixtures: the Go renderer must reproduce the
   reference files byte for byte, and the client tests consume the same
   files.
 * A small standard-library Python server in `examples/` passes the fixtures'
   server assertions, which shows the spec is implementable without Go.
   Met: [`examples/python/`](../../examples/python/) is a Level 3 server on
-  the standard library, and [`tools/hpcheck/`](../../tools/hpcheck/README.md),
+  the standard library, and [`spec/hpcheck/`](../../spec/hpcheck/README.md),
   a standard-library Python checker, passes its fixture output and its
   running server (`make conformance`; DESIGN.md Roadmap, "Rev 2: open",
   item 2). `examples/node/` passes the same checks. The
@@ -209,8 +209,8 @@ are replaced without aliases, since nothing was published.
 
 ## More Information
 
-* [docs/spec.md](../spec.md): the wire spec.
-* [testdata/conformance/](../../testdata/conformance/README.md): fixtures.
+* [spec/spec.md](../../spec/spec.md): the wire spec.
+* [spec/conformance/](../../spec/conformance/README.md): fixtures.
 * [ADR 0003](0003-htmx4-morph-live-updates.md) says htmx 4 morphs with
   idiomorph. htmx 4.0.2 uses its own morph: id-set matching, then exact
   equality, then position, with a 10-node look-ahead. The decision there is
