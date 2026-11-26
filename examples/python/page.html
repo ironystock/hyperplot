@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- page.html: the example's one page, a string.Template that server.py
+     fills with $$names. Every value it substitutes is escaped first, with
+     hp_wire.xml_text or xml_attr, or is markup that render.py built from
+     escaped parts. There is no inline script or style anywhere, so the page
+     runs under the strict Content-Security-Policy that server.py sends. -->
+<html lang="en"$theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: htmx 4 swaps every status this list does not name, so without
+     it an error page from a proxy would replace a chart (docs/spec.md §4.5,
+     "Errors"). 304 is the unchanged poll; 204 is "keep what is shown". -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>hx-plot from Python</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx 4.0.2 and the two htmx extensions this page uses, in order and
+     without defer: a deferred htmx can start before a deferred extension
+     has loaded, and that extension then misses the page. hx-sse carries
+     the throughput stream, hx-ptag turns unchanged polls into 304s. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<!-- hx-plot and its brush companion may defer: htmx waits for
+     DOMContentLoaded, which comes after deferred scripts. -->
+<script defer src="/static/hx-plot.js"></script>
+<script defer src="/static/hx-plot-brush.js"></script>
+</head>
+<body>
+<header class="top">
+  <p class="brand">hx-plot <span>served by Python</span></p>
+  <!-- The theme switch is three plain links: the server writes the choice
+       into <html data-theme>, and hx-plot.css follows it. No script. -->
+  <nav class="theme" aria-label="Color theme">$theme_links</nav>
+</header>
+<main class="wrap">
+  <h1>A live dashboard from the Python standard library</h1>
+  <p class="lede">Every chart on this page is SVG drawn by a Python server that implements the
+    hx-plot wire spec, with no Go and no framework. htmx 4 keeps the charts live; the hx-plot
+    extension adds tooltips, keyboard reading, sliding windows, select and brush.</p>
+
+  <section class="card wide" aria-labelledby="latency-heading">
+    <h2 id="latency-heading">Latency</h2>
+    <p class="sub">p50 and p95 per 10 seconds, polled every 2 seconds. Most polls are a bodiless
+      304. Drag across the chart to zoom, or focus it and use Shift+arrows, then Enter.</p>
+    <!-- Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader
+         mark a range; the extension dispatches htmx:plot:brush, which this
+         element's hx-trigger turns into a GET with hp-chart, hp-x0 and
+         hp-x1. The answer replaces the polling element whole (outerMorph)
+         because its hx-get must carry the zoom. hx-sync="replace" and the
+         poller's "closest .zoom:drop" share one queue: a brush aborts a
+         poll in flight, and polls wait while the brush is pending. -->
+    <div class="zoom" hx-plot:brush hx-get="/charts/latency" hx-trigger="htmx:plot:brush"
+         hx-target="#latency-body" hx-swap="outerMorph" hx-sync="replace">
+      <p id="zoom-status" class="status" role="status">$zoom_status</p>
+      $latency
+      <!-- The same zoom without a pointer (docs/spec.md §5.5): the form
+           sends hp-x0 and hp-x1 like a brush does, on the same queue. With
+           no script it submits to the page, which reads them too. -->
+      <form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
+            hx-get="/charts/latency" hx-target="#latency-body" hx-swap="outerMorph"
+            hx-sync="closest .zoom:replace">
+        <input type="hidden" name="hp-chart" value="latency">
+        <label>From (UTC) <input type="datetime-local" name="hp-x0" step="1" required></label>
+        <label>To (UTC) <input type="datetime-local" name="hp-x1" step="1" required></label>
+        <button type="submit">Zoom</button>
+        <a href="/" hx-get="/charts/latency?zoom=out" hx-target="#latency-body" hx-swap="outerMorph"
+           hx-sync="closest .zoom:replace">Back to live</a>
+      </form>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="throughput-heading">
+    <h2 id="throughput-heading">Throughput</h2>
+    <p class="sub">Requests per second, streamed over server-sent events: one frame a second.</p>
+    <!-- The streamed chart (docs/spec.md §4.5, the container recipe). The
+         page draws the first frame without a stream. "load" then fetches
+         the stream element at this container's real width, and a resize
+         fetches a new one: innerHTML removes the old element, which ends
+         its stream. Morphing a new hx-sse:connect URL into a live element
+         would leave the old stream running. -->
+    <div id="throughput-body" class="chart" hx-plot:autosize hx-get="/cards/throughput"
+         hx-trigger="load, htmx:plot:resize" hx-swap="innerHTML">
+      <div class="stream">$throughput</div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="requests-heading">
+    <h2 id="requests-heading">Requests by region</h2>
+    <p class="sub">Closed five-minute windows, so this changes rarely. Click a bar, or press Enter
+      on a focused one, for that window in detail.</p>
+    <!-- Select to drill down (docs/spec.md §5.2). A click on a bar makes
+         the extension dispatch htmx:plot:select; it bubbles to this element,
+         whose request carries hp-chart, hp-x (the bar's category) and
+         hp-series (its region). The detail lands in #requests-detail. -->
+    <div class="drill" hx-get="/detail/requests" hx-trigger="htmx:plot:select"
+         hx-target="#requests-detail" hx-swap="innerMorph">
+      $requests
+    </div>
+    <!-- hx-plot:autosize here too: requests that target the detail carry
+         its width (hp-w), so the detail chart fits. -->
+    <div id="requests-detail" class="detail" hx-plot:autosize>$detail</div>
+    <!-- A polite live region: the extension cannot know what a select did,
+         so the server says it, with an <hx-partial> (docs/spec.md §5.5). -->
+    <p id="detail-status" class="sr-only" role="status">$detail_status</p>
+  </section>
+</main>
+<footer class="foot wrap">
+  Served by <code>examples/python/server.py</code> (Python standard library only), with htmx 4.0.2
+  and hx-plot. The data is simulated and the same for the same time bucket.
+</footer>
+</body>
+</html>
