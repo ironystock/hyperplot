@@ -1,0 +1,293 @@
+{{define "page" -}}
+<!doctype html>
+{{- /* The theme links below are plain links: the server writes the choice
+     here, and hx-plot.css and app.css follow data-theme. Without one, both
+     follow the reader's prefers-color-scheme. No script is involved. */}}
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="CI build analytics rendered as server-side SVG and kept current by htmx 4 and the hx-plot extension.">
+<!-- noSwap: htmx 4 swaps every status except 204 and 304, error pages
+     included. This keeps a proxy's or a timeout's error page from replacing
+     a chart. The array replaces htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>CI builds · hx-plot</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx and the hx-ptag extension load in order and without defer: a
+     deferred htmx 4.0.2 can start before a deferred extension has loaded,
+     and that extension then misses the first pass. hx-plot.js and its brush
+     companion may defer, because htmx waits for DOMContentLoaded, which
+     runs after deferred scripts. This page polls and never streams, so it
+     loads hx-ptag but not hx-sse. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+<script defer src="/static/hx-plot-brush.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><span class="brand-name">hx-plot</span><span class="brand-sub">CI builds demo</span></a>
+  <nav class="theme" aria-label="Color theme">
+    {{- range .Themes}}<a href="{{.Href}}"{{if .Checked}} aria-current="true"{{end}}>{{.Title}}</a>{{end -}}
+  </nav>
+</header>
+<main class="wrap">
+  <h1>CI builds</h1>
+  <p class="lede">Simulated builds of three pipelines. Every chart is SVG drawn on the server; htmx polls each one, and a chart that hasn't changed costs a bodiless 304.</p>
+
+  {{- /*
+    Filters (docs/htmx.md, pattern 3). One form, one request: any change
+    re-renders everything inside #charts, and innerMorph updates each chart
+    in place, so it animates to the new data. hx-sync="this:replace" lets a
+    quick second change abort the first request. Without script, the form
+    is an ordinary GET of the page.
+  */}}
+  <form id="filters" class="filters" action="/" method="get"
+        hx-get="/" hx-trigger="change, submit" hx-target="#charts" hx-swap="innerMorph" hx-sync="this:replace">
+    <fieldset>
+      <legend>Range</legend>
+      <div class="seg">
+        {{- range .Ranges}}
+        <label class="seg-item"><input type="radio" name="range" value="{{.Value}}"{{if .Checked}} checked{{end}}><span>{{.Title}}</span></label>
+        {{- end}}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Pipelines</legend>
+      {{- /* The empty value says "the form was sent", so clearing every box
+           is not the same as a URL without the parameter. */}}
+      <input type="hidden" name="pipeline" value="">
+      <div class="checks">
+        {{- range .Pipelines}}
+        <label class="check"><input type="checkbox" name="pipeline" value="{{.Key}}"{{if .Checked}} checked{{end}}>{{template "swatch" .Slot}}{{.Key}}</label>
+        {{- end}}
+      </div>
+    </fieldset>
+    <label class="field"><span>Branch</span>
+      <select name="branch">
+        {{- range .Branches}}
+        <option value="{{.Value}}"{{if .Checked}} selected{{end}}>{{.Title}}</option>
+        {{- end}}
+      </select>
+    </label>
+    {{- with .Theme}}
+    <input type="hidden" name="theme" value="{{.}}">
+    {{- end}}
+    <noscript><button type="submit" class="btn">Apply</button></noscript>
+  </form>
+
+  <div id="charts">
+    {{template "charts" .Charts}}
+  </div>
+</main>
+<footer class="foot wrap">
+  Rendered by <a href="https://github.com/ironystock/hyperplot">hyperplot</a>, the Go reference server of the hx-plot wire spec, with htmx 4.0.2. The builds are simulated and deterministic.
+</footer>
+</body>
+</html>
+{{- end}}
+
+{{define "swatch" -}}
+{{- /*
+  A pipeline's color key, in the slot its series uses in every chart. The
+  root class is hp-spark, not hp: the extension and docs/spec.md §6.4 treat
+  every svg.hp as a chart, so a decoration marked hp would be hovered,
+  focused and styled as one. hx-plot.css declares the --hp-series-N tokens
+  on .hp-spark as well, so hp-sN still picks the series color, and it
+  follows the theme.
+*/ -}}
+<svg class="hp-spark swatch" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect class="hp-s{{.}}" width="10" height="10" rx="2" fill="currentColor"/></svg>
+{{- end}}
+
+{{define "summary"}}{{.}}{{end}}
+
+{{define "charts" -}}
+{{- /*
+  Every chart polls its own URL with hx-ptag (docs/spec.md §4.5, docs/htmx.md
+  pattern 1). The server seeds hx-ptag with the tag of the bytes it just
+  embedded, and hx-ptag sends the last tag back as the HX-PTag header; while
+  no build has finished, the answer is a bodiless 304 and htmx skips the swap.
+
+  hx-plot:autosize makes the extension send the container's width as hp-w
+  and fire htmx:plot:resize when it changes (docs/spec.md §4.6). The first
+  request, "load delay:1ms", fits the chart to the real width. It is not
+  plain "load", which htmx 4.0.2 fires before the ptag extension has read
+  the seed.
+*/ -}}
+<p id="summary" class="summary">{{template "summary" .Summary}}</p>
+
+<section class="card" aria-labelledby="durations-heading">
+  <header class="card-head">
+    <div>
+      <h2 id="durations-heading">Build durations</h2>
+      <p class="card-sub">Each dot is a finished build, at the time it finished. Builds slower than twice their pipeline's typical time are labeled with their number. Drag across the chart to zoom in.</p>
+    </div>
+    <span class="badge">Polled every 5 s</span>
+  </header>
+  {{- /*
+    Brush to zoom (docs/spec.md §5.3, §5.4; docs/htmx.md pattern 6).
+    hx-plot:brush lets the reader drag a range across the chart (or mark one
+    with Shift+arrows and Enter); the extension dispatches htmx:plot:brush,
+    which this element turns into a request with hp-chart, hp-x0 and hp-x1.
+    The answer replaces the polling element whole (outerMorph), because its
+    hx-get must now carry the zoom. hx-sync="replace" here and
+    "closest .zoom:drop" on the poller share one queue: a zoom aborts a poll
+    in flight, and polls are dropped while a zoom is pending, so a late poll
+    cannot swap the unzoomed chart back.
+  */}}
+  <div class="zoom" hx-plot:brush hx-get="{{.BrushURL}}" hx-trigger="htmx:plot:brush"
+       hx-target="#durations-body" hx-swap="outerMorph" hx-sync="replace">
+    <div id="durations-zoom" class="zoom-bar">{{template "zoom-bar" .Zoom}}</div>
+    {{template "durations" .Durations}}
+  </div>
+</section>
+
+<section class="card" aria-labelledby="days-heading">
+  <header class="card-head">
+    <div>
+      <h2 id="days-heading">Builds per day</h2>
+      <p class="card-sub">Passed and failed, stacked; today is still running. Click a segment for that day's builds with that result, or a day below for all of them.</p>
+    </div>
+    <span class="badge">Polled every 5 s</span>
+  </header>
+  {{- /*
+    Select to drill down (docs/spec.md §5.2; docs/htmx.md pattern 5). A click
+    on a bar segment, or Enter on a focused day, makes the extension dispatch
+    htmx:plot:select. It bubbles to this element, whose request carries
+    hp-chart, hp-x (the day, the bar's category) and hp-series ("passed" or
+    "failed"; Enter names none). The list goes into #day-detail.
+  */}}
+  <div class="drill" hx-get="{{.DetailURL}}" hx-trigger="htmx:plot:select"
+       hx-target="#day-detail" hx-swap="innerMorph">
+    <div id="days-body" class="chart" hx-plot:autosize
+         hx-get="{{.Days.URL}}" hx-trigger="load delay:1ms, every 5s, htmx:plot:resize" hx-swap="innerMorph"
+         hx-ptag="{{.Days.Tag}}">{{.Days.Body}}</div>
+  </div>
+  <div id="day-detail" class="detail">{{template "detail" .Detail}}</div>
+</section>
+
+<section class="card" aria-labelledby="trends-heading">
+  <header class="card-head">
+    <div>
+      <h2 id="trends-heading">Duration trends</h2>
+      <p class="card-sub">Daily median (p50) and 95th percentile (p95) build time, one chart per pipeline, on one scale.</p>
+    </div>
+    <span class="badge">Polled every 10 s</span>
+  </header>
+  {{- /*
+    Small multiples in one poll: one request, one tag, several charts. The
+    server reads the container's width (hp-w) and picks the column count
+    and each chart's width; innerMorph matches the charts by id.
+  */}}
+  <div id="trends-body" class="chart" hx-plot:autosize
+       hx-get="{{.Trends.URL}}" hx-trigger="load delay:1ms, every 10s, htmx:plot:resize" hx-swap="innerMorph"
+       hx-ptag="{{.Trends.Tag}}">{{.Trends.Body}}</div>
+</section>
+
+<section class="card notes" aria-labelledby="notes-heading">
+  <header class="card-head"><h2 id="notes-heading">How this page works</h2></header>
+  <dl>
+    <dt>Polling with a tag</dt>
+    <dd>Each chart polls. The server hashes its render with <code>hx.Tag</code>; <code>hx.CheckPTag</code> answers an unchanged chart with a bodiless 304, so htmx skips the swap. Charts change only when a build finishes. The summary line rides along with the daily chart as an <code>&lt;hx-partial&gt;</code>.</dd>
+    <dt>Filters</dt>
+    <dd>The form re-renders every chart with one request and <code>innerMorph</code>. Each pipeline pins a color slot, so it keeps its color when others are hidden.</dd>
+    <dt>Brush to zoom</dt>
+    <dd>Drag across the durations chart, or use the From/To form. The server reads the range with <code>hx.Brushed</code>, re-renders that window and pushes its URL, so Back undoes the zoom.</dd>
+    <dt>Select to drill down</dt>
+    <dd>Click a segment of the daily chart, press Enter on a focused day, or use the day links: the server reads the day with <code>hx.Selected</code> and lists its builds.</dd>
+    <dt>Reading the data</dt>
+    <dd>Hover or focus a chart and use the arrow keys, or open <q>View as table</q> under it.</dd>
+  </dl>
+</section>
+{{- end}}
+
+{{define "chart-body" -}}
+{{.SVG}}{{with .WidthName}}<input type="hidden" form="filters" name="{{.}}" value="{{$.Width}}"/>{{end}}{{.Extra}}<details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+{{- end}}
+
+{{define "durations" -}}
+<div id="durations-body" class="chart" hx-plot:autosize
+     hx-get="{{.URL}}" hx-trigger="load delay:1ms, every 5s, htmx:plot:resize" hx-swap="innerMorph"
+     hx-sync="closest .zoom:drop" hx-ptag="{{.Tag}}">{{.Body}}</div>
+{{- end}}
+
+{{define "zoom-bar" -}}
+{{- /* role="status" is a polite live region: a zoom is announced. */ -}}
+<p id="durations-zoom-status" class="zoom-state" role="status">{{.Status}}</p>
+{{- /*
+  The brush without a pointer (docs/spec.md §5.5): the same hp-x0 and hp-x1,
+  from datetime-local inputs, which the server reads in the chart's time
+  zone. Without script, it is a GET of the page.
+*/}}
+<form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
+      hx-get="/charts/durations" hx-target="#durations-body" hx-swap="outerMorph" hx-sync="closest .zoom:replace">
+  {{- range .Hidden}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
+  <input type="hidden" name="hp-chart" value="durations">
+  <label class="field"><span>From</span><input type="datetime-local" name="hp-x0" value="{{.From}}" required></label>
+  <label class="field"><span>To</span><input type="datetime-local" name="hp-x1" value="{{.To}}" required></label>
+  <button type="submit" class="btn">Zoom</button>
+  {{- if .Zoomed}}
+  <a class="btn btn-quiet" href="{{.ResetURL}}" hx-get="{{.ResetGet}}" hx-target="#durations-body" hx-swap="outerMorph"
+     hx-sync="closest .zoom:replace">Show all</a>
+  {{- end}}
+</form>
+{{- end}}
+
+{{define "day-links" -}}
+{{- /* The select without a pointer (docs/spec.md §5.5): plain links with
+     the same parameters. Ids from the date keep each link with its day
+     across polls. */ -}}
+<nav class="day-links" aria-label="Builds by day"><span class="drill-label" aria-hidden="true">Builds on</span>
+{{- range .}}<a id="{{.ID}}" href="{{.Href}}" hx-get="{{.Get}}" hx-target="#day-detail" hx-swap="innerMorph">{{.Label}}</a>{{end -}}
+</nav>
+{{- end}}
+
+{{define "trends" -}}
+<div class="trends trends-{{.Cols}}">{{range .Charts}}<div class="trend">{{.}}</div>{{end}}</div><input type="hidden" form="filters" name="w-trends" value="{{.Width}}"/>
+{{- end}}
+
+{{define "detail" -}}
+<p id="day-detail-status" class="sr-only" role="status">{{.Status}}</p>
+{{- if .Open}}
+<article class="detail-card" aria-labelledby="day-detail-heading">
+  <header class="detail-head">
+    <div>
+      <h3 id="day-detail-heading">{{.Heading}}</h3>
+      <p class="card-sub">{{.Sub}}</p>
+    </div>
+    <a class="btn btn-quiet" href="{{.Close.Href}}" hx-get="{{.Close.Get}}" hx-target="#day-detail" hx-swap="innerMorph">Close</a>
+  </header>
+  {{- /* A click on a segment names its result; these links let a keyboard
+       reader pick one too (Enter on a focused day names none). */}}
+  <nav class="tabs" aria-label="Filter by result">
+    {{- range .Tabs}}<a href="{{.Href}}" hx-get="{{.Get}}" hx-target="#day-detail" hx-swap="innerMorph"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end -}}
+  </nav>
+  {{- if .Rows}}
+  <div class="table-scroll" tabindex="0" role="region" aria-labelledby="day-detail-heading">
+    <table class="builds">
+      <thead><tr><th scope="col">Build</th><th scope="col">Pipeline</th><th scope="col">Branch</th><th scope="col">Result</th><th scope="col" class="num">Duration</th><th scope="col" class="num">Finished</th></tr></thead>
+      <tbody>
+        {{- range .Rows}}
+        <tr id="{{.ID}}"><th scope="row">{{.Name}}</th><td>{{template "swatch" .Slot}} {{.Pipeline}}</td><td><code>{{.Branch}}</code></td><td class="result {{if .Passed}}result-pass{{else}}result-fail{{end}}">{{template "result-icon" .Passed}}{{.Result}}</td><td class="num">{{.Duration}}{{if .Slow}} <span class="slow">slow</span>{{end}}</td><td class="num">{{.Finished}}</td></tr>
+        {{- end}}
+      </tbody>
+    </table>
+  </div>
+  {{- else}}
+  <p class="detail-note">No builds with this result.</p>
+  {{- end}}
+</article>
+{{- else if .Notice}}
+<p class="detail-note">{{.Notice}}</p>
+{{- end}}
+{{- end}}
+
+{{define "result-icon" -}}
+<svg class="icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+{{- if .}}<path d="M2.5 6.5 5 9l4.5-6"/>{{else}}<path d="M3 3l6 6M9 3 3 9"/>{{end -}}
+</svg>
+{{- end}}

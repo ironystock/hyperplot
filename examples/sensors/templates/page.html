@@ -1,0 +1,215 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="A building sensor monitor rendered as server-side SVG and kept live by htmx 4 and the hx-plot extension.">
+<!-- noSwap: an error page from a proxy, a timeout or middleware never
+     replaces a chart (docs/spec.md §4.5). The array replaces htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Building sensors · hx-plot</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx and its extensions load in order and without defer: a deferred
+     htmx 4.0.2 can start before a deferred extension has loaded, and that
+     extension then misses the first pass (the tile stream would never
+     connect). hx-sse runs the tile stream, hx-ptag the polled charts.
+     hx-plot.js and its brush companion may defer: htmx waits for
+     DOMContentLoaded, which runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-ptag.js" integrity="sha384-R20vL2ppRMMKzN1SVZdVpoeW1yH54eSH8rX3jz9NqpuWNqzwR5ngAqhCcKnK/b1s" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+<script defer src="/static/hx-plot-brush.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><span class="brand-name">hx-plot</span><span class="brand-sub">building sensors</span></a>
+  {{- /* The theme switch is three plain links. The server writes the choice
+         into <html data-theme> and remembers it in a cookie: no script. */}}
+  <nav class="theme" aria-label="Color theme">
+    {{- range .Themes}}<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end -}}
+  </nav>
+</header>
+<main class="wrap">
+  <h1>Building sensors</h1>
+  <p class="lede">Twelve simulated sensors in one building. Every chart is SVG drawn on the server; htmx keeps it live.</p>
+
+  <section class="card" aria-labelledby="tiles-heading">
+    <header class="card-head">
+      <div>
+        <h2 id="tiles-heading">Sensors</h2>
+        <p class="card-sub">Live readings and the last 30 minutes. Choose a sensor to open its detail.</p>
+      </div>
+      <span class="badge badge-live"><span class="dot" aria-hidden="true"></span>Streamed live</span>
+    </header>
+    {{- /*
+      Server-sent events (docs/spec.md §4.5). hx-sse:connect opens one stream
+      when htmx processes this element; each unnamed message is swapped in
+      with innerMorph, which keeps every tile node (they have ids) and only
+      changes what changed. The tiles have fixed-size sparklines, so the
+      stream URL needs no width and the page can connect straight away.
+      Each message also carries an <hx-partial hx-target="#alerts">, so the
+      alerts table below rides on the same connection.
+    */}}
+    <div id="tiles" class="tiles" hx-sse:connect="/stream/tiles" hx-swap="innerMorph">{{template "tiles" .Tiles}}</div>
+  </section>
+
+  <div class="grid">
+    {{- /*
+      The detail panel. A select, a tile link or an alert link replaces its
+      content (innerMorph, so the chart keeps its id and morphs from one
+      sensor to the next). hx-plot:autosize makes those requests carry the
+      panel's width (hp-w), because they target this element.
+      Every request that changes the detail queues on this element
+      (hx-sync="#detail:…"): a select or zoom replaces whatever is in
+      flight, and a poll is dropped while one is pending, so a late poll
+      for the old sensor can't land on the new one.
+    */}}
+    <section id="detail" class="card" hx-plot:autosize aria-labelledby="detail-heading">{{template "detail" .Detail}}</section>
+
+    <section class="card" aria-labelledby="overlimit-heading">
+      <header class="card-head">
+        <div>
+          <h2 id="overlimit-heading">Over limit</h2>
+          <p class="card-sub">Minutes at warning and alarm level in the last hour. Click a bar to open that sensor.</p>
+        </div>
+        <span class="badge" id="overlimit-status"><span class="dot" aria-hidden="true"></span>Polled every 10 s</span>
+      </header>
+      {{- /*
+        Select to drill down (docs/spec.md §5.2). A click on a bar, or Enter
+        on a focused one, makes the extension dispatch htmx:plot:select; it
+        bubbles to this wrapper, whose hx-trigger turns it into a GET with
+        hp-chart=overlimit and hp-x=<the sensor code>.
+
+        The chart itself polls with hx-ptag (§4.5): the seeded tag is the
+        hash of what the first poll returns, and the server answers an
+        unchanged chart with a bodiless 304. "load delay:1ms" re-renders it
+        at its container's real width; the delay lets hx-ptag read the seed
+        first (htmx 4.0.2 fires load before extensions see the element).
+      */}}
+      <div class="drill" hx-get="/detail" hx-trigger="htmx:plot:select"
+           hx-target="#detail" hx-swap="innerMorph" hx-sync="#detail:replace">
+        <div id="overlimit-body" class="chart" hx-plot:autosize
+             hx-get="/charts/overlimit" hx-trigger="load delay:1ms, every 10s, htmx:plot:resize" hx-swap="innerMorph"
+             hx-ptag="{{.OverLimitTag}}" hx-indicator="#overlimit-status">{{.OverLimit}}</div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="alerts-heading">
+      <header class="card-head">
+        <div>
+          <h2 id="alerts-heading">Alerts</h2>
+          <p class="card-sub">Raised on one-minute readings, newest first. Streamed with the tiles.</p>
+        </div>
+      </header>
+      <div id="alerts">{{template "alerts" .Alerts}}</div>
+    </section>
+  </div>
+</main>
+<footer class="foot wrap">
+  Rendered by <a href="https://github.com/ironystock/hyperplot">hyperplot</a>, the Go reference server for hx-plot, with htmx 4.0.2. The data is simulated and deterministic per time bucket.
+</footer>
+</body>
+</html>
+{{- end}}
+
+{{define "tiles" -}}
+{{- /*
+  Each tile is an <article> with a stable id. Its heading link opens the
+  sensor's detail: href for a plain page load, hx-get for an htmx request
+  into #detail. The link covers the whole tile (app.css, .tile-link::after),
+  but only the sensor's name is its accessible name.
+*/ -}}
+{{range .}}<article class="tile tile-{{.Level.Key}}" id="{{.ID}}">
+  <h3 class="tile-name"><a class="tile-link" href="{{.Href}}" hx-get="{{.Get}}" hx-target="#detail" hx-swap="innerMorph" hx-sync="#detail:replace">{{.Name}}</a></h3>
+  <p class="tile-code">{{.Code}}</p>
+  <p class="tile-value">{{.Value}}<span class="tile-unit">{{.Unit}}</span></p>
+  <p class="tile-level">{{template "level" .Level}}</p>
+  <div class="tile-spark">{{.Spark}}</div>
+</article>{{end}}
+{{- end}}
+
+{{define "level" -}}
+{{- /* A level is never told by color alone: an icon and a word go with it. */ -}}
+<span class="level level-{{.Key}}"><svg class="icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+{{- if eq .Key "alarm"}}<path d="M6 1 11.5 11h-11z" fill="currentColor"/>{{else if eq .Key "warn"}}<path d="M6 1 11 6 6 11 1 6z" fill="currentColor"/>{{else}}<circle cx="6" cy="6" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>{{end -}}
+</svg>{{.Text}}</span>
+{{- end}}
+
+{{define "alerts" -}}
+{{- /*
+  The rows' ids name the sensor and the minute the alert began, so a morph
+  keeps each row node with its alert as newer alerts push in above it, and
+  a reader's place in the table holds (docs/spec.md §4.1 asks the same of
+  chart tables). Each sensor link zooms the detail to the alert: the request
+  a brush across it would send.
+*/ -}}
+<p class="alerts-summary">{{.Summary}}</p>
+<div class="table-scroll" tabindex="0" role="region" aria-labelledby="alerts-heading">
+<table id="alerts-table" class="alerts">
+<thead><tr><th scope="col">Sensor</th><th scope="col">Level</th><th scope="col">Started</th><th scope="col">State</th><th scope="col" class="num">Peak</th></tr></thead>
+<tbody>
+{{- range .Rows}}<tr id="{{.ID}}"><th scope="row"><a href="{{.Href}}" hx-get="{{.Get}}" hx-target="#detail" hx-swap="innerMorph" hx-sync="#detail:replace">{{.Code}}</a><span class="alert-name">{{.Name}}</span></th><td>{{template "level" .Level}}</td><td>{{.Started}}</td><td>{{.State}}</td><td class="num">{{.Peak}}</td></tr>
+{{- else}}<tr id="alerts-none"><td colspan="5">No alerts in the last two hours.</td></tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- end}}
+
+{{define "detail" -}}
+<p id="detail-status" class="sr-only" role="status">{{.Status}}</p>
+<header class="card-head">
+  <div>
+    <h2 id="detail-heading">{{.Name}} <span class="code">{{.Code}}</span></h2>
+    <p class="card-sub">{{.Sub}}</p>
+  </div>
+  <span class="badge" id="detail-poll"><span class="dot" aria-hidden="true"></span>Polled every 5 s</span>
+</header>
+{{- /*
+  Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader drag a
+  range across the chart (or mark one with Shift+arrows and Enter); the
+  extension dispatches htmx:plot:brush, which this wrapper turns into a GET
+  with hp-chart, hp-x0 and hp-x1. The answer replaces the polling element
+  whole (outerMorph), because its hx-get carries the zoom.
+*/}}
+<div class="zoom" hx-plot:brush hx-get="{{.BrushURL}}" hx-trigger="htmx:plot:brush"
+     hx-target="#detail-body" hx-swap="outerMorph" hx-sync="#detail:replace">
+  <div id="detail-zoom" class="zoom-bar">{{template "zoom-bar" .Zoom}}</div>
+  {{template "detail-chart" .Poller}}
+</div>
+{{- end}}
+
+{{define "detail-chart" -}}
+<div id="detail-body" class="chart" hx-plot:autosize
+     hx-get="{{.URL}}" hx-trigger="load delay:1ms, every 5s, htmx:plot:resize" hx-swap="innerMorph"
+     hx-sync="#detail:drop" hx-ptag="{{.Tag}}" hx-indicator="#detail-poll">{{.Body}}</div>
+{{- end}}
+
+{{define "zoom-bar" -}}
+{{- /*
+  The brush without a pointer (docs/spec.md §5.5): a from/to form whose
+  fields are the brush's own parameters. Without script it submits to the
+  page, which reads the same parameters.
+*/ -}}
+<p id="detail-zoom-status" class="zoom-state" role="status"><span class="zoom-mark{{if .Zoomed}} zoom-mark-on{{end}}" aria-hidden="true"></span>{{.Status}}</p>
+<form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
+      hx-get="/detail/chart" hx-target="#detail-body" hx-swap="outerMorph" hx-sync="#detail:replace">
+  <input type="hidden" name="sensor" value="{{.Code}}">
+  <input type="hidden" name="hp-chart" value="trend">
+  <label class="field"><span>From</span><input type="datetime-local" name="hp-x0" value="{{.From}}" required></label>
+  <label class="field"><span>To</span><input type="datetime-local" name="hp-x1" value="{{.To}}" required></label>
+  <button type="submit" class="btn">Zoom</button>
+  {{- if .Zoomed}}
+  <a class="btn btn-quiet" href="{{.LiveURL}}" hx-get="{{.LiveGet}}" hx-target="#detail-body" hx-swap="outerMorph" hx-sync="#detail:replace">Back to live</a>
+  {{- end}}
+</form>
+{{- end}}
+
+{{define "chart-body" -}}
+{{.SVG}}<details class="table-view"><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+{{- end}}
