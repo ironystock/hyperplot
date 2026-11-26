@@ -1,0 +1,92 @@
+<!doctype html>
+{{- /* data-theme pins the palette, "light" or "dark"; without it the
+       stylesheets follow prefers-color-scheme. Only those two values reach
+       the attribute: main.go drops anything else. */}}
+<html lang="en"{{with .Theme}} data-theme="{{.}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+{{- /* The static export has no server to send a CSP header, so it carries
+       the policy here. The server sends the header instead. */}}
+{{- with .Policy}}
+<meta http-equiv="Content-Security-Policy" content="{{.}}">
+{{- end}}
+<meta name="description" content="Every chart hyperplot draws, each next to the Go code that drew it.">
+<title>Chart gallery · hyperplot</title>
+<link rel="icon" href="data:,">
+{{- /* Relative URLs, so the exported files work from any path, or from
+       disk. On the server, static/ resolves to /static/. */}}
+<link rel="stylesheet" href="static/hx-plot.css">
+<link rel="stylesheet" href="static/app.css">
+{{- /* No htmx on this page, and so no htmx-config meta: hx-plot.js alone.
+       Finding no htmx, it starts in standalone mode (docs/spec.md §6.10)
+       and enhances every inline chart. defer is fine: nothing waits for
+       it. */}}
+<script defer src="static/hx-plot.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Chart gallery</h1>
+    <p class="lede">Every mark and variant hyperplot draws. Each chart is SVG rendered on the server; the code beside it is the function in <code>charts.go</code> that returned it. Hover a chart, or press Tab to focus it and read it with the arrow keys.</p>
+    <div class="bar">
+      <nav class="themes" aria-label="Color theme"><span class="bar-label">Theme</span>
+        {{- range .Themes}} <a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+      </nav>
+      <nav class="toc" aria-label="Sections"><span class="bar-label">Jump to</span>
+        {{- range .Sections}} <a href="#{{.ID}}">{{.Title}}</a>{{end}} <a href="#helpers">Data helpers</a>
+      </nav>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  {{- range .Sections}}
+  <section class="group" id="{{.ID}}" aria-labelledby="{{.ID}}-heading">
+    <h2 id="{{.ID}}-heading">{{.Title}}</h2>
+    {{- range .Cards}}
+    <article class="card" id="{{.Anchor}}" aria-labelledby="{{.Anchor}}-heading">
+      <header class="card-head">
+        <h3 id="{{.Anchor}}-heading"><a href="#{{.Anchor}}">{{.Title}}</a></h3>
+        <p class="note">{{.Note}}</p>
+      </header>
+      <div class="card-figure">
+        {{- if .Sparks}}
+        <table class="sparks">
+          <thead><tr><th scope="col">Metric</th><th scope="col">Last 30 days</th><th scope="col">Latest</th></tr></thead>
+          <tbody>
+            {{- range .Sparks}}
+            <tr><th scope="row">{{.Label}}</th><td>{{.SVG}}</td><td class="num">{{.Last}}</td></tr>
+            {{- end}}
+          </tbody>
+        </table>
+        {{- else}}
+        {{.SVG}}
+        {{- /* The table is the chart's accessible equivalent, and for a line
+               chart the only way to read values without script
+               (docs/spec.md §3.8). */}}
+        <details class="table-view"{{if .TableOpen}} open{{end}}><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
+        {{- end}}
+      </div>
+      <figure class="card-code">
+        <figcaption><code>charts.go</code> · <code>{{.Func}}</code></figcaption>
+        {{- /* tabindex: a scrollable region must be reachable from the
+               keyboard. */}}
+        <pre tabindex="0" aria-label="Go source of {{.Func}}"><code>{{.Code}}</code></pre>
+      </figure>
+    </article>
+    {{- end}}
+  </section>
+  {{- end}}
+
+  <section class="group" id="helpers" aria-labelledby="helpers-heading">
+    <h2 id="helpers-heading">Data helpers</h2>
+    <p class="note">The rest of <code>charts.go</code>. The data is made up but deterministic: every value is a function of a series name and an index, so the gallery is the same on every run.</p>
+    <pre class="helpers" tabindex="0" aria-label="Go source of the data helpers"><code>{{.Helpers}}</code></pre>
+  </section>
+</main>
+<footer class="foot wrap">
+  Rendered by <a href="https://github.com/ironystock/hyperplot">hyperplot</a>. Interactivity is <code>hx-plot.js</code> on its own, without htmx; for live charts, see the dashboard example.
+</footer>
+</body>
+</html>
