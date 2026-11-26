@@ -10,10 +10,10 @@ import (
 
 // TestExamplesSizeKeepsServerHeight checks that the package examples,
 // which pkg.go.dev shows next to Size, discard the height from hx.Size.
-// A data-hp-autosize container without a CSS height is as tall as the
+// An hx-plot:autosize container without a CSS height is as tall as the
 // chart inside it, so a sample that renders at the reported height grows
 // the chart on every poll when copied. Only examples whose name ends in
-// "_both", which document data-hp-autosize="both", may use the height.
+// "_both", which document hx-plot:autosize="both", may use the height.
 // docs/snippets_test.go applies the same rule to the guides and doc.go.
 func TestExamplesSizeKeepsServerHeight(t *testing.T) {
 	fset := token.NewFileSet()

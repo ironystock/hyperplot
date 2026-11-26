@@ -153,24 +153,26 @@ func Partial(target, swap string, content []byte) []byte {
 	return []byte(b.String())
 }
 
-// maxSizeBody is the largest urlencoded request body that [Size] parses
-// itself. The client extension adds a few bytes to a form; anything much
-// larger is an upload the handler should bound and parse on its own terms.
+// maxSizeBody is the largest urlencoded request body that [Size],
+// [Selected] and [Brushed] parse themselves. The client extension adds a
+// few bytes to a form; anything much larger is an upload the handler
+// should bound and parse on its own terms.
 const maxSizeBody = 64 << 10
 
-// Size returns the chart size requested by the hyperplot client extension
-// (hyperplot.js), which adds parameters to requests from or targeting an
-// element with data-hp-autosize:
+// Size returns the chart size requested by the hx-plot client extension
+// (hx-plot.js), which adds parameters to every request whose target is,
+// or is inside, an element with the hx-plot:autosize attribute
+// (docs/spec.md §4.6, §6.7):
 //
-//   - "hp-w" is the element's content width: clientWidth less horizontal
-//     padding, rounded to whole CSS pixels.
-//   - "hp-h" is its content height, sent only when the element has
-//     data-hp-autosize="both".
+//   - "hp-w" ([ParamWidth]) is the element's content width: clientWidth
+//     less horizontal padding, rounded to whole CSS pixels.
+//   - "hp-h" ([ParamHeight]) is its content height, sent only when the
+//     element has hx-plot:autosize="both".
 //
 // Use the height only for a container whose height CSS sets on its own
 // (a height, or an aspect-ratio with overflow hidden). A container without
 // one is as tall as the chart inside it, so rendering at its reported
-// height grows the chart on every poll. That is why plain data-hp-autosize
+// height grows the chart on every poll. That is why plain hx-plot:autosize
 // sends no hp-h; most handlers keep their own height:
 //
 //	width, _ := hx.Size(r, 640, 0)
@@ -193,13 +195,17 @@ const maxSizeBody = 64 << 10
 // one, parse it first with limits of your own, for example with
 // [http.MaxBytesReader] and [http.Request.ParseMultipartForm].
 func Size(r *http.Request, defW, defH float64) (w, h float64) {
-	v := sizeValues(r)
-	return sizeParam(v.Get("hp-w"), defW), sizeParam(v.Get("hp-h"), defH)
+	v := formValues(r)
+	return sizeParam(v.Get(ParamWidth), defW), sizeParam(v.Get(ParamHeight), defH)
 }
 
-// sizeValues returns the request parameters that [Size] reads: r.Form if
-// the handler or a small urlencoded body populated it, else the query.
-func sizeValues(r *http.Request) url.Values {
+// formValues returns the request parameters that [Size], [Selected] and
+// [Brushed] read: r.Form if the handler or a small urlencoded body
+// populated it, else the query. It returns nil for a nil request.
+func formValues(r *http.Request) url.Values {
+	if r == nil {
+		return nil
+	}
 	if r.Form == nil && bufferSmallForm(r) {
 		// A malformed pair is skipped; whatever parsed is still used.
 		_ = r.ParseForm()
