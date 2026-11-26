@@ -267,7 +267,7 @@ func history(f filters, end time.Time) []sample {
 // That one bucket lies outside a window [start, …]: the chart draws it,
 // clipped at the plot's left edge, and leaves it out of the tooltips and
 // the table. While the window slides, the line then reaches the left edge
-// instead of starting a bucket in (docs/spec.md §4.4).
+// instead of starting a bucket in (spec/spec.md §4.4).
 func windowHistory(f filters, last, start time.Time) []sample {
 	step := f.Range.Step
 	n := int(last.Sub(start)/step) + 2

@@ -1,5 +1,5 @@
 """Tests of render.py against the conformance fixtures in
-testdata/conformance/. This is not the checker (tools/hpcheck runs every
+spec/conformance/. This is not the checker (spec/hpcheck runs every
 assertion of every checks.json); it checks the spec rules this renderer
 could get wrong, reading the expected values from each fixture's
 checks.json where it can.

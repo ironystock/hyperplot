@@ -372,9 +372,9 @@ test('keepIndex follows the row key k before the heading', () => {
   assert.equal(keepIndex(rows, '2:00 PM', 2, 3), 2, 'a heading is not a key when rows have keys')
 })
 
-// ---- Sliding windows: the slide fixture (testdata/conformance/slide). ----
+// ---- Sliding windows: the slide fixture (spec/conformance/slide). ----
 
-const FIXTURES = new URL('../testdata/conformance/', import.meta.url)
+const FIXTURES = new URL('../spec/conformance/', import.meta.url)
 const slideChecks = JSON.parse(readFileSync(new URL('slide/checks.json', FIXTURES), 'utf8'))
 
 // rootAttrs reads the attributes of a reference file's root <svg>.

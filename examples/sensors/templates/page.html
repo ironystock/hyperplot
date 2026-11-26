@@ -7,7 +7,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="description" content="A building sensor monitor rendered as server-side SVG and kept live by htmx 4 and the hx-plot extension.">
 <!-- noSwap: an error page from a proxy, a timeout or middleware never
-     replaces a chart (docs/spec.md §4.5). The array replaces htmx's default. -->
+     replaces a chart (spec/spec.md §4.5). The array replaces htmx's default. -->
 <meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
 <title>Building sensors · hx-plot</title>
 <link rel="icon" href="data:,">
@@ -47,7 +47,7 @@
       <span class="badge badge-live"><span class="dot" aria-hidden="true"></span>Streamed live</span>
     </header>
     {{- /*
-      Server-sent events (docs/spec.md §4.5). hx-sse:connect opens one stream
+      Server-sent events (spec/spec.md §4.5). hx-sse:connect opens one stream
       when htmx processes this element; each unnamed message is swapped in
       with innerMorph, which keeps every tile node (they have ids) and only
       changes what changed. The tiles have fixed-size sparklines, so the
@@ -80,7 +80,7 @@
         <span class="badge" id="overlimit-status"><span class="dot" aria-hidden="true"></span>Polled every 10 s</span>
       </header>
       {{- /*
-        Select to drill down (docs/spec.md §5.2). A click on a bar, or Enter
+        Select to drill down (spec/spec.md §5.2). A click on a bar, or Enter
         on a focused one, makes the extension dispatch htmx:plot:select; it
         bubbles to this wrapper, whose hx-trigger turns it into a GET with
         hp-chart=overlimit and hp-x=<the sensor code>.
@@ -144,7 +144,7 @@
 {{- /*
   The rows' ids name the sensor and the minute the alert began, so a morph
   keeps each row node with its alert as newer alerts push in above it, and
-  a reader's place in the table holds (docs/spec.md §4.1 asks the same of
+  a reader's place in the table holds (spec/spec.md §4.1 asks the same of
   chart tables). Each sensor link zooms the detail to the alert: the request
   a brush across it would send.
 */ -}}
@@ -171,7 +171,7 @@
   <span class="badge" id="detail-poll"><span class="dot" aria-hidden="true"></span>Polled every 5 s</span>
 </header>
 {{- /*
-  Brush to zoom (docs/spec.md §5.4). hx-plot:brush lets the reader drag a
+  Brush to zoom (spec/spec.md §5.4). hx-plot:brush lets the reader drag a
   range across the chart (or mark one with Shift+arrows and Enter); the
   extension dispatches htmx:plot:brush, which this wrapper turns into a GET
   with hp-chart, hp-x0 and hp-x1. The answer replaces the polling element
@@ -192,7 +192,7 @@
 
 {{define "zoom-bar" -}}
 {{- /*
-  The brush without a pointer (docs/spec.md §5.5): a from/to form whose
+  The brush without a pointer (spec/spec.md §5.5): a from/to form whose
   fields are the brush's own parameters. Without script it submits to the
   page, which reads the same parameters.
 */ -}}

@@ -1,4 +1,4 @@
-# hp_wire.py: the wire helpers of docs/spec.md, Appendix B, copied verbatim.
+# hp_wire.py: the wire helpers of spec/spec.md, Appendix B, copied verbatim.
 #
 # Everything below the first blank line is the spec's Python block, byte for
 # byte (test_wire.py checks it), so a fix to the spec reaches this file by

@@ -9,8 +9,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { load, Matrix } from './fakedom.mjs'
 
-const XML = readFileSync(new URL('../testdata/conformance/line-time/chart.svg', import.meta.url), 'utf8')
-const BANDS = readFileSync(new URL('../testdata/conformance/bars-band/chart.svg', import.meta.url), 'utf8')
+const XML = readFileSync(new URL('../spec/conformance/line-time/chart.svg', import.meta.url), 'utf8')
+const BANDS = readFileSync(new URL('../spec/conformance/bars-band/chart.svg', import.meta.url), 'utf8')
 const plain = (v) => JSON.parse(JSON.stringify(v))
 
 function page({ brush = true, htmx = true, config = {}, companions = ['brush'] } = {}) {
@@ -188,7 +188,7 @@ test('a finished brush’s rectangle is not redrawn after a swap; one in progres
 })
 
 test('a slide leaves a brush being dragged under the pointer; a keyboard range slides with its data', () => {
-  const read = (f) => readFileSync(new URL(`../testdata/conformance/slide/${f}`, import.meta.url), 'utf8')
+  const read = (f) => readFileSync(new URL(`../spec/conformance/slide/${f}`, import.meta.url), 'utf8')
   const [A, B] = [read('frame-a.svg'), read('frame-b.svg')]
   const env = load({ companions: ['brush'] })
   const wrap = env.el('div', { 'hx-plot:brush': '' }, env.doc.body)

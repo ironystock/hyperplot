@@ -6,7 +6,7 @@ filters, multi-target updates, responsive sizing, drill-down, zoom and
 sliding windows. The HTML is the same whatever your server is written in;
 the handlers here use the Go reference server (`hyperplot` and its `hx`
 package). If your server is in another language, read the HTML and the
-explanations, and take the wire details from the [spec](spec.md) and the
+explanations, and take the wire details from the [spec](../spec/spec.md) and the
 [server guide](implementing-a-server.md). The numbered patterns all run in
 the [examples](../examples/README.md), and the Python and Node examples
 serve the same kind of HTML without Go.
@@ -16,7 +16,7 @@ It assumes you have rendered a static chart already (see the
 **htmx 4.0.2**. htmx 4 differs from htmx 2 in ways that matter for charts;
 see [htmx 4 gotchas](#htmx-4-gotchas) before porting htmx 2 code.
 
-> hyperplot is pre-release. The extension follows [spec version 1](spec.md),
+> hyperplot is pre-release. The extension follows [spec version 1](../spec/spec.md),
 > and the Go packages follow [DESIGN.md](DESIGN.md); details may change
 > before the first release.
 
@@ -48,7 +48,7 @@ see [htmx 4 gotchas](#htmx-4-gotchas) before porting htmx 2 code.
    `Chart.ID`, each series group is `{ID}-s-{key}`, each bar is
    `{ID}-b-{key}-{catkey}`, and each table row is `{ID}-r-{key}`, where the
    keys are hashes of the series name, category or x value
-   ([spec §4.1](spec.md#41-identity)).
+   ([spec §4.1](../spec/spec.md#41-identity)).
 3. htmx swaps the new SVG in with **`innerMorph`**. htmx 4's morph (its own,
    not idiomorph) matches elements by id first, then by equality, then by
    position, and updates them in place instead of replacing them.
@@ -122,12 +122,12 @@ every `<details>` that holds a chart's table, so drop it.
 import (
 	"net/http"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/client"
 )
 
 func routes(mux *http.ServeMux) {
-	css := []byte(hyperplot.Stylesheet())
+	css := []byte(plot.Stylesheet())
 	mux.HandleFunc("GET /static/hx-plot.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		w.Write(css)
@@ -144,7 +144,7 @@ package's `hx-plot.css`. Use `DefaultTheme()`, change fields, and call
 `CSS()` on it to customize; or override the `--hp-*` custom properties in
 your own stylesheet. A replacement stylesheet must keep
 `.hp { touch-action: pan-y pinch-zoom }`, or touch scrubbing stops working
-([spec §3.4](spec.md#34-presentation)).
+([spec §3.4](../spec/spec.md#34-presentation)).
 
 ### Dark mode
 
@@ -263,18 +263,18 @@ Go file.
 ```
 
 ```go
-func latencyChart(width, height float64) *hyperplot.Chart {
+func latencyChart(width, height float64) *plot.Chart {
 	ts, p50, p99 := metrics.Latency() // your data
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:      "latency", // stable: morphing matches on it
 		Title:   "Request latency",
 		Width:   width,
 		Height:  height,
 		Animate: true,
-		Y:       hyperplot.Axis{Label: "Latency", Unit: " ms"},
-		Marks: []hyperplot.Mark{
-			hyperplot.Line{Name: "p50", Slot: 1, X: hyperplot.Times(ts), Y: p50},
-			hyperplot.Line{Name: "p99", Slot: 2, X: hyperplot.Times(ts), Y: p99},
+		Y:       plot.Axis{Label: "Latency", Unit: " ms"},
+		Marks: []plot.Mark{
+			plot.Line{Name: "p50", Slot: 1, X: plot.Times(ts), Y: p50},
+			plot.Line{Name: "p99", Slot: 2, X: plot.Times(ts), Y: p99},
 		},
 	}
 }
@@ -316,7 +316,7 @@ How it works:
   `clientHeight` is the chart's own height plus a few pixels; feeding it back
   would grow the chart on every poll and no poll would ever be a `304`. See
   [autosize](#responsive-charts-with-autosize).
-- `latencyChart` returns a `*hyperplot.Chart`: `Render`, `HTML`, `Table` and
+- `latencyChart` returns a `*plot.Chart`: `Render`, `HTML`, `Table` and
   the other `Chart` methods have pointer receivers, so
   `latencyChart(w, h).Render()` compiles only on a pointer.
 
@@ -501,7 +501,7 @@ stream.Event("errors-changed", nil)
 - **Changing the stream.** When filters, the size or a zoom change, replace
   the stream element rather than morphing a new `hx-sse:connect` value into
   it (see [htmx 4 gotchas](#htmx-4-gotchas)). The
-  [spec's transports section](spec.md#45-transports) has a container that
+  [spec's transports section](../spec/spec.md#45-transports) has a container that
   handles both a resize and a brush that way.
 
 ## Pattern 3: filters
@@ -566,10 +566,10 @@ the reader's mental map. **Pin each entity to a slot**:
 var regionSlot = map[string]int{"eu-west": 1, "us-east": 2, "ap-south": 3}
 
 for _, reg := range data.Regions { // only the regions the filter selected
-	marks = append(marks, hyperplot.Line{
+	marks = append(marks, plot.Line{
 		Name: reg.Name,
 		Slot: regionSlot[reg.Name],
-		X:    hyperplot.Times(reg.Times),
+		X:    plot.Times(reg.Times),
 		Y:    reg.Values,
 	})
 }
@@ -669,7 +669,7 @@ func refresh(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	spark, err := hyperplot.Sparkline{Values: snap.P99, Label: "p99 latency"}.Render()
+	spark, err := plot.Sparkline{Values: snap.P99, Label: "p99 latency"}.Render()
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -741,7 +741,7 @@ request did.
 Not every reader can click a point (a mobile screen reader can't). The
 parameters are plain form fields, so offer the same request as a link per
 table row, `<a href="/detail?hp-chart=latency&amp;hp-x=…">`, with the row's
-key ([spec §5.5](spec.md#55-equivalents-in-plain-html)). `Chart.Table`
+key ([spec §5.5](../spec/spec.md#55-equivalents-in-plain-html)). `Chart.Table`
 doesn't write these links yet.
 
 ## Pattern 6: brush to zoom
@@ -830,7 +830,7 @@ func latencyZoom(w http.ResponseWriter, r *http.Request) {
 `Brush.TimesIn` orders the ends and accepts any RFC 3339 time, plus the
 offset-less `datetime-local` form, read in the zone you pass. That makes
 the plain HTML equivalent work with the same handler: a from/to form for
-readers who can't drag ([spec §5.5](spec.md#55-equivalents-in-plain-html)).
+readers who can't drag ([spec §5.5](../spec/spec.md#55-equivalents-in-plain-html)).
 
 ```html
 <!-- inside the .zoom wrapper -->
@@ -1071,7 +1071,7 @@ send an `HX-Redirect` header to move the whole page.
 `Chart.Render` returns errors for invalid input (mismatched lengths, mixed x
 kinds, more than eight series, sizes below 50 px, and so on). Most of these
 are programming errors; validate in tests so production renders don't fail.
-`hyperplot.ErrTooManySeries` signals that you should fold small series into
+`plot.ErrTooManySeries` signals that you should fold small series into
 "Other" or use small multiples.
 
 ## Content Security Policy

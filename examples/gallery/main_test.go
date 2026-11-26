@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 func get(t *testing.T, h http.Handler, target string) *httptest.ResponseRecorder {
@@ -160,7 +160,7 @@ func TestEveryChartFuncIsOnThePage(t *testing.T) {
 		if err := printer.Fprint(&b, fset, fd.Type.Results.List[0].Type); err != nil {
 			t.Fatal(err)
 		}
-		if typ := b.String(); typ != "*hyperplot.Chart" && typ != "[]hyperplot.Sparkline" {
+		if typ := b.String(); typ != "*plot.Chart" && typ != "[]plot.Sparkline" {
 			continue
 		}
 		if cards[fd.Name.Name] != 1 {
@@ -235,7 +235,7 @@ func TestPage(t *testing.T) {
 		if strings.Count(body, "aria-current") != 1 {
 			t.Errorf("%s: %d current theme links", tt.target, strings.Count(body, "aria-current"))
 		}
-		// No htmx on this page: hx-plot.js runs alone (docs/spec.md §6.10).
+		// No htmx on this page: hx-plot.js runs alone (spec/spec.md §6.10).
 		for _, bad := range []string{"htmx.org", "hx-get", "hx-trigger", "htmx-config", "http-equiv"} {
 			if strings.Contains(body, bad) {
 				t.Errorf("%s: page contains %q", tt.target, bad)
@@ -283,7 +283,7 @@ func TestExport(t *testing.T) {
 	}
 	assets := map[string]string{
 		"static/hx-plot.js":  string(client.JS()),
-		"static/hx-plot.css": hyperplot.Stylesheet(),
+		"static/hx-plot.css": plot.Stylesheet(),
 		"static/app.css":     appCSS,
 	}
 	for name, want := range assets {

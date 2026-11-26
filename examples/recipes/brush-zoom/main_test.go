@@ -130,7 +130,7 @@ func TestBrushZooms(t *testing.T) {
 		}
 	}
 
-	// docs/spec.md §5.3: the ends may arrive in either order.
+	// spec/spec.md §5.3: the ends may arrive in either order.
 	inverted := get(t, h, brush("2026-03-03T14:15:00Z", "2026-03-03T14:05:00Z"))
 	if inverted.Body.String() != body || inverted.Header().Get("HX-Push-Url") != ordered.Header().Get("HX-Push-Url") {
 		t.Error("an inverted brush answers differently from the ordered one")
@@ -170,7 +170,7 @@ func TestBrushRanges(t *testing.T) {
 }
 
 // TestBrushIgnored: a brush whose values do not parse, or that lies wholly
-// outside the data, is ignored (docs/spec.md §5.3 SHOULD): a 204, which
+// outside the data, is ignored (spec/spec.md §5.3 SHOULD): a 204, which
 // htmx does not swap, no pushed URL, and never a 5xx.
 func TestBrushIgnored(t *testing.T) {
 	h := testServer()

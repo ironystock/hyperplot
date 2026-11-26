@@ -94,7 +94,7 @@
 {{define "swatch" -}}
 {{- /*
   A pipeline's color key, in the slot its series uses in every chart. The
-  root class is hp-spark, not hp: the extension and docs/spec.md §6.4 treat
+  root class is hp-spark, not hp: the extension and spec/spec.md §6.4 treat
   every svg.hp as a chart, so a decoration marked hp would be hovered,
   focused and styled as one. hx-plot.css declares the --hp-series-N tokens
   on .hp-spark as well, so hp-sN still picks the series color, and it
@@ -107,13 +107,13 @@
 
 {{define "charts" -}}
 {{- /*
-  Every chart polls its own URL with hx-ptag (docs/spec.md §4.5, docs/htmx.md
+  Every chart polls its own URL with hx-ptag (spec/spec.md §4.5, docs/htmx.md
   pattern 1). The server seeds hx-ptag with the tag of the bytes it just
   embedded, and hx-ptag sends the last tag back as the HX-PTag header; while
   no build has finished, the answer is a bodiless 304 and htmx skips the swap.
 
   hx-plot:autosize makes the extension send the container's width as hp-w
-  and fire htmx:plot:resize when it changes (docs/spec.md §4.6). The first
+  and fire htmx:plot:resize when it changes (spec/spec.md §4.6). The first
   request, "load delay:1ms", fits the chart to the real width. It is not
   plain "load", which htmx 4.0.2 fires before the ptag extension has read
   the seed.
@@ -129,7 +129,7 @@
     <span class="badge">Polled every 5 s</span>
   </header>
   {{- /*
-    Brush to zoom (docs/spec.md §5.3, §5.4; docs/htmx.md pattern 6).
+    Brush to zoom (spec/spec.md §5.3, §5.4; docs/htmx.md pattern 6).
     hx-plot:brush lets the reader drag a range across the chart (or mark one
     with Shift+arrows and Enter); the extension dispatches htmx:plot:brush,
     which this element turns into a request with hp-chart, hp-x0 and hp-x1.
@@ -155,7 +155,7 @@
     <span class="badge">Polled every 5 s</span>
   </header>
   {{- /*
-    Select to drill down (docs/spec.md §5.2; docs/htmx.md pattern 5). A click
+    Select to drill down (spec/spec.md §5.2; docs/htmx.md pattern 5). A click
     on a bar segment, or Enter on a focused day, makes the extension dispatch
     htmx:plot:select. It bubbles to this element, whose request carries
     hp-chart, hp-x (the day, the bar's category) and hp-series ("passed" or
@@ -219,7 +219,7 @@
 {{- /* role="status" is a polite live region: a zoom is announced. */ -}}
 <p id="durations-zoom-status" class="zoom-state" role="status">{{.Status}}</p>
 {{- /*
-  The brush without a pointer (docs/spec.md §5.5): the same hp-x0 and hp-x1,
+  The brush without a pointer (spec/spec.md §5.5): the same hp-x0 and hp-x1,
   from datetime-local inputs, which the server reads in the chart's time
   zone. Without script, it is a GET of the page.
 */}}
@@ -238,7 +238,7 @@
 {{- end}}
 
 {{define "day-links" -}}
-{{- /* The select without a pointer (docs/spec.md §5.5): plain links with
+{{- /* The select without a pointer (spec/spec.md §5.5): plain links with
      the same parameters. Ids from the date keep each link with its day
      across polls. */ -}}
 <nav class="day-links" aria-label="Builds by day"><span class="drill-label" aria-hidden="true">Builds on</span>

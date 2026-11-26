@@ -160,7 +160,7 @@ func FuzzWellFormed(f *testing.F) {
 				text += string(tok)
 			}
 		}
-		// No raw CR byte, ever (docs/spec.md §3.6).
+		// No raw CR byte, ever (spec/spec.md §3.6).
 		if bytes.IndexByte(w.Bytes(), '\r') >= 0 {
 			t.Errorf("raw CR in output for %q: %q", s, w.Bytes())
 		}

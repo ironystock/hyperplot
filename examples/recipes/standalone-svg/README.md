@@ -54,13 +54,13 @@ in a browser, or open an `.svg` file directly.
 ## How it works
 
 A chart is well-formed XML by contract
-([spec §3.1](../../../docs/spec.md#31-embedding)), so the same bytes work
+([spec §3.1](../../../spec/spec.md#31-embedding)), so the same bytes work
 inline in HTML and as a file. `Standalone` adds what a file lacks: the
 stylesheet (`Theme.CSS()`, see
 [CSS](../../../docs/DESIGN.md#css-themecss) in the design), a background
 in the theme's surface color, a margin and the title. Shown on its own or
 through `<img>`, a chart gets only the native fallback
-([§3.7](../../../docs/spec.md#37-native-fallback)).
+([§3.7](../../../spec/spec.md#37-native-fallback)).
 
 Two places to use it with care:
 

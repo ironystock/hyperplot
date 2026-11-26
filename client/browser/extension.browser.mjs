@@ -20,7 +20,7 @@ const LINE = fixture('line-time/chart.svg') // id lt, plot 24..228 × 8..98, 14:
 const TABLE = fixture('line-time/table.html')
 const FRAME_A = fixture('slide/frame-a.svg') // id sl; frame-b slides it by 5 minutes
 const FRAME_B = fixture('slide/frame-b.svg')
-const PREVIEW = readFileSync(new URL('../../testdata/preview/lines_direct_labels.svg', import.meta.url), 'utf8')
+const PREVIEW = readFileSync(new URL('../../plot/testdata/preview/lines_direct_labels.svg', import.meta.url), 'utf8')
 
 // bump returns the line-time chart with its line's values changed and its
 // x window kept: an update that a CSS d transition (or the tween) animates.

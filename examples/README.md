@@ -2,7 +2,7 @@
 
 Runnable servers that draw charts as SVG and keep them live with htmx 4 and
 the [hx-plot extension](../client/README.md). Every one speaks the
-[wire spec](../docs/spec.md), so the page side is the same whichever
+[wire spec](../spec/spec.md), so the page side is the same whichever
 language draws the charts. Run them from the repository root; each README
 says what to try and where to look in the browser's developer tools.
 
@@ -16,7 +16,7 @@ Where to start:
 ## Servers in other languages
 
 Proof that the extension needs no Go: each is a complete Level 3 server
-([spec §2.1](../docs/spec.md#21-server-levels)) built on the standard
+([spec §2.1](../spec/spec.md#21-server-levels)) built on the standard
 library alone, with the same pages and URLs, so they read side by side.
 Both serve `hx-plot.js` from this repository's `client/` directory; a
 real app would install it from npm or a CDN.
@@ -29,7 +29,7 @@ real app would install it from npm or a CDN.
 Both take `--addr host:port` and `--speed N` and listen on port 8080 by
 default (Python on http://127.0.0.1:8080, Node on http://localhost:8080). Their fixture renderers and
 `hpcheck.json` files plug into the conformance checker,
-[`tools/hpcheck`](../tools/hpcheck/README.md), which checks a server in any
+[`spec/hpcheck`](../spec/hpcheck/README.md), which checks a server in any
 language against the spec.
 
 ## Go demos

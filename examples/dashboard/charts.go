@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 	"github.com/ironystock/hyperplot/scale"
 )
 
@@ -48,38 +48,38 @@ func round1(v float64) float64 { return math.Round(v*10) / 10 }
 // selected regions over the closed buckets ending at end. The series start
 // one bucket before the window (see windowHistory), so the lines reach the
 // plot's left edge while the window slides.
-func latencyChart(f filters, end time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+func latencyChart(f filters, end time.Time, w float64, loc *time.Location) *plot.Chart {
 	start := end.Add(-f.Range.Span)
 	return latencyFrame(windowHistory(f, end, start), start, end, w, loc)
 }
 
 // latencyFrame plots the buckets in hist over the x window [start, end]:
 // the live window of latencyChart or a zoom (zoomedLatencyChart).
-func latencyFrame(hist []sample, start, end time.Time, w float64, loc *time.Location) *hyperplot.Chart {
-	xs := hyperplot.Times(hyperplot.Map(hist, func(s sample) time.Time { return s.End }))
-	line := func(name string, slot int, v func(sample) float64) hyperplot.Line {
-		return hyperplot.Line{
+func latencyFrame(hist []sample, start, end time.Time, w float64, loc *time.Location) *plot.Chart {
+	xs := plot.Times(plot.Map(hist, func(s sample) time.Time { return s.End }))
+	line := func(name string, slot int, v func(sample) float64) plot.Line {
+		return plot.Line{
 			Name:  name,
 			X:     xs,
-			Y:     hyperplot.Map(hist, func(s sample) float64 { return round1(v(s)) }),
-			Curve: hyperplot.CurveMonotone,
+			Y:     plot.Map(hist, func(s sample) float64 { return round1(v(s)) }),
+			Curve: plot.CurveMonotone,
 			Slot:  slot,
 		}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "latency",
 		Title:    "Latency",
 		Width:    w,
 		Height:   chartHeight(w, true),
 		Animate:  true,
 		Location: loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{start, end}},
-		Y:        hyperplot.Axis{Label: "Latency (ms)", Unit: " ms", Zero: true},
-		Marks: []hyperplot.Mark{
+		X:        plot.Axis{TimeDomain: [2]time.Time{start, end}},
+		Y:        plot.Axis{Label: "Latency (ms)", Unit: " ms", Zero: true},
+		Marks: []plot.Mark{
 			line("p50", slotP50, func(s sample) float64 { return s.P50 }),
 			line("p95", slotP95, func(s sample) float64 { return s.P95 }),
 			line("p99", slotP99, func(s sample) float64 { return s.P99 }),
-			hyperplot.RuleY{Y: sloMS, Label: "SLO 250 ms"},
+			plot.RuleY{Y: sloMS, Label: "SLO 250 ms"},
 		},
 	}
 }
@@ -88,27 +88,27 @@ func latencyFrame(hist []sample, start, end time.Time, w float64, loc *time.Loca
 // buckets, from one before the window on, are followed by one live point for
 // the current second, so the chart moves every second while the stream is
 // open.
-func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *plot.Chart {
 	now = now.Truncate(time.Second)
 	last := now.Truncate(f.Range.Step)
 	hist := windowHistory(f, last, now.Add(-f.Range.Span))
-	xs := hyperplot.Map(hist, func(s sample) time.Time { return s.End })
+	xs := plot.Map(hist, func(s sample) time.Time { return s.End })
 	var live []float64
 	if now.After(last) {
 		xs = append(xs, now)
 		live = liveRates(f, now)
 	}
-	marks := make([]hyperplot.Mark, len(f.Regions))
+	marks := make([]plot.Mark, len(f.Regions))
 	for i, g := range f.Regions {
-		ys := hyperplot.Map(hist, func(s sample) float64 { return math.Round(s.ByRegion[i]) })
+		ys := plot.Map(hist, func(s sample) float64 { return math.Round(s.ByRegion[i]) })
 		if live != nil {
 			ys = append(ys, math.Round(live[i]))
 		}
 		// Straight segments: this chart is re-sent every second, and line
 		// paths are about a third the size of smooth ones.
-		marks[i] = hyperplot.Area{Name: g.Key, X: hyperplot.Times(xs), Y: ys, Slot: g.Slot}
+		marks[i] = plot.Area{Name: g.Key, X: plot.Times(xs), Y: ys, Slot: g.Slot}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "throughput",
 		Title:    "Throughput",
 		Width:    w,
@@ -116,8 +116,8 @@ func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *h
 		Animate:  true,
 		Location: loc,
 		Stack:    true,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{now.Add(-f.Range.Span), now}},
-		Y:        hyperplot.Axis{Label: "Requests per second", Unit: " req/s"},
+		X:        plot.Axis{TimeDomain: [2]time.Time{now.Add(-f.Range.Span), now}},
+		Y:        plot.Axis{Label: "Requests per second", Unit: " req/s"},
 		Marks:    marks,
 	}
 }
@@ -126,30 +126,30 @@ func throughputChart(f filters, now time.Time, w float64, loc *time.Location) *h
 // the last few closed windows, grouped or stacked. Windows close rarely
 // (every 3 minutes to every hour), so this chart is usually unchanged and
 // its polls are answered with 304 Not Modified.
-func requestsChart(f filters, now time.Time, w float64, loc *time.Location) *hyperplot.Chart {
+func requestsChart(f filters, now time.Time, w float64, loc *time.Location) *plot.Chart {
 	win := f.Range.Window
 	ws := requestWindows(f, now, loc)
-	cats := hyperplot.Categories(hyperplot.Map(ws, func(w window) string { return w.Label }))
-	marks := make([]hyperplot.Mark, len(f.Regions))
+	cats := plot.Categories(plot.Map(ws, func(w window) string { return w.Label }))
+	marks := make([]plot.Mark, len(f.Regions))
 	for i, g := range f.Regions {
-		marks[i] = hyperplot.Bar{
+		marks[i] = plot.Bar{
 			Name: g.Key,
 			X:    cats,
-			Y: hyperplot.Map(ws, func(w window) float64 {
+			Y: plot.Map(ws, func(w window) float64 {
 				return math.Round(g.rate(w.Start, win) * win.Seconds())
 			}),
 			Slot: g.Slot,
 		}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:      "requests",
 		Title:   "Requests by region",
 		Width:   w,
 		Height:  chartHeight(w, false),
 		Animate: true,
 		Stack:   f.Stacked,
-		X:       hyperplot.Axis{Label: "Window start"},
-		Y:       hyperplot.Axis{Label: "Requests"},
+		X:       plot.Axis{Label: "Window start"},
+		Y:       plot.Axis{Label: "Requests"},
 		Marks:   marks,
 	}
 }
@@ -157,21 +157,21 @@ func requestsChart(f filters, now time.Time, w float64, loc *time.Location) *hyp
 // scatterChart plots latency against payload size for a sample of
 // requests from each selected region. The sample is drawn per bar window,
 // so it changes as rarely as the bar chart.
-func scatterChart(f filters, now time.Time, w float64) *hyperplot.Chart {
+func scatterChart(f filters, now time.Time, w float64) *plot.Chart {
 	at := now.Truncate(f.Range.Window)
-	marks := make([]hyperplot.Mark, len(f.Regions))
+	marks := make([]plot.Mark, len(f.Regions))
 	for i, g := range f.Regions {
 		kb, ms := payloads(g, at, f.Range.Window, scatterN)
-		marks[i] = hyperplot.Dot{Name: g.Key, X: hyperplot.Floats(kb), Y: ms, Slot: g.Slot}
+		marks[i] = plot.Dot{Name: g.Key, X: plot.Floats(kb), Y: ms, Slot: g.Slot}
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:      "scatter",
 		Title:   "Latency vs payload size",
 		Width:   w,
 		Height:  chartHeight(w, false),
 		Animate: true,
-		X:       hyperplot.Axis{Label: "Payload (KB)", Unit: " KB", Zero: true},
-		Y:       hyperplot.Axis{Label: "Latency (ms)", Unit: " ms", Zero: true},
+		X:       plot.Axis{Label: "Payload (KB)", Unit: " KB", Zero: true},
+		Y:       plot.Axis{Label: "Latency (ms)", Unit: " ms", Zero: true},
 		Marks:   marks,
 	}
 }
@@ -240,8 +240,8 @@ func kpis(f filters, end time.Time) ([]kpi, error) {
 	out := make([]kpi, len(metrics))
 	for i, m := range metrics {
 		now, before := m.total(cur), m.total(prev)
-		spark, err := hyperplot.Sparkline{
-			Values: downsample(hyperplot.Map(cur, m.point), sparkPoints),
+		spark, err := plot.Sparkline{
+			Values: downsample(plot.Map(cur, m.point), sparkPoints),
 			Width:  120,
 			Height: 32,
 			Label:  m.label + ", " + f.Range.Title,

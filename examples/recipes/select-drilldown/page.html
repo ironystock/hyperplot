@@ -28,7 +28,7 @@
     {{- /*
       hx-trigger="htmx:plot:select": hx-plot.js fires the event on the
       chart and it bubbles here; htmx sends hx-get with the extension's
-      hp-chart, hp-x and hp-series added (docs/spec.md §5.2).
+      hp-chart, hp-x and hp-series added (spec/spec.md §5.2).
       hx-target + hx-swap="innerMorph": the detail goes into #detail, and
       elements with the same id (the status line, the chart) are updated
       in place.
@@ -36,7 +36,7 @@
     <div class="drill" hx-get="/detail" hx-trigger="htmx:plot:select"
          hx-target="#detail" hx-swap="innerMorph">{{.Bars}}</div>
     {{- /*
-      The same select without a pointer (docs/spec.md §5.5): hp-chart and
+      The same select without a pointer (spec/spec.md §5.5): hp-chart and
       hp-x are plain query parameters. With script, hx-get fetches only the
       detail; without it, href loads the page with the detail open.
     */}}
@@ -54,7 +54,7 @@
 {{- /*
   role="status": a polite live region. Its id stays the same, so the morph
   changes its text and screen readers announce what the select did; the
-  extension cannot know (docs/spec.md §5.5).
+  extension cannot know (spec/spec.md §5.5).
 */ -}}
 <p id="detail-status" class="status" role="status">{{.Status}}</p>
 {{- if .Chart}}

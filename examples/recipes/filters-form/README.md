@@ -60,7 +60,7 @@ in the htmx guide.
 
 One URL answers both the page and the fragment, so the response says
 `Vary: HX-Request, HX-Request-Type` and no cache serves one for the other
-([spec §4.5](../../../docs/spec.md#45-transports)). The summary line lives
+([spec §4.5](../../../spec/spec.md#45-transports)). The summary line lives
 outside `#charts`; an `<hx-partial>` in the same response updates it
 ([Pattern 4: multi-target updates](../../../docs/htmx.md#pattern-4-multi-target-updates)).
 

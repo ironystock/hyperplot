@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Request parameters of the hx-plot wire spec (docs/spec.md §4.6, §5.1).
+// Request parameters of the hx-plot wire spec (spec/spec.md §4.6, §5.1).
 // The extension adds them to htmx requests as form values: in the query
 // string for GET and DELETE, in an urlencoded body otherwise. Every "hp-"
 // name is reserved for the spec.
@@ -38,7 +38,7 @@ const (
 	ParamX1 = "hp-x1"
 )
 
-// Selection is a select gesture (docs/spec.md §5.2): the reader clicked,
+// Selection is a select gesture (spec/spec.md §5.2): the reader clicked,
 // tapped or pressed Enter on an x value of a chart, and maybe on one
 // series. The fields are the raw parameter values; they come from the
 // browser and can be anything, so validate them like any input and escape
@@ -59,7 +59,7 @@ type Selection struct {
 
 // Selected reads a select gesture's parameters from r. It reports false
 // when hp-x is missing or empty, which a handler treats as "no selection",
-// not as an error (docs/spec.md §5.2).
+// not as an error (spec/spec.md §5.2).
 //
 // Like [Size], it reads r.Form when the handler has parsed it, and
 // otherwise the query string plus an urlencoded body of at most 64 KiB,
@@ -89,7 +89,7 @@ func (s Selection) Time() (time.Time, error) {
 // surrounding space are rejected.
 func (s Selection) Float() (float64, error) { return parseNumber(s.X) }
 
-// Brush is a brush gesture (docs/spec.md §5.3): the reader marked an x
+// Brush is a brush gesture (spec/spec.md §5.3): the reader marked an x
 // range on a chart, usually to zoom into it. The fields are the raw
 // parameter values, in the order the browser sent them, which need not
 // be ascending. They come from the browser and can be anything: parse
@@ -107,7 +107,7 @@ type Brush struct {
 // Brushed reads a brush gesture's parameters from r. It reports false
 // unless both hp-x0 and hp-x1 are present and non-empty; a request
 // without them is an ordinary request (a poll of the same URL, for
-// example), which is how a handler tells the two apart (docs/spec.md
+// example), which is how a handler tells the two apart (spec/spec.md
 // §5.4). A Brush whose values do not parse is still reported, so that the
 // handler can decide; the spec says to ignore it.
 //
@@ -130,7 +130,7 @@ func (b Brush) Times() (t0, t1 time.Time, err error) { return b.TimesIn(time.UTC
 // dropped), which is what the extension sends, or the HTML datetime-local
 // form "2006-01-02T15:04", optionally with ":05" and a fraction and with
 // no offset, which a plain <input type="datetime-local"> sends and which
-// is read as a wall time in loc, the chart's time zone (docs/spec.md
+// is read as a wall time in loc, the chart's time zone (spec/spec.md
 // §5.3, §5.5). Where loc's clocks change, it reads wall times as browsers
 // and Python's fold=0 do: a time the clocks repeat is the first of its
 // two instants, and a time they skip is read with the offset in effect
@@ -155,7 +155,7 @@ func (b Brush) TimesIn(loc *time.Location) (t0, t1 time.Time, err error) {
 // Floats parses the range as finite numbers in the JSON number syntax,
 // ordered so that x0 <= x1. NaN, infinities and anything that is not a
 // JSON number are errors, and both values are then zero. Every finite
-// float64 is accepted (docs/spec.md §5.3), but a hyperplot Axis.Domain
+// float64 is accepted (spec/spec.md §5.3), but a hyperplot Axis.Domain
 // takes magnitudes up to 1e300 only, so a handler that zooms with the
 // range should ignore (or clamp) values beyond ±1e300.
 func (b Brush) Floats() (x0, x1 float64, err error) {

@@ -5,7 +5,7 @@
 //	go run ./examples/recipes/sse-stream -addr :9000
 //
 // The pattern (docs/htmx.md, "Pattern 2: server-sent events", and the
-// container of docs/spec.md §4.5): the page draws the first frame with no
+// container of spec/spec.md §4.5): the page draws the first frame with no
 // stream. Its container (hx-plot:autosize) fetches a stream element at its
 // real width on "load", and fetches a new one when its width changes. The
 // stream element carries hx-sse:connect="/stream/throughput?hp-w=…" and
@@ -35,9 +35,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -75,7 +75,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /cards/throughput", s.card)
 	mux.HandleFunc("GET /stream/throughput", s.stream)
 	mux.Handle("GET /static/hx-plot.js", client.Handler())
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
 }
@@ -121,14 +121,14 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Not an event stream, so htmx would swap this answer over the
 		// chart: HX-Reswap: none stops that, and a non-2xx status makes a
-		// reconnecting hx-sse back off (docs/spec.md §4.5).
+		// reconnecting hx-sse back off (spec/spec.md §4.5).
 		log.Printf("%s: %v", r.URL.Path, err)
 		w.Header().Set("HX-Reswap", "none")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 	// retry: is how long hx-sse waits before reconnecting a stream that
-	// dropped (docs/spec.md §4.5 SHOULD); without it, 500 ms.
+	// dropped (spec/spec.md §4.5 SHOULD); without it, 500 ms.
 	if err := stream.Retry(2 * time.Second); err != nil {
 		return
 	}
@@ -157,10 +157,10 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 }
 
 // chart is requests per second over the last minute, read and write.
-func (s *server) chart(now time.Time, width float64) *hyperplot.Chart {
+func (s *server) chart(now time.Time, width float64) *plot.Chart {
 	end := now.Truncate(time.Second)
 	const n = 60
-	xs := make(hyperplot.Times, n+1) // one extra second, drawn clipped at the left edge
+	xs := make(plot.Times, n+1) // one extra second, drawn clipped at the left edge
 	reads, writes := make([]float64, n+1), make([]float64, n+1)
 	for i := range n + 1 {
 		t := end.Add(time.Duration(i-n) * time.Second)
@@ -168,18 +168,18 @@ func (s *server) chart(now time.Time, width float64) *hyperplot.Chart {
 		reads[i] = math.Round(900 + 250*math.Sin(float64(t.Unix())/9) + 150*noise("reads", t.Unix()))
 		writes[i] = math.Round(300 + 80*math.Cos(float64(t.Unix())/13) + 90*noise("writes", t.Unix()))
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:       "throughput", // stable, so each message morphs the chart in place
 		Title:    "Requests per second, last minute",
 		Animate:  true, // hx-plot.js slides the lines one second left per frame
 		Width:    width,
 		Height:   300,
 		Location: s.loc,
-		X:        hyperplot.Axis{TimeDomain: [2]time.Time{end.Add(-n * time.Second), end}},
-		Y:        hyperplot.Axis{Unit: " req/s", Zero: true},
-		Marks: []hyperplot.Mark{
-			hyperplot.Line{Name: "reads", X: xs, Y: reads},
-			hyperplot.Line{Name: "writes", X: xs, Y: writes},
+		X:        plot.Axis{TimeDomain: [2]time.Time{end.Add(-n * time.Second), end}},
+		Y:        plot.Axis{Unit: " req/s", Zero: true},
+		Marks: []plot.Mark{
+			plot.Line{Name: "reads", X: xs, Y: reads},
+			plot.Line{Name: "writes", X: xs, Y: writes},
 		},
 	}
 }

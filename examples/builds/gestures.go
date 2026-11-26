@@ -11,7 +11,7 @@ import (
 	"github.com/ironystock/hyperplot/scale"
 )
 
-// The two gestures of docs/spec.md §5, as ordinary requests: the extension
+// The two gestures of spec/spec.md §5, as ordinary requests: the extension
 // turns a brush or a select into an htmx request with hp-* parameters, and
 // the server answers with HTML, like for any other request.
 //
@@ -114,7 +114,7 @@ func zoomFromQuery(q url.Values, lo, hi time.Time) (zoom, bool) {
 // brushZoom reads a brush of the durations chart (hp-x0, hp-x1). It
 // reports false when the request carries no brush, names another chart or
 // has values that do not parse or miss the range, all of which the spec
-// says to ignore (docs/spec.md §5.3). The extension sends RFC 3339 times;
+// says to ignore (spec/spec.md §5.3). The extension sends RFC 3339 times;
 // the from/to form sends datetime-local wall times, which TimesIn reads in
 // loc, the chart's time zone (§5.5).
 func brushZoom(r *http.Request, lo, hi time.Time, loc *time.Location) (zoom, bool) {
@@ -131,7 +131,7 @@ func brushZoom(r *http.Request, lo, hi time.Time, loc *time.Location) (zoom, boo
 
 // zoomBar is the toolbar above the durations chart: a polite live region
 // saying what the chart shows, so a zoom is announced, and the from/to
-// form that zooms without a pointer (docs/spec.md §5.5).
+// form that zooms without a pointer (spec/spec.md §5.5).
 type zoomBar struct {
 	Zoomed   bool
 	Status   string
@@ -215,7 +215,7 @@ func pageURL(f filters, z zoom) string {
 // ---- Drill-down ----------------------------------------------------------
 
 // dayLink is one link under the days chart: the select gesture as a plain
-// link (docs/spec.md §5.5). Its id comes from the date, so a poll's morph
+// link (spec/spec.md §5.5). Its id comes from the date, so a poll's morph
 // keeps each link with its day as days roll over.
 type dayLink struct {
 	ID, Label string
@@ -239,7 +239,7 @@ func dayLinks(f filters, ds []day) []dayLink {
 }
 
 // selectQuery is the query of a select of the days chart: the parameters
-// the extension sends for a click (docs/spec.md §5.1).
+// the extension sends for a click (spec/spec.md §5.1).
 func selectQuery(label, series string) string {
 	v := url.Values{hx.ParamChart: {"days"}, hx.ParamX: {label}}
 	if series != "" {
@@ -275,7 +275,7 @@ type buildRow struct {
 
 // selectedDay reads a select of the days chart. A select that names
 // another chart, a day no longer shown or nothing at all is no selection
-// (docs/spec.md §5.2). The series, "passed" or "failed", narrows the list;
+// (spec/spec.md §5.2). The series, "passed" or "failed", narrows the list;
 // Enter on a focused day names none, and an unknown one is ignored.
 func selectedDay(r *http.Request, ds []day) (d day, series, notice string, ok bool) {
 	sel, ok := hx.Selected(r)

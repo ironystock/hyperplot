@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 //go:embed templates/*.html
@@ -62,7 +62,7 @@ func newServer(logger *log.Logger) (*server, error) {
 	if err != nil {
 		return nil, err
 	}
-	css := []byte(hyperplot.Stylesheet())
+	css := []byte(plot.Stylesheet())
 	return &server{
 		now:    time.Now,
 		loc:    time.Local,
@@ -315,7 +315,7 @@ func latencyEnd(f filters, now time.Time) time.Time {
 }
 
 // latencyFor is the latency chart: the live window, or the zoom.
-func (s *server) latencyFor(f filters, z zoom, now time.Time, width float64) *hyperplot.Chart {
+func (s *server) latencyFor(f filters, z zoom, now time.Time, width float64) *plot.Chart {
 	if z.on() {
 		return zoomedLatencyChart(f, z, now, width, s.loc)
 	}
@@ -360,7 +360,7 @@ func (s *server) latencyPoller(f filters, z zoom, now time.Time, width float64) 
 	return latencyPoller{URL: u, Tag: hx.Tag(resp), Body: body}, nil
 }
 
-// latency answers three kinds of request on one URL (docs/spec.md §5.4):
+// latency answers three kinds of request on one URL (spec/spec.md §5.4):
 //
 //   - a brush (hp-x0 and hp-x1, from a drag or the zoom form) zooms in;
 //   - zoom=out (the "Back to live" link) returns to the live window;
@@ -544,7 +544,7 @@ func (s *server) throughputStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// retry: sets how long hx-sse waits before it reconnects a stream that
-	// dropped (docs/spec.md §4.5 SHOULD); without it hx-sse falls back to
+	// dropped (spec/spec.md §4.5 SHOULD); without it hx-sse falls back to
 	// 500 ms. hx.Stream repeats the field on the first message, because
 	// hx-sse 4.0.2 ignores a retry that arrives on its own.
 	if err := stream.Retry(2 * time.Second); err != nil {
@@ -615,10 +615,10 @@ func chartWidth(r *http.Request) float64 {
 }
 
 // body renders a chart with its data table.
-func (s *server) body(c *hyperplot.Chart) (template.HTML, error) { return s.bodyWith(c, "") }
+func (s *server) body(c *plot.Chart) (template.HTML, error) { return s.bodyWith(c, "") }
 
 // bodyWith renders a chart, then extra, then the chart's data table.
-func (s *server) bodyWith(c *hyperplot.Chart, extra template.HTML) (template.HTML, error) {
+func (s *server) bodyWith(c *plot.Chart, extra template.HTML) (template.HTML, error) {
 	svg, err := c.HTML()
 	if err != nil {
 		return "", err

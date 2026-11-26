@@ -316,7 +316,7 @@ func TestPTagFollowsMinutes(t *testing.T) {
 	}
 }
 
-// TestWidth checks that hp-w sets the rendered width (docs/spec.md §4.6),
+// TestWidth checks that hp-w sets the rendered width (spec/spec.md §4.6),
 // clamped, and that a bad value falls back to the default.
 func TestWidth(t *testing.T) {
 	h := newTestServer(t).routes()
@@ -338,7 +338,7 @@ func TestWidth(t *testing.T) {
 
 // TestSelect checks the drill-down: a select of the over-limit chart and
 // the tile link both open the sensor and push its page URL; anything else
-// selects nothing and swaps nothing (docs/spec.md §5.2).
+// selects nothing and swaps nothing (spec/spec.md §5.2).
 func TestSelect(t *testing.T) {
 	h := newTestServer(t).routes()
 	for _, target := range []string{
@@ -431,7 +431,7 @@ func TestBrush(t *testing.T) {
 }
 
 // TestNewZoom checks the zoom limits, that a range wholly outside the data
-// is refused (docs/spec.md §7), and that a zoom fed back in at the same
+// is refused (spec/spec.md §7), and that a zoom fed back in at the same
 // clock is the same window (so zoomFromQuery can tell it is canonical).
 func TestNewZoom(t *testing.T) {
 	now := epoch

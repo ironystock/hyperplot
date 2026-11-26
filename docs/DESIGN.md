@@ -9,7 +9,7 @@ sliding-window animation, select and brush gestures, and responsive
 re-rendering. The Go core uses only the standard library.
 
 Since rev 2 ([ADR 0005](adr/0005-htmx-community-first.md)) the contract
-between any server and the extension is [spec.md](spec.md), the wire
+between any server and the extension is [spec.md](../spec/spec.md), the wire
 specification (spec version 1). It is normative for markup, attributes,
 request parameters, events and swap behaviour; where this document and
 spec.md overlap, spec.md wins, and a change to one changes the other in the
@@ -39,7 +39,7 @@ one of them in the same change.
    `internal/` import only the standard library. The JS client has no runtime
    dependencies and needs no build step.
 7. **Any server (rev 2).** The extension's contract with the server is a
-   language-neutral wire spec ([spec.md](spec.md)) with conformance
+   language-neutral wire spec ([spec.md](../spec/spec.md)) with conformance
    fixtures, so a Python, PHP or Ruby server can produce the same live
    charts. The Go library is the reference implementation, not a
    requirement.
@@ -51,8 +51,12 @@ data processing.
 ## Module layout
 
 ```
-github.com/ironystock/hyperplot   (module root, Go ≥ 1.24)
-├── *.go                 package hyperplot: Chart, marks, render, theme/CSS, Table, Sparkline
+github.com/ironystock/hyperplot   (module root: go.mod and docs only, Go ≥ 1.24)
+├── plot/                package plot, the reference server: Chart, marks, render,
+│                        theme/CSS, Table, Sparkline (plot/testdata/: golden SVG files,
+│                        plot/testdata/preview/: standalone copies)
+├── spec/                the language-neutral contract: spec.md (wire spec),
+│                        conformance/ (fixtures for every language), hpcheck/ (checker)
 ├── scale/               public: Linear, Time, Band scales; ticks; number formatting
 ├── hx/                  public: htmx 4 server helpers (PTag, SSE stream, partials, sizing)
 ├── client/              hx-plot.js (the htmx 4 extension, npm htmx-ext-plot), hx-plot.css,
@@ -70,10 +74,8 @@ github.com/ironystock/hyperplot   (module root, Go ≥ 1.24)
 │                        theming, sparkline-table, standalone-svg (static)
 ├── examples/python/,    Level 3 servers in Python and Node, standard library only
 │   examples/node/       (not Go packages; see "Testing standards")
-├── tools/hpcheck/       conformance checker for servers in any language (Python)
-├── testdata/            golden SVG files (testdata/preview/: standalone copies;
-│                        testdata/conformance/: wire-spec fixtures for every language)
-└── docs/                spec.md (wire spec), DESIGN.md (this file), adr/, htmx.md guide,
+├── .github/             CI, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, GOVERNANCE
+└── docs/                DESIGN.md (this file), adr/, htmx.md guide, brand/,
                          documentation tests
 ```
 
@@ -89,10 +91,10 @@ listed under [Roadmap](#roadmap).
 
 **Rev 2 (spec 1) is built, and the two reported bugs are fixed; the client
 size budget and the release steps are open** (Roadmap, "Rev 2: open" and
-"Releasing"). Servers in Python and Node and the checker `tools/hpcheck/`
+"Releasing"). Servers in Python and Node and the checker `spec/hpcheck/`
 now show the spec without Go (Roadmap, "Rev 2: open", item 2).
-[spec.md](spec.md), [ADR 0005](adr/0005-htmx-community-first.md) and the
-fixtures in `testdata/conformance/` were revised after a design review by
+[spec.md](../spec/spec.md), [ADR 0005](adr/0005-htmx-community-first.md) and the
+fixtures in `spec/conformance/` were revised after a design review by
 three critics (findings and resolutions in the rev-2 workspace notes); the
 sections of this document marked "(rev 2)" describe what rev 2 added. The
 documentation is repositioned around the extension: the README, the
@@ -110,7 +112,7 @@ regression tests for both bugs. The Go reference server is now complete
 for spec 1 (Level 3): CR in element text is written as `&#13;`, the
 stylesheet has the spec-1 additions, `hx` reads the gesture parameters
 (`Selected`, `Brushed`), and `TestConformance` reproduces every reference
-file of `testdata/conformance/` byte for byte and passes every server
+file of `spec/conformance/` byte for byte and passes every server
 assertion. The client is built too: `client/hx-plot.js` registers `plot`
 and starts from `init` (honouring `htmx.config.extensions`), reads the
 container attributes `hx-plot:autosize` and `hx-plot:brush` in every htmx
@@ -120,7 +122,7 @@ parameters; brushing is in the companion `hx-plot-brush.js` and the Safari
 path tween in `hx-plot-tween.js` (see "Client extension"). Still open on
 the client side: the core is over its size budget (see "Size budget").
 
-- Root package (`hyperplot`): complete. `chart.go` (API), `build.go`
+- Package `plot` (the reference server, `plot/`): complete. `chart.go` (API), `build.go`
   (validation, slots, keys, stacking, extents), `layout.go`, `legend.go`,
   `axes.go`, `curve.go`, `marks_render.go`, `labels.go`, `hover.go` +
   `tipsjson.go`, `desc.go`, `format.go`, `theme.go`, `table.go`,
@@ -221,13 +223,13 @@ the client side: the core is over its size budget (see "Size budget").
 - `examples/python/` and `examples/node/`: Level 3 servers on each
   language's standard library, with the same URLs, tested by `unittest`
   and `node --test` (see "Testing standards").
-- `tools/hpcheck/`: the conformance checker in standard-library Python
+- `spec/hpcheck/`: the conformance checker in standard-library Python
   (universal checks, fixture assertions, live server checks), with its own
   `unittest` suite that mutates valid charts to prove each check fails.
 - `docs/`: `snippets_test.go` and `config_test.go` check the documentation's
   samples (see "Testing standards").
 
-## Public API (package hyperplot)
+## Public API (package plot)
 
 ```go
 type Chart struct {
@@ -350,7 +352,7 @@ the `Chart` or its slices.
 
 The client extension, the CSS, and the tests all rely on this structure. Change it
 only deliberately. The wire-level requirements (what any server must emit)
-are in [spec.md §3–4](spec.md#3-the-chart-document-level-1); this section is
+are in [spec.md §3–4](../spec/spec.md#3-the-chart-document-level-1); this section is
 the Go renderer's exact output, which meets Level 3.
 
 ```xml
@@ -730,7 +732,7 @@ Rules:
   vector-effect: non-scaling-stroke` (see "Accessibility" for why).
 - `client/hx-plot.css` is `Stylesheet()` byte for byte, for servers in other
   languages; `TestStylesheetFile` checks it (and fails when it is missing:
-  npm would pack without it silently) and `go test . -run StylesheetFile
+  npm would pack without it silently) and `go test ./plot -run StylesheetFile
   -update` writes it. `client/build.mjs` also refuses to pack when a
   `package.json` "files" entry is missing, and `client/LICENSE` is the
   repository's (checked by `client`'s `TestPackageFiles`).
@@ -974,7 +976,7 @@ bodies alike without making the server buffer an upload, and they never
 fail or panic on bad input: a missing or empty value is `ok == false`, an
 unparsable one an error (prefixed `hyperplot: `) from the typed accessor,
 which then returns zero values. The raw strings are untrusted input;
-escape them if they are echoed. `testdata/conformance/params.json` lists
+escape them if they are echoed. `spec/conformance/params.json` lists
 the cases (its `server` section, run by `TestConformanceParams`).
 
 Both parsers are written by hand to accept exactly what the Python helpers
@@ -1118,7 +1120,7 @@ tag after it. It works with or without htmx (pointer and keyboard features
 use event delegation on `document`). v0 was `client/hyperplot.js`,
 registered `htmx.registerExtension("hyperplot", …)`; rev 2 renamed the
 file to `hx-plot.js`, registers `plot`, and implements
-[spec.md §6](spec.md#6-the-extension). The bullets under "Behaviour"
+[spec.md §6](../spec/spec.md#6-the-extension). The bullets under "Behaviour"
 describe v0 behaviour, which rev 2 keeps (with the rev 2 names), followed
 by the rev 2 implementation.
 
@@ -1351,7 +1353,7 @@ readable, vendorable files.
 
 ### Rev 2 implementation (spec 1)
 
-Normative behaviour is in [spec.md §6](spec.md#6-the-extension); this is how
+Normative behaviour is in [spec.md §6](../spec/spec.md#6-the-extension); this is how
 the reference client does it. It was revised after a three-critic design
 review (htmx conventions, a non-Go implementer, interaction and
 accessibility); `.qa/rev2/design.md` lists each finding and its resolution.
@@ -1565,7 +1567,7 @@ while building:
   of spec.md §6.6), `timeValue` (ms → canonical time value), `startTransform`
   (per element kind) and `gestureParams` to `nearestIndex`, `nearestPoint`,
   `placeTooltip`, `keyOrder`, `parseTips`, `keepIndex` and `announcement`. A
-  new `client/conformance.test.mjs` reads `../testdata/conformance/` and
+  new `client/conformance.test.mjs` reads `../spec/conformance/` and
   checks every `client` expectation, through the pure helpers and through
   `fakedom.mjs` (which grows `click` with `detail`, pointer capture and
   `lostpointercapture`, `Element.animate`/`getAnimations` recording, enough
@@ -1582,7 +1584,7 @@ while building:
   `.hp-brush{fill:Highlight;fill-opacity:.25}`;
   `:is([hx-plot\:brush],[data-hx-plot\:brush]) .hp{cursor:crosshair}` so a
   brushable chart shows it (default spellings only). `client/hx-plot.css`
-  is byte-identical to `hyperplot.Stylesheet()`; a root-package test
+  is byte-identical to `plot.Stylesheet()`; a root-package test
   compares them and `-update` rewrites the file.
 
 ## Live-update patterns (documented in docs/htmx.md, shown in the example)
@@ -1628,8 +1630,8 @@ Python.
 ## Testing standards
 
 - Table-driven unit tests per package, with `-race` clean.
-- **Golden files**: `testdata/*.svg`, regenerated with `go test . -run Golden -update`.
-  Cases marked `preview` also write a `Standalone` copy to `testdata/preview/`
+- **Golden files**: `plot/testdata/*.svg`, regenerated with `go test ./plot -run Golden -update`.
+  Cases marked `preview` also write a `Standalone` copy to `plot/testdata/preview/`
   for opening directly in a browser. Every golden file is also parsed with
   `encoding/xml` to assert well-formedness, and a file that no golden case
   writes (left over from a renamed case) fails.
@@ -1673,9 +1675,9 @@ Python.
   examples/python` from the root (`make py`, Python 3.10+, standard library
   only) and `node --test` inside `examples/node` (`make nodeex`). `go test
   ./...` never sees them, but they test against files this repository owns
-  (spec Appendix B, `testdata/conformance/`, `client/`), so `make test`,
+  (spec Appendix B, `spec/conformance/`, `client/`), so `make test`,
   `make check` and CI run both, and the checker's own tests
-  (`python3 -m unittest discover tools/hpcheck`, also in `make py`).
+  (`python3 -m unittest discover spec/hpcheck`, also in `make py`).
   `make conformance` (in `make test`, `make check` and a CI job) runs the
   checker on what those tests never read: the files the Python and Node
   fixture renderers write (`hpcheck fixtures --out DIR --require
@@ -1791,12 +1793,12 @@ Python.
   `"noSwap":[204,304,"4xx","5xx"]`. `docs/quickstart_test.go` checks that
   `examples/basic/main.go` is the README quick start, so the program CI
   builds and lints is the one readers copy.
-- **Conformance fixtures (rev 2)**: `testdata/conformance/` (format in its
+- **Conformance fixtures (rev 2)**: `spec/conformance/` (format in its
   README). The root-package `TestConformance` (`conformance_test.go`) maps
   each `input.json` to a `Chart` (a small decoder that rejects unknown
   fields, so a fixture that grows a field fails until the decoder learns
   it), renders it and its table, compares them byte for byte with the
-  reference files (`go test . -run Conformance -update` rewrites them;
+  reference files (`go test ./plot -run Conformance -update` rewrites them;
   review like goldens), and runs every `server` assertion, `should` ones
   included, with a selector matcher over `encoding/xml`
   (`specdom_test.go`: the README's subset of type and `*`, class, id,
@@ -1810,7 +1812,7 @@ Python.
   the MUSTs of spec.md that hold whatever the data: the root contract and
   first children, no `style`/`on*`/`script`, no external references
   (`href`/`src` only to `#…`, every `url(…)` to an id in the chart, the
-  same lists as `tools/hpcheck`), no `transform` on the root or
+  same lists as `spec/hpcheck`), no `transform` on the root or
   in the slid groups, ids unique and in the `{id}-*` namespace, series
   groups and slots, bar ids under their series key, geometry attributes in
   the canonical number form with `d0 < d1`, one hover group and payload,
@@ -1829,7 +1831,7 @@ Python.
   chart and table to prove each check can fail. In `client/`,
   `conformance.test.mjs` runs every `client` expectation and the `client`
   cases of `params.json`. The evidence that the spec needs no Go is
-  `tools/hpcheck/`, the same checks in standard-library Python, run by
+  `spec/hpcheck/`, the same checks in standard-library Python, run by
   `make conformance` on the Python and Node examples' fixture output and
   servers (see "Example servers in other languages" above and Roadmap,
   "Rev 2: open", item 2). The server guide's Python
@@ -1859,8 +1861,8 @@ the same rule as everything else here (this document first, then the code).
 
 **Rev 2 (spec 1): closed**
 
-The design is [spec.md](spec.md), [ADR 0005](adr/0005-htmx-community-first.md)
-and `testdata/conformance/`. The two maintainer-reported bugs
+The design is [spec.md](../spec/spec.md), [ADR 0005](adr/0005-htmx-community-first.md)
+and `spec/conformance/`. The two maintainer-reported bugs
 (2026-11-26) are closed, and the renderer, `hx`, the client, the dashboard
 and the docs are built; what rev 2 leaves open is listed under "Rev 2:
 open" below.
@@ -1905,7 +1907,7 @@ open" below.
    `.hp{touch-action:pan-y pinch-zoom}`, the brush rules and the brushable
    cursor in `Theme.CSS`; goldens regenerated; `TestConformance` and the
    spec checks in `FuzzRender`. **Done**, including `client/hx-plot.css`
-   (`go test . -run StylesheetFile -update`, which must be re-run after any
+   (`go test ./plot -run StylesheetFile -update`, which must be re-run after any
    change to `Theme.CSS`; the test fails otherwise).
 - **hx:** `Selected`, `Brushed`, `Brush.TimesIn` (with the
    `datetime-local` form) and the `Param*` constants, with tests over
@@ -1989,7 +1991,7 @@ open" below.
    bars, SSE, select, brush) using a verbatim copy of spec.md Appendix B,
    which its tests compare with the spec; `examples/node/` is the same
    server on Node's built-ins. The checker is its own tool,
-   `tools/hpcheck/` (one standard-library Python file), rather than a
+   `spec/hpcheck/` (one standard-library Python file), rather than a
    script in the example's directory: it runs every fixture's
    `checks.json` and the universal checks of `checkSpec` on any renderer's
    output, and checks a running server over HTTP. Both examples' fixture

@@ -17,7 +17,7 @@ var htmxConfigPages = []string{
 	"README.md",
 	"docs/htmx.md",
 	"docs/DESIGN.md",
-	"docs/spec.md",
+	"spec/spec.md",
 	"docs/implementing-a-server.md",
 	"client/README.md",
 	"examples/dashboard/templates/page.html",
@@ -105,7 +105,7 @@ func TestCheckHtmxConfig(t *testing.T) {
 // test files there and passes without running the client suite; the
 // client tests run with `node --test` inside client/ (make client).
 func TestNoRootClientTestCommand(t *testing.T) {
-	files := []string{"README.md", "CONTRIBUTING.md", "CLAUDE.md", "client/README.md", "Makefile"}
+	files := []string{"README.md", ".github/CONTRIBUTING.md", "CLAUDE.md", "client/README.md", "Makefile"}
 	docs, err := filepath.Glob(filepath.Join(root, "docs", "*.md"))
 	if err != nil {
 		t.Fatal(err)

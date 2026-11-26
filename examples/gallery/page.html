@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="static/hx-plot.css">
 <link rel="stylesheet" href="static/app.css">
 {{- /* No htmx on this page, and so no htmx-config meta: hx-plot.js alone.
-       Finding no htmx, it starts in standalone mode (docs/spec.md §6.10)
+       Finding no htmx, it starts in standalone mode (spec/spec.md §6.10)
        and enhances every inline chart. defer is fine: nothing waits for
        it. */}}
 <script defer src="static/hx-plot.js"></script>
@@ -64,7 +64,7 @@
         {{.SVG}}
         {{- /* The table is the chart's accessible equivalent, and for a line
                chart the only way to read values without script
-               (docs/spec.md §3.8). */}}
+               (spec/spec.md §3.8). */}}
         <details class="table-view"{{if .TableOpen}} open{{end}}><summary>View as table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{{.Title}}: data table">{{.Table}}</div></details>
         {{- end}}
       </div>

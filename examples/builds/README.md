@@ -84,14 +84,14 @@ use a CDN).
 Every number comes from `data.go`: a build is a pure function of its
 pipeline, the hour it started and its index within the hour, and it counts
 once it has finished. So two requests between two finishes render the same
-bytes, and the content tag ([spec §4.5](../../docs/spec.md#45-transports),
+bytes, and the content tag ([spec §4.5](../../spec/spec.md#45-transports),
 [pattern 1](../../docs/htmx.md#pattern-1-polling-with-content-tags)) turns
 every such poll into a bodiless 304. The durations window ends at the next
 whole hour rather than at now, for the same reason.
 
 The two gestures are ordinary htmx requests with `hp-*` parameters
-([spec §5](../../docs/spec.md#5-gestures-level-3)). The brush follows
-[spec §5.4](../../docs/spec.md#54-example-brush-to-zoom-a-live-chart) and
+([spec §5](../../spec/spec.md#5-gestures-level-3)). The brush follows
+[spec §5.4](../../spec/spec.md#54-example-brush-to-zoom-a-live-chart) and
 [pattern 6](../../docs/htmx.md#pattern-6-brush-to-zoom): the zoom changes
 the poller's own URL, so the answer replaces the poller (`outerMorph`),
 and `hx-sync` puts brushes and polls on one queue so a late poll cannot
@@ -102,7 +102,7 @@ window the toolbar and the address bar do not name. The select follows
 [pattern 5](../../docs/htmx.md#pattern-5-drill-down-on-select): `hp-x` is
 the bar's category, the day label, which the server matches exactly; a
 select it cannot match is no selection. Both have plain-HTML equivalents
-([spec §5.5](../../docs/spec.md#55-equivalents-in-plain-html)).
+([spec §5.5](../../spec/spec.md#55-equivalents-in-plain-html)).
 
 The filter form is [pattern 3](../../docs/htmx.md#pattern-3-filters), with
 colors pinned per pipeline

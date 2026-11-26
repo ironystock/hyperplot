@@ -2,7 +2,7 @@
 // from data.mjs for a time window. Ids are explicit and stable ('latency',
 // 'throughput', 'requests', 'detail', as in the Python example): htmx's
 // morph matches the old frame to the new one by id, and a gesture sends it
-// as hp-chart, so an id is part of the wire (docs/spec.md §4.1, §5.1).
+// as hp-chart, so an id is part of the wire (spec/spec.md §4.1, §5.1).
 import { clock, heading, render } from './render.mjs'
 import {
   LATENCY_LIVE, LATENCY_NAMES, LATENCY_STEP, MINUTE, REGIONS, REQUEST_HISTORY, REQUEST_MINUTES,
@@ -28,7 +28,7 @@ export function liveWindow(now) {
 
 /**
  * zoomWindow turns a requested range into one this chart can show, or
- * null. A range that parses is still input (docs/spec.md §7): it is
+ * null. A range that parses is still input (spec/spec.md §7): it is
  * bounded by the data before it drives any date arithmetic. Whole seconds,
  * at least MIN_ZOOM (widened around its middle, but never past the last
  * whole second), at most MAX_ZOOM (keeping its newest end), and inside the
@@ -121,7 +121,7 @@ export function requestsChart(now, width) {
 
 /**
  * findMinute matches a select's hp-x against the categories this server
- * wrote (docs/spec.md §5.2): one of the last REQUEST_HISTORY closed
+ * wrote (spec/spec.md §5.2): one of the last REQUEST_HISTORY closed
  * minutes, so a stale page can still drill into a minute that has scrolled
  * off. Returns the minute's index, or null for an unknown value.
  */

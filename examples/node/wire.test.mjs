@@ -1,5 +1,5 @@
 // wire.test.mjs: the wire helpers against the spec's own examples and the
-// server cases of testdata/conformance/params.json.
+// server cases of spec/conformance/params.json.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { html, raw } from './page.mjs'

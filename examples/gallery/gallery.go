@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 // entry is one card. Exactly one of Chart and Sparks is set.
 type entry struct {
 	Title     string
 	Note      string // what to look at, one or two sentences
-	Chart     func() *hyperplot.Chart
-	Sparks    func() []hyperplot.Sparkline
+	Chart     func() *plot.Chart
+	Sparks    func() []plot.Sparkline
 	OpenTable bool // show the data table unfolded
 }
 

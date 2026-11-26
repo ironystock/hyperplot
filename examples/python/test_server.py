@@ -274,7 +274,7 @@ class ServerTest(unittest.TestCase):
 
     def test_odd_parameters_never_fail(self):
         """Every server case of params.json, on every chart URL (spec §7)."""
-        with open(os.path.join(ROOT, 'testdata', 'conformance', 'params.json'), encoding='utf-8') as f:
+        with open(os.path.join(ROOT, 'spec', 'conformance', 'params.json'), encoding='utf-8') as f:
             cases = json.load(f)['server']
         extra = ['hp-w=1e999', 'hp-w=%00', 'from=x&to=y', 'zoom=out&hp-x0=a&hp-x1=b', 'hp-x=%ff%fe', 'theme=dark']
         for q in [c['query'] for c in cases] + extra:

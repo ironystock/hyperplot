@@ -33,7 +33,7 @@ import { buildGo, cleanup, launch, python, shot, startServer, startStatic, tempD
 // speed flag, so a live chart's window moves within a few seconds.
 const SPEED = '30'
 
-// What counts as a chart: a chart (svg.hp, docs/spec.md §1) or a
+// What counts as a chart: a chart (svg.hp, spec/spec.md §1) or a
 // sparkline (svg.hp-spark with role="img", as Sparkline draws it). The
 // 10x10 color-key swatches of the dashboard and builds pages are
 // svg.hp-spark too, but aria-hidden decorations with no role, so they

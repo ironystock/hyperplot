@@ -60,19 +60,19 @@ go run ./examples/recipes/brush-zoom -addr :9000
 `hx-plot-brush.js` turns a drag (or Shift+arrows and Enter) into an
 `htmx:plot:brush` event, and the extension adds `hp-chart`, `hp-x0` and
 `hp-x1` to the request that the wrapper's `hx-trigger` makes
-([spec §5.3](../../../docs/spec.md#53-brush)). The values come from the
+([spec §5.3](../../../spec/spec.md#53-brush)). The values come from the
 browser, so the server orders them, ignores a range that does not parse,
 clips it to the data it has and widens one under a minute. It answers with the polling element
 itself, because only an outer swap can change that element's `hx-get`,
 and that is what keeps later polls zoomed. The `hx-sync` attributes put
 the brush, the form and the polls on the `.zoom` element's queue, so a late
 poll cannot swap the unzoomed chart back
-([§5.4](../../../docs/spec.md#54-example-brush-to-zoom-a-live-chart)).
+([§5.4](../../../spec/spec.md#54-example-brush-to-zoom-a-live-chart)).
 
 `HX-Push-Url` names the page URL of the zoom, and the page handler reads
 it, so a bookmark, a reload and Back all show the same view. The from/to
 form and the polite status line are the plain-HTML equivalents of
-[§5.5](../../../docs/spec.md#55-equivalents-in-plain-html). See
+[§5.5](../../../spec/spec.md#55-equivalents-in-plain-html). See
 [Pattern 6: brush to zoom](../../../docs/htmx.md#pattern-6-brush-to-zoom)
 in the htmx guide; the [dashboard](../../dashboard/) also keeps keyboard
 focus across Back with a small script.

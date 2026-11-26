@@ -39,7 +39,7 @@ go run ./examples/recipes/theming -addr :9000
 
 | What | Where |
 |---|---|
-| `hyperplot.DefaultTheme()`, change some tokens | `main.go`: `brandTheme` |
+| `plot.DefaultTheme()`, change some tokens | `main.go`: `brandTheme` |
 | A palette value of `var(--brand, #0b6bcb)` | `main.go`: `brandTheme`; `--brand` in `app.css` |
 | `Theme.CSS()` served as a stylesheet | `main.go`: `routes` |
 | `<html data-theme="…">` from `?theme=` | `main.go`: `page`; `page.html` |
@@ -50,7 +50,7 @@ go run ./examples/recipes/theming -addr :9000
 
 Charts carry classes, never colors: each series is `hp-s1` … `hp-s8` and
 marks use `currentColor`, so the stylesheet decides every color through the
-`--hp-*` custom properties ([spec §3.4](../../../docs/spec.md#34-presentation)).
+`--hp-*` custom properties ([spec §3.4](../../../spec/spec.md#34-presentation)).
 `Theme.CSS()` writes those properties for a light and a dark palette, the
 switch on `prefers-color-scheme` and `data-theme`, and the forced-colors
 rules ([CSS](../../../docs/DESIGN.md#css-themecss) in the design;

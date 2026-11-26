@@ -1,5 +1,5 @@
-// The client expectations of the conformance fixtures (testdata/conformance,
-// docs/spec.md): every "client" section of a checks.json and the "client"
+// The client expectations of the conformance fixtures (spec/conformance,
+// spec/spec.md): every "client" section of a checks.json and the "client"
 // cases of params.json, run against the reference files through the real
 // scripts (hx-plot.js and hx-plot-brush.js) in the fake browser of
 // fakedom.mjs. Each reference chart is drawn 1:1, so client coordinates
@@ -13,7 +13,7 @@ globalThis.__HYPERPLOT_TEST__ = true
 await import('./hx-plot.js')
 const { parseTips, frameOf } = globalThis.__hyperplotTest
 
-const FIXTURES = new URL('../testdata/conformance/', import.meta.url)
+const FIXTURES = new URL('../spec/conformance/', import.meta.url)
 const read = (path) => readFileSync(new URL(path, FIXTURES), 'utf8')
 const json = (path) => JSON.parse(read(path))
 const plain = (v) => JSON.parse(JSON.stringify(v))

@@ -15,7 +15,7 @@
 // reader's light or dark preference (the stylesheet's media query); set
 // Chart.Theme to pick other colors, here a palette that is always dark.
 // Shown on its own or through <img>, a chart gets only the native fallback
-// (docs/spec.md §3.7): no tooltips or keyboard reading, which need the
+// (spec/spec.md §3.7): no tooltips or keyboard reading, which need the
 // chart inline in a page with hx-plot.js. The same data always gives the
 // same bytes, so committed files diff cleanly.
 package main
@@ -30,7 +30,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ironystock/hyperplot"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 // index is a page that shows the files with <img> tags, as an email or a
@@ -78,12 +78,12 @@ func write(dir string) ([]file, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	d := hyperplot.DefaultTheme()
-	dark := hyperplot.Theme{Light: d.Dark, Dark: d.Dark} // dark whatever the reader prefers
+	d := plot.DefaultTheme()
+	dark := plot.Theme{Light: d.Dark, Dark: d.Dark} // dark whatever the reader prefers
 
 	charts := []struct {
 		name  string
-		chart *hyperplot.Chart
+		chart *plot.Chart
 	}{
 		{"latency.svg", latencyChart(nil)},        // nil: the default theme
 		{"latency-dark.svg", latencyChart(&dark)}, // the same chart, always dark
@@ -114,39 +114,39 @@ func write(dir string) ([]file, error) {
 
 // latencyChart is a fixed hour of latency in the given theme (nil for the
 // default). It is a report, not a live view, so it reads no clock.
-func latencyChart(theme *hyperplot.Theme) *hyperplot.Chart {
+func latencyChart(theme *plot.Theme) *plot.Chart {
 	start := time.Date(2026, 3, 3, 14, 0, 0, 0, time.UTC)
 	p50 := []float64{92, 95, 91, 98, 104, 101, 97, 99, 110, 118, 112, 104, 99}
 	p95 := []float64{188, 193, 185, 204, 231, 226, 214, 219, 262, 281, 247, 222, 210}
-	xs := make(hyperplot.Times, len(p50))
+	xs := make(plot.Times, len(p50))
 	for i := range xs {
 		xs[i] = start.Add(time.Duration(i) * 5 * time.Minute)
 	}
-	return &hyperplot.Chart{
+	return &plot.Chart{
 		ID:     "latency", // also the prefix of the ids inside the file
 		Title:  "API latency, Mar 3, 2026",
 		Width:  640,
 		Height: 300,
 		Theme:  theme, // used only by Standalone: inline charts take the page's stylesheet
-		Y:      hyperplot.Axis{Label: "ms", Unit: " ms", Zero: true},
-		Marks: []hyperplot.Mark{
-			hyperplot.Line{Name: "p50", X: xs, Y: p50},
-			hyperplot.Line{Name: "p95", X: xs, Y: p95},
-			hyperplot.RuleY{Y: 250, Label: "250 ms objective"},
+		Y:      plot.Axis{Label: "ms", Unit: " ms", Zero: true},
+		Marks: []plot.Mark{
+			plot.Line{Name: "p50", X: xs, Y: p50},
+			plot.Line{Name: "p95", X: xs, Y: p95},
+			plot.RuleY{Y: 250, Label: "250 ms objective"},
 		},
 	}
 }
 
 // deploysChart is a week of deploys per day, as bars.
-func deploysChart() *hyperplot.Chart {
-	return &hyperplot.Chart{
+func deploysChart() *plot.Chart {
+	return &plot.Chart{
 		ID:     "deploys",
 		Title:  "Deploys per day, week 10",
 		Width:  480,
 		Height: 260,
-		Marks: []hyperplot.Mark{hyperplot.Bar{
+		Marks: []plot.Mark{plot.Bar{
 			Name: "deploys",
-			X:    hyperplot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
+			X:    plot.Categories{"Mon", "Tue", "Wed", "Thu", "Fri"},
 			Y:    []float64{12, 19, 7, 15, 22},
 		}},
 	}

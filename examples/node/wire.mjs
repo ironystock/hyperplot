@@ -1,5 +1,5 @@
 // wire.mjs: the hx-plot wire helpers for Node, a port of the Python helpers
-// in docs/spec.md Appendix B (same names in camelCase), plus the key
+// in spec/spec.md Appendix B (same names in camelCase), plus the key
 // derivation of Appendix A and readers for the hp-* request parameters.
 //
 // Everything a server writes that the extension compares as text goes

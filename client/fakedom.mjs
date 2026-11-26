@@ -381,7 +381,7 @@ const decode = (s) =>
 
 /**
  * parseXML builds the elements of a well-formed XML document (such as a
- * reference chart from testdata/conformance) in doc, and returns the root.
+ * reference chart from spec/conformance) in doc, and returns the root.
  * Attribute values are normalized as XML requires (raw TAB, LF and CR read
  * as spaces before character references are decoded). Text between child
  * elements is dropped; an element without child elements keeps its text.

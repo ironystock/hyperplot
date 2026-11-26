@@ -3,11 +3,11 @@
 The `hx-plot` htmx extension doesn't care what language your server is
 written in. Your server sends a chart as SVG markup, answers ordinary htmx
 requests and reads a few request parameters, and the extension does the rest.
-The contract between the two is the [wire spec](spec.md). This guide walks
+The contract between the two is the [wire spec](../spec/spec.md). This guide walks
 through it by building a working server in Python with only the standard
 library: one live line chart that polls, slides as its time window moves,
 drills down on a click and zooms on a drag. It meets
-[Level 3](spec.md#21-server-levels), the highest level.
+[Level 3](../spec/spec.md#21-server-levels), the highest level.
 
 The code below is complete. Put the blocks in one file, in order, and it
 runs. It was tested with Python 3.13, htmx 4.0.2 and `hx-plot.js` 0.2.0 in
@@ -58,15 +58,15 @@ directory next to `server.py`:
 | `hx-sse.js` | htmx's server-sent events extension; only for the SSE variant |
 | `hx-plot.js` | the extension |
 | `hx-plot-brush.js` | its brushing companion, for drag to zoom |
-| `hx-plot.css` | the reference stylesheet. It colours series by slot and sets the `touch-action` that touch scrubbing needs ([§3.4](spec.md#34-presentation)) |
+| `hx-plot.css` | the reference stylesheet. It colours series by slot and sets the `touch-action` that touch scrubbing needs ([§3.4](../spec/spec.md#34-presentation)) |
 
 The package isn't on npm yet. Until it is, take the scripts from
 [`client/`](../client/) in this repository. `hx-plot.css` is byte for byte the
-Go library's `hyperplot.Stylesheet()`; in a checkout, `go test . -run
+Go library's `plot.Stylesheet()`; in a checkout, `go test ./plot -run
 StylesheetFile -update` writes it to `client/hx-plot.css`.
 
 Then save the Python block of the spec's
-[Appendix B](spec.md#appendix-b-an-exchange-and-helpers-in-python) as
+[Appendix B](../spec/spec.md#appendix-b-an-exchange-and-helpers-in-python) as
 `hp_wire.py`. Those helpers are part of the spec, and the rest of this guide
 imports them.
 
@@ -79,15 +79,15 @@ them exact rules:
   chart's x domain between frames to tell a moved window from a value change,
   and a select sends a row's key back for the server to match. Python's
   `str(2.0)` is `"2.0"` and `isoformat()` writes `+00:00`; the wire wants
-  `"2"` and `Z` ([§1.1](spec.md#11-value-forms)). Appendix B's `number`,
+  `"2"` and `Z` ([§1.1](../spec/spec.md#11-value-forms)). Appendix B's `number`,
   `time_value` and `epoch_ms` write the wire forms.
 - **HTML escaping isn't enough.** A chart must be well-formed XML with no
   raw CR byte, so `xml_text` and `xml_attr` also drop control characters and
-  write CR, TAB and LF as character references ([§3.6](spec.md#36-text-and-safety)).
+  write CR, TAB and LF as character references ([§3.6](../spec/spec.md#36-text-and-safety)).
   Series names and categories are often user input; escape every one.
 - **Ids come from keys.** A key is the FNV-1a hash of a string. When two
   strings collide, or two series share a name, the second gets the hash of
-  `name#1` ([§4.1](spec.md#41-identity), [Appendix A](spec.md#appendix-a-fnv-1a-keys)).
+  `name#1` ([§4.1](../spec/spec.md#41-identity), [Appendix A](../spec/spec.md#appendix-a-fnv-1a-keys)).
 - **Python strings can hold what UTF-8 can't.** A lone surrogate (from
   `json.loads`, or a `surrogateescape` decode) makes `str.encode()` raise, so
   one odd series name would take down the route. `xml_text` and `xml_attr`
@@ -246,14 +246,14 @@ def chart(cid, title, names, points, t0, t1, width, height=240, unit=' ms'):
 
 Going through it against the spec:
 
-- **The root** ([§3.2](spec.md#32-the-root-element)) has the chart's id,
+- **The root** ([§3.2](../spec/spec.md#32-the-root-element)) has the chart's id,
   class `hp` (and `hp-anim`, which turns on animated updates), `role="img"`,
   `tabindex="0"`, `aria-labelledby` pointing at `<title>` and
-  `aria-describedby` at `<desc>`, which must be its first two children ([§3.3](spec.md#33-required-and-conventional-descendants)).
+  `aria-describedby` at `<desc>`, which must be its first two children ([§3.3](../spec/spec.md#33-required-and-conventional-descendants)).
 - **`data-hp="1"`** is the spec version. **`data-hp-plot`**, **`data-hp-x`**
   and **`data-hp-y`** describe the scales actually used to draw this frame:
   the plot rectangle in viewBox units, the x domain in epoch milliseconds,
-  and the y domain ([§4.2](spec.md#42-geometry-attributes)). Write the domain
+  and the y domain ([§4.2](../spec/spec.md#42-geometry-attributes)). Write the domain
   exactly, unrounded: the extension compares it between frames, and a moved
   window slides.
 - **Series groups** sit inside `g.hp-marks`, one per series, with the id
@@ -261,11 +261,11 @@ Going through it against the spec:
   `data-hp-series`. Ids are how htmx's morph matches the old frame's elements
   to the new frame's, so they must stay the same from frame to frame.
 - **No `transform` attributes** on the marks, the x axis, the labels or the
-  hover group ([§3.3](spec.md#33-required-and-conventional-descendants)).
+  hover group ([§3.3](../spec/spec.md#33-required-and-conventional-descendants)).
   The extension slides those elements with a CSS transform, which would
   replace yours. Position with `x`, `y` and `d` instead.
 - **`g.hp-hover`** holds a hidden `line.hp-crosshair` and the payload in
-  `metadata.hp-tips` ([§3.5](spec.md#35-hover-metadata)). In mode `x` the
+  `metadata.hp-tips` ([§3.5](../spec/spec.md#35-hover-metadata)). In mode `x` the
   payload lists each x position (`xs`), the plot's top and bottom, and one
   row per position: a heading `t`, the row key `k` (the x value as a time
   value), and `[slot, name, value]` for every series, with `"–"` for a
@@ -275,7 +275,7 @@ Going through it against the spec:
   out of `xs`, the rows and the table. Step 3 uses this for the point just
   before the window's start, so the line reaches the left edge while it
   slides.
-- **The table** ([§3.8](spec.md#38-the-table-equivalent)) is the chart's
+- **The table** ([§3.8](../spec/spec.md#38-the-table-equivalent)) is the chart's
   accessible equivalent, and for a line chart the only way to read values
   without script. It has one row per payload row, in the same order and with
   the same formatted values. Its id is `{id}-table`, and each row's id is
@@ -339,7 +339,7 @@ def width(q):
 or the zoom form, and `from` and `to` from a bookmarked URL. A brush sends
 time values in UTC, and `<input type="datetime-local">` sends a time with no
 offset, which `parse_time_value` reads in the zone you pass (UTC here). The
-ends may arrive in either order ([§5.3](spec.md#53-brush)).
+ends may arrive in either order ([§5.3](../spec/spec.md#53-brush)).
 
 A range that parses is still input. `parse_time_value` accepts years 1 to
 9999, and `datetime.fromtimestamp` raises on many of them (on Windows, on
@@ -350,7 +350,7 @@ range drives a query or a `datetime`, and a range outside it gets a `204` like
 one that doesn't parse. Bound yours by what your data store holds.
 
 `width` reads `hp-w`, the width of the chart's container in CSS pixels,
-which the extension adds to requests ([§4.6](spec.md#46-size-parameters)).
+which the extension adds to requests ([§4.6](../spec/spec.md#46-size-parameters)).
 The height stays on the server: a container with no CSS height is as tall
 as the chart inside it, so a chart rendered at its container's height would
 grow on every poll.
@@ -428,7 +428,7 @@ The page is plain htmx. Reading it from the inside out:
   right away (so the chart may visibly resize once). That first poll is
   always a full `200`. After it, hx-ptag sends the tag of the last
   response, and an unchanged chart costs a `304`
-  ([§4.5](spec.md#45-transports)). The `hx-ptag` attribute seeds the tag
+  ([§4.5](../spec/spec.md#45-transports)). The `hx-ptag` attribute seeds the tag
   with the first paint's, which pays off only on a page that polls without
   `load` and renders the chart at its container's width: htmx 4.0.2 fires
   `load` before hx-ptag reads the seed, so the `load` poll never sends it.
@@ -439,13 +439,13 @@ The page is plain htmx. Reading it from the inside out:
   needs a polling element whose `hx-get` carries the range. The two `hx-sync`
   attributes put the brush and the polls on one queue, so a poll that was
   already in flight can't swap the unzoomed chart back
-  ([§5.4](spec.md#54-example-brush-to-zoom-a-live-chart)).
+  ([§5.4](../spec/spec.md#54-example-brush-to-zoom-a-live-chart)).
 - **`section` selects.** A click (or Enter, or a second tap on touch) on a
   point dispatches `htmx:plot:select`, which bubbles up to the `section`; its
   request carries `hp-chart`, `hp-x` (the row's key) and, when the pointer
   was on a series, `hp-series`.
 - **The form is the plain HTML equivalent** of the brush
-  ([§5.5](spec.md#55-equivalents-in-plain-html)): keyboard and screen-reader
+  ([§5.5](../spec/spec.md#55-equivalents-in-plain-html)): keyboard and screen-reader
   users, and touch users, who can't brush in spec 1, can zoom with it. It
   sends the same parameters. Without JavaScript it submits to `/`, which
   reads them too. The equivalent for select is a link per table row to
@@ -566,11 +566,11 @@ What each route does:
   `hp-x1`) with the whole polling element, re-rendered with its x domain fixed
   to the range, so the axes and labels are the server's again. `HX-Push-Url`
   names the page URL for that range, so the zoom can be bookmarked and Back
-  undoes it ([§5.3](spec.md#53-brush)). A range that doesn't parse gets a
+  undoes it ([§5.3](../spec/spec.md#53-brush)). A range that doesn't parse gets a
   `204`, which swaps nothing.
 - **`/detail` answers a select.** `hp-x` is a key the server wrote into the
   chart, so it can be matched exactly. A missing or unknown key is no
-  selection, not an error ([§5.2](spec.md#52-select)). "Unknown" includes a
+  selection, not an error ([§5.2](../spec/spec.md#52-select)). "Unknown" includes a
   well-formed time outside the data: like `window`, `detail` checks the key
   against the `HISTORY` it has before the key reaches `when` and
   `datetime.fromtimestamp`, which raises on year 1 or 9999 on Windows.
@@ -589,7 +589,7 @@ What each route does:
   a `204`, and a frame that fails to render is skipped, not a reason to end
   the stream. To resize or zoom a streamed chart, swap in a new stream
   element with `innerHTML` or `outerHTML`; a morph leaves the old stream
-  reconnecting. [§4.5](spec.md#45-transports) has the details and a
+  reconnecting. [§4.5](../spec/spec.md#45-transports) has the details and a
   container that does both.
 
 Every route answers HTML. Errors are a `204` (keep what's on screen) rather
@@ -619,24 +619,24 @@ Open http://127.0.0.1:8000/ and try:
 
 ## Check your output
 
-The fixtures in [`testdata/conformance/`](../testdata/conformance/README.md)
+The fixtures in [`spec/conformance/`](../spec/conformance/README.md)
 pin the spec to bytes. Each fixture has an `input.json` that describes a
 chart independently of any language, and a `checks.json` whose `server`
 assertions test what the spec requires of any server's output, not the
 reference server's exact bytes. Render each `input.json` your renderer
 supports and run the assertions against your output; the
-[README](../testdata/conformance/README.md#checksjson) defines the selector
+[README](../spec/conformance/README.md#checksjson) defines the selector
 subset and every field. `line-time` and `empty` fit the renderer in this
 guide, and its output passes their assertions, including the `should` ones.
 
-[hpcheck](../tools/hpcheck/README.md) runs them for you: one
+[hpcheck](../spec/hpcheck/README.md) runs them for you: one
 standard-library Python file, the language-neutral form of the Go
 reference's own spec tests. Write your renderer's output for each fixture
 to `OUT/<fixture>/chart.svg` (and `table.html`), then, from the repository
 root:
 
 ```sh
-python3 tools/hpcheck/hpcheck.py fixtures --out OUT --require line-time,empty
+python3 spec/hpcheck/hpcheck.py fixtures --out OUT --require line-time,empty
 ```
 
 It also checks a running server against the spec's wire rules (content
@@ -644,7 +644,7 @@ tags and `304`s, `hp-w`, gesture parameters, SSE frames), as a small
 `hpcheck.json` describes it:
 
 ```sh
-python3 tools/hpcheck/hpcheck.py server http://127.0.0.1:8000 --config hpcheck.json
+python3 spec/hpcheck/hpcheck.py server http://127.0.0.1:8000 --config hpcheck.json
 ```
 
 Every failure names the spec section it breaks. The complete servers in
@@ -673,7 +673,7 @@ at your server for the same smoke test.
 ## Conformance checklist
 
 Levels are cumulative. State the level your server meets
-([§2.1](spec.md#21-server-levels)).
+([§2.1](../spec/spec.md#21-server-levels)).
 
 ### Level 1: static
 
@@ -681,11 +681,11 @@ The page gets native tooltips on bars and dots, and with the extension,
 tooltips, a crosshair and keyboard reading on any page.
 
 - [ ] Each chart is an inline `<svg>` that is well-formed XML, contains no
-      raw CR byte, and has the root attributes of [§3.2](spec.md#32-the-root-element):
+      raw CR byte, and has the root attributes of [§3.2](../spec/spec.md#32-the-root-element):
       `xmlns`, `id`, class `hp`, `viewBox`, `role="img"`, `aria-labelledby`,
       `aria-describedby`, `tabindex="0"`, `data-hp="1"`.
 - [ ] `<title id="{id}-title">` and `<desc id="{id}-desc">` are its first two
-      child elements ([§3.3](spec.md#33-required-and-conventional-descendants)).
+      child elements ([§3.3](../spec/spec.md#33-required-and-conventional-descendants)).
 - [ ] Exactly one `g.hp-hover` holding one `metadata.hp-tips`; a hidden
       `line.hp-crosshair` in mode `x`, a hidden `rect.hp-band-hl` before the
       marks in mode `band`.
@@ -693,19 +693,19 @@ tooltips, a crosshair and keyboard reading on any page.
       with a unique slot class `hp-s1` to `hp-s8` and `data-hp-series`.
 - [ ] No `transform` on the root, the marks, labels, x axis and hover
       groups or anything inside them; no `svg`, `symbol` or `use` there.
-- [ ] The payload follows [§3.5](spec.md#35-hover-metadata): the mode rule,
+- [ ] The payload follows [§3.5](../spec/spec.md#35-hover-metadata): the mode rule,
       `xs` non-decreasing, one row per entry, every series in every row in
       modes `x` and `band`, preformatted values, `"–"` for missing ones,
       `<`, `>` and `&` escaped in the JSON.
-- [ ] Every string from data is escaped per [§3.6](spec.md#36-text-and-safety),
+- [ ] Every string from data is escaped per [§3.6](../spec/spec.md#36-text-and-safety),
       including control characters; no `<script>`, `<foreignObject>`,
       `style` or `on*` attributes, and no external references.
 - [ ] Bars and dots have a native `<title>` (SHOULD,
-      [§3.7](spec.md#37-native-fallback)).
-- [ ] A table equivalent per [§3.8](spec.md#38-the-table-equivalent) next to
+      [§3.7](../spec/spec.md#37-native-fallback)).
+- [ ] A table equivalent per [§3.8](../spec/spec.md#38-the-table-equivalent) next to
       each chart (SHOULD; the MUSTs apply when you offer one).
 - [ ] The page serves `hx-plot.css`, or a stylesheet that keeps
-      `.hp { touch-action: pan-y pinch-zoom }` ([§3.4](spec.md#34-presentation)).
+      `.hp { touch-action: pan-y pinch-zoom }` ([§3.4](../spec/spec.md#34-presentation)).
 
 ### Level 2: live
 
@@ -713,28 +713,28 @@ The page gets morph updates that keep hover and keyboard state, sliding
 windows, tables that keep their place and stay open, and `304`s for
 unchanged polls.
 
-- [ ] Ids per [§4.1](spec.md#41-identity): the chart (stable across
+- [ ] Ids per [§4.1](../spec/spec.md#41-identity): the chart (stable across
       frames), `{id}-s-{key}` per series, `{id}-b-{seriesKey}-{catKey}` per
       bar, `{id}-table` and `{id}-r-{rowKey}` per table row, all unique, with
       the collision rule.
 - [ ] `data-hp-plot`, `data-hp-x` and `data-hp-y` describe the scales used to
       draw the frame, in the number form, with unrounded domains
-      ([§4.2](spec.md#42-geometry-attributes)).
+      ([§4.2](../spec/spec.md#42-geometry-attributes)).
 - [ ] Every payload row has a key `k` in the key form of
-      [§1.1](spec.md#11-value-forms), unique in modes `x` and `band`
-      ([§4.3](spec.md#43-row-keys)).
+      [§1.1](../spec/spec.md#11-value-forms), unique in modes `x` and `band`
+      ([§4.3](../spec/spec.md#43-row-keys)).
 - [ ] Points outside the x domain are drawn but are not in `xs`, `pts`,
       `rows` or the table.
 - [ ] The same data gives the same bytes; structure and element order stay
-      the same between frames ([§4.4](spec.md#44-frame-stability)).
+      the same between frames ([§4.4](../spec/spec.md#44-frame-stability)).
 - [ ] Charts update through htmx polling or SSE with `innerMorph`; polls
       answer `304` to a matching `HX-PTag`; SSE fragments are split into
-      `data:` lines at every line break ([§4.5](spec.md#45-transports)).
+      `data:` lines at every line break ([§4.5](../spec/spec.md#45-transports)).
 - [ ] A stream that can't serve answers `503` with `HX-Reswap: none` (never
       `204`), skips frames that fail to render, and is replaced with
       `innerHTML` or `outerHTML`, never morphed, when its URL changes.
 - [ ] Every chart URL accepts `hp-w` and `hp-h`, and clamps them
-      ([§4.6](spec.md#46-size-parameters)).
+      ([§4.6](../spec/spec.md#46-size-parameters)).
 - [ ] Error paths answer `204` (or a deliberate error fragment), and pages
       set `"noSwap":[204,304,"4xx","5xx"]`.
 
@@ -744,23 +744,23 @@ The page gets drill-down on click or Enter, and brush-to-zoom with history.
 
 - [ ] Select: `hp-x` is parsed by the chart's x kind and matched against
       your own keys; a missing or unknown value is no selection
-      ([§5.2](spec.md#52-select)).
+      ([§5.2](../spec/spec.md#52-select)).
 - [ ] Brush: `hp-x0` and `hp-x1` are ordered by the server; any RFC 3339
       time is accepted on a time axis (and SHOULD the `datetime-local` form,
       read in the chart's zone); any finite JSON number on a linear axis,
       and anything else (`1e999`, `inf`, `1_0`) is rejected, as
       `params.json` checks; a range that doesn't parse is
-      ignored ([§5.3](spec.md#53-brush)).
+      ignored ([§5.3](../spec/spec.md#53-brush)).
 - [ ] A zoom re-renders with the x domain fixed to the range, and sends
       `HX-Push-Url` with the page URL for it (SHOULD).
-- [ ] Plain HTML equivalents (SHOULD, [§5.5](spec.md#55-equivalents-in-plain-html)):
+- [ ] Plain HTML equivalents (SHOULD, [§5.5](../spec/spec.md#55-equivalents-in-plain-html)):
       a link per table row for select, a from/to form for zoom (sharing the
       brush's `hx-sync` queue), and a polite live region the server updates
       after a gesture.
 - [ ] Every `hp-*` value is validated like any input, a parsed range or
       select key is bounded by the data before it drives a query or a date
       computation, and values are escaped when echoed
-      ([§7](spec.md#7-security-considerations)).
+      ([§7](../spec/spec.md#7-security-considerations)).
 
 ## Mistakes that are easy to make
 

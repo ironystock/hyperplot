@@ -6,7 +6,7 @@
 // highlight, state that survives htmx morph swaps, sliding windows,
 // live tables that follow their newest row, responsive re-rendering through
 // the htmx:plot:resize event and the hp-w and hp-h request parameters, and
-// select gestures that become requests (docs/spec.md). hx-plot-brush.js adds
+// select gestures that become requests (spec/spec.md). hx-plot-brush.js adds
 // brushing (hx-plot:brush) and hx-plot-tween.js tweens paths where CSS
 // cannot (Safari). Charts render and read correctly without any of them.
 //

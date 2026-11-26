@@ -34,8 +34,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/client"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 var (
@@ -59,8 +59,8 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
 // series apart for color-vision deficiencies, and changes the surface, the
 // ink and slot 1. Slot 1 is the page's own --brand variable (app.css), with
 // a fallback for places that lack it, such as a standalone file.
-func brandTheme() hyperplot.Theme {
-	t := hyperplot.DefaultTheme()
+func brandTheme() plot.Theme {
+	t := plot.DefaultTheme()
 	t.Light.Surface, t.Light.Text, t.Light.TextMuted = "#fbfaf7", "#1d1b16", "#6b665c"
 	t.Light.Grid, t.Light.Axis = "#ebe7de", "#c9c3b6"
 	t.Light.Series[0] = "var(--brand, #0b6bcb)"
@@ -83,7 +83,7 @@ func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.page)
 	mux.Handle("GET /static/hx-plot.js", client.Handler()) // tooltips use the theme too
-	mux.HandleFunc("GET /static/hx-plot.css", css(hyperplot.Stylesheet()))
+	mux.HandleFunc("GET /static/hx-plot.css", css(plot.Stylesheet()))
 	mux.HandleFunc("GET /static/brand.css", css(brandTheme().CSS()))
 	mux.HandleFunc("GET /static/app.css", css(appCSS))
 	return securityHeaders(mux)
@@ -129,7 +129,7 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	end := s.now().Truncate(time.Hour)
-	for _, c := range []*hyperplot.Chart{regionsChart(end, s.loc), clientsChart()} {
+	for _, c := range []*plot.Chart{regionsChart(end, s.loc), clientsChart()} {
 		svg, err := c.HTML()
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -152,32 +152,32 @@ func (s *server) page(w http.ResponseWriter, r *http.Request) {
 }
 
 // regionsChart is requests per hour for four regions: slots 1 to 4.
-func regionsChart(end time.Time, loc *time.Location) *hyperplot.Chart {
-	c := &hyperplot.Chart{ID: "regions", Title: "Requests by region, last 24 hours", Location: loc, Y: hyperplot.Axis{Unit: " req/h"}}
+func regionsChart(end time.Time, loc *time.Location) *plot.Chart {
+	c := &plot.Chart{ID: "regions", Title: "Requests by region, last 24 hours", Location: loc, Y: plot.Axis{Unit: " req/h"}}
 	for _, region := range []string{"us-east", "us-west", "eu-west", "ap-south"} {
-		xs, ys := make(hyperplot.Times, 24), make([]float64, 24)
+		xs, ys := make(plot.Times, 24), make([]float64, 24)
 		for i := range 24 {
 			t := end.Add(time.Duration(i-23) * time.Hour)
 			b := t.Unix() / 3600
 			xs[i] = t
 			ys[i] = math.Round(3000 + 1500*noise(region, 0) + 1200*math.Sin(float64(b)/4+6*noise(region, 1)) + 400*noise(region, b))
 		}
-		c.Marks = append(c.Marks, hyperplot.Line{Name: region, X: xs, Y: ys})
+		c.Marks = append(c.Marks, plot.Line{Name: region, X: xs, Y: ys})
 	}
 	return c
 }
 
 // clientsChart is grouped bars pinned to slots 5 to 8, so the page shows
 // all eight series colors.
-func clientsChart() *hyperplot.Chart {
-	quarters := hyperplot.Categories{"Q1", "Q2", "Q3", "Q4"}
-	c := &hyperplot.Chart{ID: "clients", Title: "Sessions by client, 2026", Y: hyperplot.Axis{Unit: "k"}}
+func clientsChart() *plot.Chart {
+	quarters := plot.Categories{"Q1", "Q2", "Q3", "Q4"}
+	c := &plot.Chart{ID: "clients", Title: "Sessions by client, 2026", Y: plot.Axis{Unit: "k"}}
 	for i, name := range []string{"web", "ios", "android", "partner api"} {
 		ys := make([]float64, len(quarters))
 		for q := range quarters {
 			ys[q] = math.Round(20 + 60*noise(name, int64(q)))
 		}
-		c.Marks = append(c.Marks, hyperplot.Bar{Name: name, X: quarters, Y: ys, Slot: 5 + i})
+		c.Marks = append(c.Marks, plot.Bar{Name: name, X: quarters, Y: ys, Slot: 5 + i})
 	}
 	return c
 }

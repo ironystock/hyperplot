@@ -11,8 +11,8 @@ chart into htmx requests (`hp-x`, `hp-x0`, `hp-x1`) so that drill-down and
 zoom are hypermedia exchanges.
 
 Any server can produce the charts: the markup, the parameters and the events
-are a short wire specification, [spec.md](../docs/spec.md), with
-conformance fixtures in [`testdata/conformance`](../testdata/conformance/).
+are a short wire specification, [spec.md](../spec/spec.md), with
+conformance fixtures in [`spec/conformance`](../spec/conformance/).
 The Go module [hyperplot](https://github.com/ironystock/hyperplot) is the
 reference server; the Python sample below shows the parts a server in
 another language writes.
@@ -28,7 +28,7 @@ Load the extension after htmx. It registers itself as `plot`.
 ```
 
 The package is not on npm yet; until it is, copy `hx-plot.js` (and the
-stylesheet, `hyperplot.Stylesheet()` in Go) into your static files. Go
+stylesheet, `plot.Stylesheet()` in Go) into your static files. Go
 programs serve the copies embedded in the `client` package:
 
 ```go
@@ -117,7 +117,7 @@ HX-Target: div#latency
 
 The server answers with the zoomed polling element (its `hx-get` carries the
 range, so later polls stay zoomed) and an `HX-Push-Url` naming the page URL
-for that range; the [spec](../docs/spec.md#54-example-brush-to-zoom-a-live-chart)
+for that range; the [spec](../spec/spec.md#54-example-brush-to-zoom-a-live-chart)
 walks through the exchange. A click on 2:10 PM sends
 `GET /detail?hp-chart=lt&hp-x=2026-03-03T14%3A10%3A00Z`.
 
@@ -126,7 +126,7 @@ walks through the exchange. A click on 2:10 PM sends
 A server in any language writes the chart per the spec and reads the
 parameters. The value and escaping helpers (`number`, `time_value`,
 `parse_time_value`, `xml_attr`, `tips_json`, ...) are in the spec's
-[Appendix B](../docs/spec.md#appendix-b-an-exchange-and-helpers-in-python);
+[Appendix B](../spec/spec.md#appendix-b-an-exchange-and-helpers-in-python);
 `render_latency` stands for your renderer. The
 [server guide](../docs/implementing-a-server.md) builds a complete Level 3
 server, renderer included, in standard-library Python.
@@ -193,8 +193,8 @@ mux.HandleFunc("GET /charts/latency", func(w http.ResponseWriter, r *http.Reques
 | [`examples/node`](../examples/node/) (lines, grouped bars, SSE) | Node, `node:` built-ins | 3 |
 
 To add yours, check it against the
-[conformance fixtures](../testdata/conformance/README.md) with
-[hpcheck](../tools/hpcheck/README.md) and open a pull request.
+[conformance fixtures](../spec/conformance/README.md) with
+[hpcheck](../spec/hpcheck/README.md) and open a pull request.
 
 ## Attributes
 
@@ -287,7 +287,7 @@ Each keyboard step, and a keyboard range, is announced through a visually
 hidden `role="status"` region; refreshes are never announced. Offer plain
 HTML equivalents for gestures (a link per table row, a from/to form), and
 have the server update a polite live region after a gesture: see
-[spec.md §5.5](../docs/spec.md#55-equivalents-in-plain-html).
+[spec.md §5.5](../spec/spec.md#55-equivalents-in-plain-html).
 
 ## Notes
 
@@ -344,7 +344,7 @@ No dependencies are needed. `hx-plot.test.mjs` covers the pure helpers;
 scripts against the small fake browser in `fakedom.mjs` (registration and the
 allow-list, attributes, autosize, pointer and keyboard, select, swaps,
 brushing, tweens); `conformance.test.mjs` runs every client expectation of
-`testdata/conformance`.
+`spec/conformance`.
 
 The real-browser tests in `browser/` drive an installed Chrome through
 `playwright-core`, a dev-only dependency. `extension.browser.mjs` uses static

@@ -1,14 +1,14 @@
 """render_fixtures.py: render the conformance fixtures with render.py.
 
-    python3 examples/python/render_fixtures.py OUT [--fixtures testdata/conformance]
+    python3 examples/python/render_fixtures.py OUT [--fixtures spec/conformance]
 
-For every fixture in testdata/conformance/ whose chart this renderer can
+For every fixture in spec/conformance/ whose chart this renderer can
 draw (lines on a time axis, bars on a band axis, no marks), it reads
 input.json and writes OUT/<fixture>/chart.svg and table.html, or one
 OUT/slide/<frame>.svg per frame. The language-neutral checker then runs each
 fixture's checks.json against them:
 
-    python3 tools/hpcheck/hpcheck.py fixtures --out OUT --require line-time,empty,bars-band,escaping,collisions
+    python3 spec/hpcheck/hpcheck.py fixtures --out OUT --require line-time,empty,bars-band,escaping,collisions
 
 scatter-xy (dots, hover mode "xy") is skipped: the example page has no
 scatter chart, so this renderer does not draw one.
@@ -25,12 +25,12 @@ from hp_wire import parse_time_value
 from render import Chart, Mark, render
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIXTURES = os.path.join(HERE, '..', '..', 'testdata', 'conformance')
+FIXTURES = os.path.join(HERE, '..', '..', 'spec', 'conformance')
 
 
 def chart_from_input(c: dict) -> Chart:
     """A Chart from a fixture's language-neutral chart description (see
-    testdata/conformance/README.md). Raises ValueError for marks this
+    spec/conformance/README.md). Raises ValueError for marks this
     renderer does not draw."""
     marks = []
     for m in c.get('marks', []):

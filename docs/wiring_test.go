@@ -21,7 +21,7 @@ const (
 var makeEntryPoints = []string{"test", "check"}
 
 // fixtureRequire is the fixture list every example renderer must pass
-// (docs/implementing-a-server.md, tools/hpcheck/README.md).
+// (docs/implementing-a-server.md, spec/hpcheck/README.md).
 const fixtureRequire = "line-time,empty,bars-band,escaping,collisions"
 
 // TestNonGoSuitesAreWired checks that `make test`, `make check` and CI run
@@ -34,10 +34,10 @@ const fixtureRequire = "line-time,empty,bars-band,escaping,collisions"
 //     with `hpcheck.py fixtures --out` on the directory it wrote and
 //     --require naming the required fixtures;
 //   - every server config of the checker (examples/**/hpcheck.json,
-//     tools/hpcheck/targets/*.json), with `hpcheck.py server --config`.
+//     spec/hpcheck/targets/*.json), with `hpcheck.py server --config`.
 //
 // Those suites and checks test against files the Go side owns
-// (docs/spec.md Appendix B, testdata/conformance/, client/), so one that
+// (spec/spec.md Appendix B, spec/conformance/, client/), so one that
 // only runs by hand stops catching breakage without anyone noticing.
 //
 // It matches commands, not names: comments, help text, step names and
@@ -55,7 +55,7 @@ func TestNonGoSuitesAreWired(t *testing.T) {
 	for _, r := range reqs {
 		dirs = append(dirs, r.what)
 	}
-	for _, want := range []string{"examples/python", "examples/node", "tools/hpcheck"} {
+	for _, want := range []string{"examples/python", "examples/node", "spec/hpcheck"} {
 		if !slices.Contains(dirs, want) {
 			t.Fatalf("found suites %v; expected %s among them", dirs, want)
 		}
@@ -134,7 +134,7 @@ func TestWiringMatchesCommandsOnly(t *testing.T) {
 		},
 		{
 			name: "make: renderer checked in a continued recipe",
-			makefile: "PYTHON ?= python3\nHPCHECK = $(PYTHON) tools/hpcheck/hpcheck.py\nREQ = " + fixtureRequire + "\n" +
+			makefile: "PYTHON ?= python3\nHPCHECK = $(PYTHON) spec/hpcheck/hpcheck.py\nREQ = " + fixtureRequire + "\n" +
 				"test:\n\t@set -e; out=\"$$(mktemp -d)\"; \\\n\t$(PYTHON) examples/python/render_fixtures.py \"$$out/py\"; \\\n" +
 				"\t$(HPCHECK) fixtures --out \"$$out/py\" --require $(REQ)\n",
 			req: renderer, want: true,
@@ -142,18 +142,18 @@ func TestWiringMatchesCommandsOnly(t *testing.T) {
 		{
 			name: "make: renderer run but its output not checked",
 			makefile: "test:\n\tpython examples/python/render_fixtures.py out/py\n" +
-				"\tpython tools/hpcheck/hpcheck.py fixtures --out out/node --require " + fixtureRequire + "\n",
+				"\tpython spec/hpcheck/hpcheck.py fixtures --out out/node --require " + fixtureRequire + "\n",
 			req: renderer, want: false,
 		},
 		{
 			name: "make: renderer checked without --require",
 			makefile: "test:\n\tpython examples/python/render_fixtures.py out\n" +
-				"\tpython tools/hpcheck/hpcheck.py fixtures --out out\n",
+				"\tpython spec/hpcheck/hpcheck.py fixtures --out out\n",
 			req: renderer, want: false,
 		},
 		{
 			name:     "make: server config",
-			makefile: "test:\n\tpython tools/hpcheck/hpcheck.py server http://127.0.0.1:8080 --config examples/python/hpcheck.json --spawn \"x {port}\"\n",
+			makefile: "test:\n\tpython spec/hpcheck/hpcheck.py server http://127.0.0.1:8080 --config examples/python/hpcheck.json --spawn \"x {port}\"\n",
 			req:      config, want: true,
 		},
 		{
@@ -192,7 +192,7 @@ func TestWiringMatchesCommandsOnly(t *testing.T) {
 		},
 		{
 			name:     "ci: make target",
-			makefile: "PYTHON ?= python3\nconformance:\n\t$(PYTHON) tools/hpcheck/hpcheck.py server http://x --config examples/python/hpcheck.json\n",
+			makefile: "PYTHON ?= python3\nconformance:\n\t$(PYTHON) spec/hpcheck/hpcheck.py server http://x --config examples/python/hpcheck.json\n",
 			ci:       "jobs:\n  c:\n    steps:\n      - name: make conformance\n        run: make conformance PYTHON=python\n",
 			req:      config, want: true,
 		},
@@ -226,7 +226,7 @@ func wiringRequirements(t *testing.T) []requirement {
 	t.Helper()
 	var reqs []requirement
 	seen := map[string]bool{}
-	for _, top := range []string{"examples", "tools"} {
+	for _, top := range []string{"examples", "spec"} {
 		dir := filepath.Join(root, top)
 		if _, err := os.Stat(dir); err != nil {
 			continue // tools/ is optional
@@ -261,7 +261,7 @@ func wiringRequirements(t *testing.T) []requirement {
 				}
 			case name == "render_fixtures.py" || name == "render-fixtures.mjs":
 				reqs = append(reqs, rendererRequirement(rel))
-			case name == "hpcheck.json" || (relDir == "tools/hpcheck/targets" && strings.HasSuffix(name, ".json")):
+			case name == "hpcheck.json" || (relDir == "spec/hpcheck/targets" && strings.HasSuffix(name, ".json")):
 				reqs = append(reqs, configRequirement(rel))
 			}
 			return nil

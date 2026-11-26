@@ -1,6 +1,6 @@
-"""Tests of the wire helpers: hp_wire.py against docs/spec.md, the key
+"""Tests of the wire helpers: hp_wire.py against spec/spec.md, the key
 derivation against Appendix A, and the server's parameter readers against
-the server cases of testdata/conformance/params.json.
+the server cases of spec/conformance/params.json.
 
     python3 -m unittest discover examples/python     # from the repository root
 """
@@ -29,7 +29,7 @@ class AppendixB(unittest.TestCase):
     def test_hp_wire_is_the_spec_block(self):
         """Below its comment header, hp_wire.py is Appendix B's Python block,
         byte for byte: the spec, not this example, owns those helpers."""
-        spec = read('docs', 'spec.md')
+        spec = read('spec', 'spec.md')
         appendix = spec[spec.index('## Appendix B'):]
         block = re.search(r'```python\n(.*?)```', appendix, re.S).group(1)
         source = read('examples', 'python', 'hp_wire.py')
@@ -77,7 +77,7 @@ class Keys(unittest.TestCase):
 class Params(unittest.TestCase):
     """The server cases of params.json (spec §4.6, §5)."""
 
-    cases = json.loads(read('testdata', 'conformance', 'params.json'))['server']
+    cases = json.loads(read('spec', 'conformance', 'params.json'))['server']
 
     def test_size(self):
         for c in self.cases:

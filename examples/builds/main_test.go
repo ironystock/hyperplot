@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ironystock/hyperplot"
 	"github.com/ironystock/hyperplot/hx"
+	"github.com/ironystock/hyperplot/plot"
 )
 
 // epoch is a fixed instant, a Wednesday afternoon, so the 14-day range
@@ -486,7 +486,7 @@ func TestOutlierLabels(t *testing.T) {
 	c := durationsChart(v.f, v.builds, v.lo, v.hi, 960, time.UTC)
 	slow := 0
 	for _, m := range c.Marks {
-		d := m.(hyperplot.Dot)
+		d := m.(plot.Dot)
 		for i, l := range d.Labels {
 			if (l != "") != (d.Y[i] > 2*pipelineByKey(d.Name).minutes) {
 				t.Errorf("%s point %d (%v min): label %q", d.Name, i, d.Y[i], l)
@@ -904,7 +904,7 @@ var (
 )
 
 // TestOnlyChartsAreSVGHP checks that every svg.hp on the page is a real
-// chart. docs/spec.md §6.4 makes any svg.hp a chart, so hx-plot hovers and
+// chart. spec/spec.md §6.4 makes any svg.hp a chart, so hx-plot hovers and
 // focuses it and the stylesheet gives it chart rules. Decorations such as
 // the pipeline swatches must use another class.
 func TestOnlyChartsAreSVGHP(t *testing.T) {

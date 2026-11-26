@@ -52,10 +52,10 @@ The extension watches every `hx-plot:autosize` element with a
 `ResizeObserver`, fires `htmx:plot:resize` on it when its width changes,
 and adds `hp-w` (its content width) to every htmx request that targets it,
 plus `hp-h` for `both`
-([spec §6.7](../../../docs/spec.md#67-request-parameters)). The server
+([spec §6.7](../../../spec/spec.md#67-request-parameters)). The server
 accepts the parameters on every chart URL, clamps them to [50, 4096] and
 uses its default for anything else
-([§4.6](../../../docs/spec.md#46-size-parameters)); `hx.Size` does that in
+([§4.6](../../../spec/spec.md#46-size-parameters)); `hx.Size` does that in
 one call. The page itself renders every chart at the default size, so it
 shows without script; `load` then fetches each one at the real size. See
 [Responsive charts with autosize](../../../docs/htmx.md#responsive-charts-with-autosize)

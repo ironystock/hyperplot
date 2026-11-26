@@ -1,5 +1,5 @@
 // render.test.mjs: the renderer against the conformance fixtures
-// (testdata/conformance), and the properties the wire spec asks of every
+// (spec/conformance), and the properties the wire spec asks of every
 // frame. Run with `node --test` in examples/node.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -139,7 +139,7 @@ test('the narrowest chart (hp-w=50) still has a plot rectangle', () => {
 test('reference files parse with this test parser', () => {
   // The parser itself is checked against bytes the Go reference wrote.
   for (const f of ['line-time/chart.svg', 'line-time/table.html', 'bars-band/chart.svg', 'escaping/chart.svg', 'slide/frame-b.svg']) {
-    parseXml(readFileSync(new URL(`../../testdata/conformance/${f}`, import.meta.url), 'utf8'))
+    parseXml(readFileSync(new URL(`../../spec/conformance/${f}`, import.meta.url), 'utf8'))
   }
   assert.throws(() => parseXml('<svg><g></svg>'))
   assert.throws(() => parseXml('<svg a="1" a="2"/>'))

@@ -131,7 +131,7 @@ func appendEscaped(dst []byte, s string, attr bool) []byte {
 			// Preserve whitespace in attributes through normalization. A
 			// CR is written as a reference in text too: a parser reads a
 			// raw CR as LF, and it would split an SSE data: line, so the
-			// output never holds a raw CR byte (docs/spec.md §3.6).
+			// output never holds a raw CR byte (spec/spec.md §3.6).
 			dst = append(dst, "&#"...)
 			dst = strconv.AppendInt(dst, int64(r), 10)
 			dst = append(dst, ';')

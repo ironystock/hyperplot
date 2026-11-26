@@ -35,11 +35,11 @@ slots 5 to 7 so that no color means two things on the page. Every chart
 re-renders at its container's width (`hx-plot:autosize`, `htmx:plot:resize`,
 `hx.Size`), and every chart has a "View as table" disclosure built from
 `Chart.Table`. Sliding windows draw one bucket before the window, so the
-lines reach the left edge while they slide (docs/spec.md §4.4).
+lines reach the left edge while they slide (spec/spec.md §4.4).
 
 ## Gestures
 
-Both gestures are ordinary htmx requests (docs/spec.md §5); the server
+Both gestures are ordinary htmx requests (spec/spec.md §5); the server
 answers with HTML like for any other request.
 
 **Brush to zoom (latency).** The chart sits in an element with

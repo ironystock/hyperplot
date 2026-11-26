@@ -27,11 +27,11 @@
   <section aria-labelledby="throughput-heading">
     <h2 id="throughput-heading">Throughput</h2>
     {{- /*
-      The container of docs/spec.md §4.5. It is not the stream: it fetches
+      The container of spec/spec.md §4.5. It is not the stream: it fetches
       the stream element.
       hx-plot:autosize: the extension measures this element, fires
       htmx:plot:resize on it when its width changes, and adds hp-w to its
-      requests (docs/spec.md §6.7).
+      requests (spec/spec.md §6.7).
       hx-trigger="load, htmx:plot:resize": fetch the stream element at the
       real width once the page is up, and again after a resize, because a
       stream's URL (and so its width) is fixed when it connects.

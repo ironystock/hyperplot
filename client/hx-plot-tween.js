@@ -1,5 +1,5 @@
 /*! hx-plot-tween 0.2.0 | MIT */
-// hx-plot-tween: JavaScript path tweens for hx-plot.js (docs/spec.md
+// hx-plot-tween: JavaScript path tweens for hx-plot.js (spec/spec.md
 // §6.8.4). When a live chart's values change but its x window does not, the
 // stylesheet's CSS transition on d animates its lines, areas and bars, but
 // only in browsers where CSS can set d: Safari parses the property and

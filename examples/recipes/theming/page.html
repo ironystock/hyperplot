@@ -10,11 +10,11 @@
 <title>Theming · hyperplot recipe</title>
 <link rel="icon" href="data:,">
 <!-- The palette is the only thing that changes between the two
-     stylesheets: hyperplot.Stylesheet() or brandTheme().CSS(). The charts'
+     stylesheets: plot.Stylesheet() or brandTheme().CSS(). The charts'
      markup is the same in both. -->
 <link rel="stylesheet" href="{{.Stylesheet}}">
 <link rel="stylesheet" href="/static/app.css">
-<!-- hx-plot.js without htmx (docs/spec.md §6.10): its tooltip, .hp-tip,
+<!-- hx-plot.js without htmx (spec/spec.md §6.10): its tooltip, .hp-tip,
      takes the same --hp-* tokens as the charts. -->
 <script defer src="/static/hx-plot.js"></script>
 </head>

@@ -31,7 +31,7 @@
       morphs it in place and hx-plot.js slides the line.
       hx-ptag: the tag of the chart the page was rendered with. The ptag
       extension sends it as the HX-PTag header on the first poll, so even
-      that one is a 304 if the data has not changed (docs/spec.md §4.5).
+      that one is a 304 if the data has not changed (spec/spec.md §4.5).
       After that the extension remembers the HX-PTag of each response.
     */}}
     <div class="chart" hx-get="/charts/connections" hx-trigger="every 2s"

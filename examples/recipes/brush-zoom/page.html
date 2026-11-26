@@ -26,7 +26,7 @@
   <h1>Brush to zoom</h1>
   <p class="lede">Drag across the chart to zoom into that range, or focus it, mark a range with Shift and the arrow keys and press Enter. The address bar follows: Back undoes the zoom.</p>
   {{- /*
-    The brush (docs/spec.md §5.4).
+    The brush (spec/spec.md §5.4).
     hx-plot:brush: lets the reader brush the charts inside this element.
     hx-trigger="htmx:plot:brush": the extension fires that event when a
     brush ends and adds hp-chart, hp-x0 and hp-x1 to the request.
@@ -59,11 +59,11 @@
 {{- /*
   role="status": a polite live region. A zoom answers with this toolbar in
   an <hx-partial>, and the morph changes the text of the same element, so
-  screen readers announce what the request did (docs/spec.md §5.5).
+  screen readers announce what the request did (spec/spec.md §5.5).
 */ -}}
 <p id="zoom-status" class="status" role="status">{{.Status}}</p>
 {{- /*
-  The same zoom without a pointer (docs/spec.md §5.5): hp-x0 and hp-x1 are
+  The same zoom without a pointer (spec/spec.md §5.5): hp-x0 and hp-x1 are
   plain form fields, and the server reads datetime-local values in the
   chart's time zone. Without script, action="/" loads the zoomed page. The
   form shares the .zoom queue like the brush.

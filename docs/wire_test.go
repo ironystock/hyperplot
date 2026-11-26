@@ -17,7 +17,7 @@ import (
 // that spec.md §1.1 gives on a line of its own.
 func specNumberPattern(t *testing.T) string {
 	t.Helper()
-	src, err := os.ReadFile(filepath.Join(root, "docs", "spec.md"))
+	src, err := os.ReadFile(filepath.Join(root, "spec", "spec.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestConformanceGeometryNumberForm(t *testing.T) {
 		"data-hp-x":    {"^time " + two + "$", "^linear " + two + "$"},
 		"data-hp-y":    {"^linear " + two + "$"},
 	}
-	paths, err := filepath.Glob(filepath.Join(root, "testdata", "conformance", "*", "checks.json"))
+	paths, err := filepath.Glob(filepath.Join(root, "spec", "conformance", "*", "checks.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ raise SystemExit(1 if fails else 0)
 // bookmark range, or a select key, that parses but lies outside the data
 // (year 1, 9999) must get a 204 rather than a request that ends with no
 // response; and the parsers must pass the server brush cases of
-// testdata/conformance/params.json. It needs Python 3.8 or later and is
+// spec/conformance/params.json. It needs Python 3.8 or later and is
 // skipped without one.
 func TestPythonHelpers(t *testing.T) {
 	if testing.Short() {
@@ -361,7 +361,7 @@ func TestPythonHelpers(t *testing.T) {
 	if py == "" {
 		t.Skip("no Python 3.8+ on PATH")
 	}
-	wire := pythonBlocks(t, "docs/spec.md", "")
+	wire := pythonBlocks(t, "spec/spec.md", "")
 	if len(wire) != 1 {
 		t.Fatalf("spec.md has %d python blocks, want 1 (Appendix B)", len(wire))
 	}
@@ -369,7 +369,7 @@ func TestPythonHelpers(t *testing.T) {
 	if len(parts) != 5 {
 		t.Fatalf("implementing-a-server.md has %d server.py parts, want 5", len(parts))
 	}
-	params, err := os.ReadFile(filepath.Join(root, "testdata", "conformance", "params.json"))
+	params, err := os.ReadFile(filepath.Join(root, "spec", "conformance", "params.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

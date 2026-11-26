@@ -3,7 +3,7 @@
 // Every value is a pure function of (series, bucket index): the same bucket
 // always has the same value, whatever the request order. That is what makes
 // polling cheap. An unchanged window renders the same bytes, hashes to the
-// same HX-PTag and costs a 304 (docs/spec.md §4.4). A real server would
+// same HX-PTag and costs a 304 (spec/spec.md §4.4). A real server would
 // query its own store here; the wire details do not change.
 
 export const SECOND = 1000

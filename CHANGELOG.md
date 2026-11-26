@@ -21,13 +21,13 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
   opt-in; `DefaultTheme()` and `Stylesheet()` are unchanged. The brand
   assets are in [docs/brand/](docs/brand/README.md), and the README now
   opens with the lockup and a hero image.
-- The wire spec, [docs/spec.md](docs/spec.md) (spec version 1): the chart
+- The wire spec, [spec/spec.md](spec/spec.md) (spec version 1): the chart
   markup, hover payload, ids, geometry attributes and row keys a server
   writes; the `hx-plot:` attributes, `hp-*` request parameters and
   `htmx:plot:*` events; the extension's swap behaviour; three conformance
   levels (static, live, interactive); and Python helpers for the value
   forms, escaping and parsing.
-- Conformance fixtures in `testdata/conformance/`: language-neutral chart
+- Conformance fixtures in `spec/conformance/`: language-neutral chart
   inputs, reference output and assertions for servers (geometry numbers
   are checked against the spec's number pattern), and expectations for
   clients. The Go renderer reproduces every reference file byte for
@@ -90,7 +90,7 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
   checklist (`go test ./docs` runs its Python and the spec's helpers when
   Python 3.8+ is installed); the README and the extension's README repositioned around the
   extension; the htmx guide's drill-down, zoom and sliding-window patterns.
-- `hyperplot.Chart`: server-side rendering of charts to deterministic,
+- `plot.Chart`: server-side rendering of charts to deterministic,
   well-formed, accessible SVG, with `Render`, `WriteTo`, `HTML` (for
   `html/template`), `Component` (structurally compatible with
   `templ.Component`) and `Table` (an accessible `<table>` equivalent).
@@ -171,7 +171,7 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
   recommends. The Go spec checks (`checkSpec`) reject a chart reference to
   anything outside the chart (`href`, `src`, `url(…)`), like hpcheck, and
   hpcheck checks every `svg.hp` in an HTML file as a chart.
-- `tools/hpcheck`, a conformance checker for servers in any language: one
+- `spec/hpcheck`, a conformance checker for servers in any language: one
   standard-library Python file that runs the universal spec checks and
   each fixture's `checks.json` on a renderer's output, and checks a running
   server's content tags, `hp-w`, gesture parameters and SSE frames over
@@ -205,6 +205,12 @@ Go library as its reference server ([ADR 0005](docs/adr/0005-htmx-community-firs
 These change behaviour of the initial commit on `main`; nothing had been
 published.
 
+- **Breaking:** the Go library moved from the repository root to `plot/`. Import
+  `github.com/ironystock/hyperplot/plot` and write `plot.Chart`,
+  `plot.Stylesheet()` and so on. The wire spec, its fixtures and the
+  checker now live together in `spec/` (`spec/spec.md`, `spec/conformance/`,
+  `spec/hpcheck/`), and the community files are in `.github/`
+  ([ADR 0006](docs/adr/0006-monorepo-layout.md)).
 - **Breaking:** the client script is `hx-plot.js` and registers as `plot`
   (was `hyperplot.js`, registered as `hyperplot`). `data-hp-autosize` is
   now `hx-plot:autosize`, and the `hp:resize` event is now

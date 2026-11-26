@@ -23,7 +23,7 @@ func TestGitignoreCoversExampleOutput(t *testing.T) {
 	}
 	ignored := []string{
 		"examples/python/__pycache__/hp_wire.cpython-313.pyc",
-		"tools/hpcheck/__pycache__/hpcheck.cpython-310.pyc",
+		"spec/hpcheck/__pycache__/hpcheck.cpython-310.pyc",
 		"out/python/line-time/chart.svg",
 		"out/node/bars-band/table.html",
 		"out/gallery/index.html",

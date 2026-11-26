@@ -1,6 +1,6 @@
 """render.py: draw hx-plot charts as SVG, and their data tables, in Python.
 
-This is the part of a server that the wire spec (docs/spec.md) is about. It
+This is the part of a server that the wire spec (spec/spec.md) is about. It
 draws two kinds of chart, which is what the example page needs:
 
 - line charts on a time axis (hover mode "x", spec §3.5), which can slide

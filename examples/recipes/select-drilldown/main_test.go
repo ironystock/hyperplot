@@ -73,7 +73,7 @@ func TestPage(t *testing.T) {
 			t.Errorf("page loads %s", unused)
 		}
 	}
-	// docs/spec.md §5.5: one link per bar group, sending the same request.
+	// spec/spec.md §5.5: one link per bar group, sending the same request.
 	for _, svc := range services {
 		q := strings.ReplaceAll(selectQuery("errors", svc, ""), "&", "&amp;")
 		want := `<a href="/?` + q + `" hx-get="/detail?` + q + `" hx-target="#detail" hx-swap="innerMorph">` + svc + `</a>`

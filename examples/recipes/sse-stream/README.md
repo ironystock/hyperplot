@@ -47,12 +47,12 @@ go run ./examples/recipes/sse-stream -addr :9000
 
 `hx-sse:connect` opens a GET request that the server keeps open, and every
 unnamed message's `data:` lines are swapped into the element with its
-`hx-swap` ([spec §4.5](../../../docs/spec.md#45-transports)). A stream's URL,
+`hx-swap` ([spec §4.5](../../../spec/spec.md#45-transports)). A stream's URL,
 and so its `hp-w`, is fixed when it connects, so the page uses the
 container shape the spec recommends: the page draws the first frame
 without a stream, and the container fetches a stream element at its real
 width on `load` and after every resize
-([§4.6](../../../docs/spec.md#46-size-parameters)). It replaces the element
+([§4.6](../../../spec/spec.md#46-size-parameters)). It replaces the element
 with `innerHTML`, because a morph would keep the node and `hx-sse` would
 keep reconnecting to the old URL.
 
