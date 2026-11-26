@@ -1,0 +1,69 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces the detail. The array replaces
+     htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Select to drill down · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx loads without defer (a deferred htmx 4.0.2 can start before a
+     deferred extension has loaded). This page needs no htmx extension of
+     its own. hx-plot.js may defer: htmx waits for DOMContentLoaded, which
+     runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Select to drill down</h1>
+  <p class="lede">Click a bar, or Tab to the chart, move with the arrow keys and press Enter, to see that service hour by hour.</p>
+  <section aria-labelledby="errors-heading">
+    <h2 id="errors-heading">Errors by service</h2>
+    {{- /*
+      hx-trigger="htmx:plot:select": hx-plot.js fires the event on the
+      chart and it bubbles here; htmx sends hx-get with the extension's
+      hp-chart, hp-x and hp-series added (docs/spec.md §5.2).
+      hx-target + hx-swap="innerMorph": the detail goes into #detail, and
+      elements with the same id (the status line, the chart) are updated
+      in place.
+    */}}
+    <div class="drill" hx-get="/detail" hx-trigger="htmx:plot:select"
+         hx-target="#detail" hx-swap="innerMorph">{{.Bars}}</div>
+    {{- /*
+      The same select without a pointer (docs/spec.md §5.5): hp-chart and
+      hp-x are plain query parameters. With script, hx-get fetches only the
+      detail; without it, href loads the page with the detail open.
+    */}}
+    <nav class="links" aria-label="Service details"><span aria-hidden="true">Details:</span>
+      {{- range .Links}} <a href="{{.Href}}" hx-get="{{.Get}}" hx-target="#detail" hx-swap="innerMorph">{{.Label}}</a>{{end}}
+    </nav>
+  </section>
+  <section id="detail" class="detail" aria-label="Detail">{{template "detail" .Detail}}</section>
+</main>
+</body>
+</html>
+{{- end}}
+
+{{define "detail" -}}
+{{- /*
+  role="status": a polite live region. Its id stays the same, so the morph
+  changes its text and screen readers announce what the select did; the
+  extension cannot know (docs/spec.md §5.5).
+*/ -}}
+<p id="detail-status" class="status" role="status">{{.Status}}</p>
+{{- if .Chart}}
+<header class="detail-head">
+  <h2>{{.Heading}}</h2>
+  <a href="/" hx-get="/detail" hx-target="#detail" hx-swap="innerMorph">Close</a>
+</header>
+{{.Chart}}
+{{- else}}
+<p class="hint">Nothing selected yet.</p>
+{{- end}}
+{{- end}}

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Sparkline table · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<!-- The stylesheet colors the sparklines (they use the chart classes
+     hp-s1, hp-line, hp-area and hp-end) and switches them to the dark
+     palette with the page. No script: sparklines have nothing to hover. -->
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<main>
+  <h1>Services</h1>
+  <p class="lede">The last 30 minutes, one minute per point, up to {{.At}}. Reload for the next minute.</p>
+  <div class="scroll" tabindex="0" role="region" aria-labelledby="kpi-caption">
+    <table class="kpi">
+      <caption id="kpi-caption">Traffic and latency by service</caption>
+      <thead>
+        <tr>
+          <th scope="col">Service</th>
+          <th scope="col">Requests/s, 30 min</th>
+          <th scope="col" class="num">Now</th>
+          <th scope="col" class="num">Change</th>
+          <th scope="col">p95 latency, 30 min</th>
+          <th scope="col" class="num">Now</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{- range .Rows}}
+        <tr>
+          <th scope="row">{{.Service}}</th>
+          {{- /* Each sparkline is an <svg role="img"> with an aria-label
+                 such as "checkout requests per second, last 30 minutes:
+                 first 774 req/s, min 774 req/s, max 1,370 req/s, last
+                 937 req/s". */}}
+          <td class="spark">{{.Traffic}}</td>
+          <td class="num">{{.TrafficNow}}</td>
+          <td class="num change change-{{.Dir}}"><span aria-hidden="true">{{if eq .Dir "up"}}▲{{else if eq .Dir "down"}}▼{{else}}■{{end}}</span> {{.Change}}</td>
+          <td class="spark">{{.Latency}}</td>
+          <td class="num">{{.P95Now}}<span class="unit"> ms</span></td>
+        </tr>
+        {{- end}}
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

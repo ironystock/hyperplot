@@ -13,6 +13,11 @@ The code below is complete. Put the blocks in one file, in order, and it
 runs. It was tested with Python 3.13, htmx 4.0.2 and `hx-plot.js` 0.2.0 in
 Chrome. It's about 320 lines, half of them drawing the chart. A real server
 would use its own templates and data, but the wire details are the same.
+For more than one chart, the [Python](../examples/python/) and
+[Node](../examples/node/) examples are complete servers on the same
+standard libraries, and each [Go recipe](../examples/recipes/README.md)
+shows one pattern's HTML and headers alone, whatever language you port
+it to.
 
 **Contents**
 
@@ -594,8 +599,10 @@ than a `500` with a body, because htmx 4 swaps error bodies too, and the
 ## Run it
 
 ```sh
-python server.py 8000
+python3 server.py 8000
 ```
+
+(On Windows the interpreter is usually `python` or `py`, here and below.)
 
 Open http://127.0.0.1:8000/ and try:
 
@@ -622,9 +629,29 @@ supports and run the assertions against your output; the
 subset and every field. `line-time` and `empty` fit the renderer in this
 guide, and its output passes their assertions, including the `should` ones.
 
-There isn't a ready-made checker in another language yet. The Go reference
-runs the assertions in `conformance_test.go`; a standalone Python checker is
-on the [roadmap](DESIGN.md#roadmap).
+[hpcheck](../tools/hpcheck/README.md) runs them for you: one
+standard-library Python file, the language-neutral form of the Go
+reference's own spec tests. Write your renderer's output for each fixture
+to `OUT/<fixture>/chart.svg` (and `table.html`), then, from the repository
+root:
+
+```sh
+python3 tools/hpcheck/hpcheck.py fixtures --out OUT --require line-time,empty
+```
+
+It also checks a running server against the spec's wire rules (content
+tags and `304`s, `hp-w`, gesture parameters, SSE frames), as a small
+`hpcheck.json` describes it:
+
+```sh
+python3 tools/hpcheck/hpcheck.py server http://127.0.0.1:8000 --config hpcheck.json
+```
+
+Every failure names the spec section it breaks. The complete servers in
+[`examples/python`](../examples/python/) and [`examples/node`](../examples/node/)
+go further than this guide (grouped bars, SSE, a drill-down panel) and
+show both runs: a fixture renderer, an `hpcheck.json`, and the commands in
+their READMEs.
 
 Then check in a browser. Open the developer tools and watch for:
 
@@ -635,6 +662,13 @@ Then check in a browser. Open the developer tools and watch for:
   rather than a line whose points tween vertically;
 - no console errors under a strict Content Security Policy: charts carry no
   `style` attributes or inline handlers.
+
+[`client/browser/examples.browser.mjs`](../client/browser/examples.browser.mjs)
+makes the same checks automatically for every example in this repository,
+the Python and Node servers included: it starts each one on a free port,
+opens it in Chrome, and fails on a console error, a failed request, a
+chart that never updates or a gesture with no answer. Point a copy of it
+at your server for the same smoke test.
 
 ## Conformance checklist
 

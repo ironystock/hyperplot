@@ -1,0 +1,62 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces a chart. The array replaces
+     htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Server-sent events · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx and hx-sse load in order and without defer: a deferred htmx
+     4.0.2 can start before a deferred hx-sse has loaded, and the stream
+     element then never connects. hx-plot.js may defer: htmx waits for
+     DOMContentLoaded, which runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/ext/hx-sse.min.js" integrity="sha384-5zdqOOgEI+w1bvDhFjUeS1VYpPKkc1DFc4+WnvUe849JkM4u0s7JSeGpLon7/sRU" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Server-sent events</h1>
+  <p class="lede">One long-lived response pushes a new chart every second, and the lines slide left. In devtools' Network panel, open <code>/stream/throughput</code> and its EventStream tab to see the messages.</p>
+  <section aria-labelledby="throughput-heading">
+    <h2 id="throughput-heading">Throughput</h2>
+    {{- /*
+      The container of docs/spec.md §4.5. It is not the stream: it fetches
+      the stream element.
+      hx-plot:autosize: the extension measures this element, fires
+      htmx:plot:resize on it when its width changes, and adds hp-w to its
+      requests (docs/spec.md §6.7).
+      hx-trigger="load, htmx:plot:resize": fetch the stream element at the
+      real width once the page is up, and again after a resize, because a
+      stream's URL (and so its width) is fixed when it connects.
+      hx-swap="innerHTML": the old stream element leaves the document, which
+      closes its stream. A morph would keep the node, and hx-sse would keep
+      reconnecting to the old URL.
+    */}}
+    <div id="throughput-body" class="chart" hx-plot:autosize hx-get="/cards/throughput"
+         hx-trigger="load, htmx:plot:resize" hx-swap="innerHTML">
+      {{- template "stream" .}}
+    </div>
+  </section>
+</main>
+</body>
+</html>
+{{- end}}
+
+{{define "stream" -}}
+{{- /*
+  The page renders this without a URL: the first frame, no stream. The
+  card renders it with one.
+  hx-sse:connect: hx-sse opens the stream when htmx processes the element,
+  and swaps every unnamed message into it.
+  hx-swap="innerMorph": each frame keeps id="throughput", so the morph
+  updates the chart in place and hx-plot.js slides the lines.
+*/ -}}
+<div class="stream"{{with .URL}} hx-sse:connect="{{.}}" hx-swap="innerMorph"{{end}}>{{.Chart}}</div>
+{{- end}}

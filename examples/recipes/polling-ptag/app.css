@@ -1,0 +1,10 @@
+/* Page layout for this recipe. */
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+h2 { font-size: 1rem; margin: 0 0 .5rem }
+.lede { margin: 0 0 1.5rem; color: GrayText }
+/* The chart is drawn 640 px wide; on a narrower screen the stylesheet's
+   max-width scales it down. display: block drops the inline baseline gap. */
+.chart .hp { display: block }

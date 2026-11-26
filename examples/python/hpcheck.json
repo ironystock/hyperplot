@@ -1,0 +1,11 @@
+{
+  "level": 3,
+  "pages": ["/"],
+  "charts": [
+    {"url": "/charts/latency", "ptag": true, "autosize": true, "table": true,
+     "brush": "/charts/latency", "select": null},
+    {"url": "/charts/requests", "ptag": true, "autosize": true, "table": true,
+     "brush": null, "select": "/detail/requests"}
+  ],
+  "sse": [{"url": "/stream/throughput", "frames": 2, "timeout": 10}]
+}

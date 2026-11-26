@@ -1,0 +1,24 @@
+/* Page layout for this recipe. The sparklines are colored by hx-plot.css;
+   this file lays out the table around them. */
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+.lede { margin: 0 0 1.25rem; color: GrayText }
+
+/* A wide table scrolls inside its own region on a narrow screen. */
+.scroll { overflow-x: auto }
+.kpi { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums }
+.kpi caption { text-align: left; font-weight: 600; padding-bottom: .5rem }
+.kpi th, .kpi td { padding: .5rem .75rem; border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, transparent); text-align: left; white-space: nowrap }
+.kpi thead th { font-size: .8rem; font-weight: 500; color: GrayText }
+.kpi .num { text-align: right }
+.unit { color: GrayText }
+
+/* A sparkline is an inline <svg>: display block drops the baseline gap. */
+.spark { line-height: 0 }
+.spark .hp-spark { display: block }
+
+/* More traffic is neither good nor bad, so the change keeps the text
+   color: the arrow and the sign carry the direction. */
+.change span { color: GrayText; font-size: .75em }

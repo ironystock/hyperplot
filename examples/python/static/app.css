@@ -1,0 +1,198 @@
+/* app.css: page chrome for the Python example. The charts themselves are
+   styled by /static/hx-plot.css (the reference stylesheet, spec §3.4); this
+   file only lays out the page around them. It is a file, not a <style>
+   block, so the page runs under a strict Content-Security-Policy. The theme
+   follows prefers-color-scheme unless <html data-theme> says otherwise. */
+
+:root {
+  color-scheme: light;
+  --page: #f5f5f5;
+  --card: #ffffff;
+  --line: #e7e7e7;
+  --ink: #191919;
+  --ink-2: #666666;
+  --link: #1f6fcf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #101010;
+    --card: #191919;
+    --line: #2b2b2b;
+    --ink: #efefef;
+    --ink-2: #9c9c9c;
+    --link: #6aabf5;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #101010;
+  --card: #191919;
+  --line: #2b2b2b;
+  --ink: #efefef;
+  --ink-2: #9c9c9c;
+  --link: #6aabf5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--link);
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.brand {
+  margin: 0;
+  font-weight: 650;
+}
+
+.brand span {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.theme {
+  display: flex;
+  gap: 12px;
+}
+
+.theme a[aria-current] {
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+h1 {
+  margin: 8px 0;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.lede {
+  max-width: 70ch;
+  margin: 0 0 24px;
+  color: var(--ink-2);
+}
+
+main {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 16px;
+}
+
+main > h1,
+main > .lede,
+.card.wide {
+  grid-column: 1 / -1;
+}
+
+.card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sub,
+.status,
+.note {
+  margin: 4px 0 12px;
+  color: var(--ink-2);
+}
+
+/* The chart fills its container until the extension reports the real
+   width (hp-w) and the server sends a chart that fits. */
+.chart svg.hp,
+.detail svg.hp {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.zoom-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.drill-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0;
+  color: var(--ink-2);
+}
+
+.detail-card {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-card h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.table-view summary {
+  margin: 8px 0;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.table-scroll {
+  max-height: 240px;
+  overflow: auto;
+}
+
+.foot {
+  margin-top: 24px;
+  padding-bottom: 24px;
+  color: var(--ink-2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

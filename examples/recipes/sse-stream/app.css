@@ -1,0 +1,10 @@
+/* Page layout for this recipe. */
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+h2 { font-size: 1rem; margin: 0 0 .5rem }
+.lede { margin: 0 0 1.5rem; color: GrayText }
+/* An inline <svg> sits on the text baseline and leaves a gap under it;
+   display: block removes it, so the container is as tall as the chart. */
+.chart .hp { display: block }

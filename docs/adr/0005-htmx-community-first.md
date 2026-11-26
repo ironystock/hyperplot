@@ -164,13 +164,15 @@ are replaced without aliases, since nothing was published.
   reference files byte for byte, and the client tests consume the same
   files.
 * A small standard-library Python server in `examples/` passes the fixtures'
-  server assertions, which shows the spec is implementable without Go. Not
-  met yet: `examples/python/` is still planned (DESIGN.md Roadmap, "Rev 2: open").
-  Meanwhile the [server guide](../implementing-a-server.md) builds a Level 3
-  Python server whose output was checked against the `line-time` and
-  `empty` fixtures and run against the extension in Chrome by hand;
-  `docs/wire_test.go` runs its Python and the spec's Appendix B helpers on
-  edge cases.
+  server assertions, which shows the spec is implementable without Go.
+  Met: [`examples/python/`](../../examples/python/) is a Level 3 server on
+  the standard library, and [`tools/hpcheck/`](../../tools/hpcheck/README.md),
+  a standard-library Python checker, passes its fixture output and its
+  running server (`make conformance`; DESIGN.md Roadmap, "Rev 2: open",
+  item 2). `examples/node/` passes the same checks. The
+  [server guide](../implementing-a-server.md) builds a smaller Level 3
+  Python server, and `docs/wire_test.go` runs its Python and the spec's
+  Appendix B helpers on edge cases.
 * The four.htmx.org community page lists the extension.
 
 ## Pros and Cons of the Options

@@ -1,0 +1,120 @@
+/* Page styles for the gallery. The charts' own colors come from
+   hx-plot.css (hyperplot.Stylesheet); this file lays out the cards and
+   colors the code. */
+:root {
+  --page: #f4f5f7;
+  --card: #ffffff;      /* the charts' surface color (dot rings use it) */
+  --ink: #191919;
+  --muted: #5f6368;
+  --line: #e3e5e8;
+  --link: #1f6fd1;
+  --code-bg: #f6f7f9;
+  --tok-c: #5f6b7a;     /* comments */
+  --tok-s: #0a7a3d;     /* strings */
+  --tok-k: #7a3ce0;     /* keywords */
+  --tok-n: #a14d06;     /* numbers */
+  color-scheme: light dark;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+/* Dark tokens, under the same switch as the charts: data-theme wins, and
+   without it the system setting does. color-scheme flips the form
+   controls and the scrollbars too. The block appears twice because CSS
+   cannot say "dark system and no light override, or a dark override" in
+   one selector. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0f0f0f; --card: #191919; --ink: #efefef; --muted: #a0a0a0; --line: #303030;
+    --link: #6aa9f0; --code-bg: #212121;
+    --tok-c: #8b949e; --tok-s: #7ee2a8; --tok-k: #c3a6ff; --tok-n: #f0b35a;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0f0f0f; --card: #191919; --ink: #efefef; --muted: #a0a0a0; --line: #303030;
+  --link: #6aa9f0; --code-bg: #212121;
+  --tok-c: #8b949e; --tok-s: #7ee2a8; --tok-k: #c3a6ff; --tok-n: #f0b35a;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light }
+
+body { margin: 0; background: var(--page); color: var(--ink) }
+a { color: var(--link) }
+code, pre { font: 12px/1.55 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace }
+.wrap { max-width: 1480px; margin: 0 auto; padding: 0 16px }
+
+/* Header: title, the theme links and the section links. */
+.top { background: var(--card); border-bottom: 1px solid var(--line); padding: 24px 0 16px }
+h1 { font-size: 1.7rem; margin: 0 0 .25rem }
+.lede { margin: 0 0 1rem; max-width: 72ch; color: var(--muted) }
+.bar { display: flex; flex-wrap: wrap; gap: .5rem 2rem; font-size: .9rem }
+.bar-label { color: var(--muted); margin-right: .25rem }
+.bar a { padding: .125rem .375rem; border-radius: 4px; text-decoration: none }
+.bar a:hover { text-decoration: underline }
+/* The current theme is bold and underlined: both survive forced colors,
+   where the background is replaced. */
+.themes a[aria-current] { font-weight: 700; text-decoration: underline; background: color-mix(in srgb, currentColor 12%, transparent) }
+
+/* Sections and cards. */
+.group { padding-top: 24px }
+.group > h2 { font-size: 1.25rem; margin: 0 0 12px }
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "figure" "code";
+  gap: 12px 24px;
+  margin: 0 0 16px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  scroll-margin-top: 16px;
+}
+/* Wide windows: the chart at its own 640 px on the left, the code on the
+   right, wide enough for charts.go's 88-column lines. Narrower windows
+   stack them, and the chart scales down with the card (hx-plot.css gives
+   .hp max-width: 100%). */
+@media (min-width: 1400px) {
+  .card { grid-template-columns: minmax(0, 640px) minmax(0, 1fr); grid-template-areas: "head head" "figure code" }
+}
+.card-head { grid-area: head }
+.card-head h3 { font-size: 1.05rem; margin: 0 }
+.card-head h3 a { color: inherit; text-decoration: none }
+.card-head h3 a:hover { text-decoration: underline }
+.note { margin: .125rem 0 0; color: var(--muted); max-width: 80ch }
+.card-figure { grid-area: figure; min-width: 0 }
+/* An inline <svg> sits on the text baseline and leaves a gap under it. */
+.card-figure .hp { display: block }
+
+summary { cursor: pointer; margin-top: .5rem; color: var(--muted); font-size: .9rem }
+.table-scroll { overflow-x: auto; margin-top: .5rem }
+
+/* The sparkline table. */
+.sparks { border-collapse: collapse; font-variant-numeric: tabular-nums }
+.sparks th, .sparks td { padding: 6px 16px 6px 0; text-align: left; border-bottom: 1px solid var(--line) }
+.sparks thead th { color: var(--muted); font-weight: 600; font-size: .85rem }
+.sparks tbody th { font-weight: 400 }
+.sparks td { vertical-align: middle }
+.sparks .hp-spark { display: block }
+.sparks .num { text-align: right }
+
+/* The code. */
+.card-code { grid-area: code; margin: 0; min-width: 0 }
+.card-code figcaption { color: var(--muted); font-size: .85rem; margin-bottom: 4px }
+.card-code figcaption code { font-size: .85rem }
+pre {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 30rem;
+  tab-size: 4;
+}
+pre:focus-visible { outline: 2px solid var(--link); outline-offset: 2px }
+pre.helpers { max-height: none }
+.tok-c { color: var(--tok-c); font-style: italic }
+.tok-s { color: var(--tok-s) }
+.tok-k { color: var(--tok-k) }
+.tok-n { color: var(--tok-n) }
+
+.foot { color: var(--muted); font-size: .875rem; padding-top: 16px; padding-bottom: 48px }

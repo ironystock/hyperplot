@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces a chart. The array replaces
+     htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Sizing · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx loads without defer (a deferred htmx 4.0.2 can start before a
+     deferred extension has loaded). This page needs no htmx extension of
+     its own: no SSE, no polling tags. hx-plot.js may defer, because htmx
+     waits for DOMContentLoaded, which runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Sizing</h1>
+  <p class="lede">Resize the window. The first chart only scales; the other two are drawn again at the size their box has. Each title says the size the server drew.</p>
+  <div class="grid">
+    <section aria-labelledby="scaled-heading">
+      <h2 id="scaled-heading">Scaled by CSS</h2>
+      <p class="note">Drawn once at 640 × 320. The stylesheet's <code>max-width: 100%</code> shrinks it, text and all.</p>
+      <div class="box">{{.Scaled}}</div>
+    </section>
+
+    <section aria-labelledby="width-heading">
+      <h2 id="width-heading"><code>hx-plot:autosize</code></h2>
+      <p class="note">Drawn at the box's width (<code>hp-w</code>). The server keeps the height.</p>
+      {{- /*
+        hx-plot:autosize: the extension measures this element and adds hp-w
+        to requests that target it (docs/spec.md §6.7).
+        hx-trigger: "load" fetches the chart at the real width once the page
+        is up; htmx:plot:resize fetches it again whenever that width changes
+        by 8 px or more (debounced).
+        hx-swap innerMorph: the new <svg> keeps its id, so htmx morphs it in
+        place and keyboard focus stays on the chart.
+      */}}
+      <div class="box" hx-plot:autosize hx-get="/charts/width"
+           hx-trigger="load, htmx:plot:resize" hx-swap="innerMorph">{{.Width}}</div>
+    </section>
+
+    <section aria-labelledby="both-heading">
+      <h2 id="both-heading"><code>hx-plot:autosize="both"</code></h2>
+      <p class="note">Drawn at the box's width and height (<code>hp-w</code>, <code>hp-h</code>). CSS gives the box its height.</p>
+      {{- /*
+        "both" also sends hp-h. Use it only on a box whose height CSS sets
+        (here height and overflow: hidden in app.css); a box as tall as its
+        content would grow the chart on every request (docs/htmx.md#height).
+      */}}
+      <div class="box box-tall" hx-plot:autosize="both" hx-get="/charts/both"
+           hx-trigger="load, htmx:plot:resize" hx-swap="innerMorph">{{.Both}}</div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

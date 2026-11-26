@@ -45,6 +45,12 @@ servers read and write `hp` (classes, `data-hp*`, ids, parameters).
 | `internal/textwidth/` | text width estimation (Helvetica/Arial advances) |
 | `examples/dashboard/` | runnable live demo (`make demo`); also the end-to-end test of root, `hx` and `client` |
 | `examples/basic/` | the README quick start; identical apart from its package comment (`docs/quickstart_test.go` checks) |
+| `examples/sensors/`, `examples/builds/` | two more live Go demos, shaped like the dashboard (`-addr`, `-speed`, `main_test.go`) |
+| `examples/gallery/` | every mark and variant beside the Go code that drew it (`charts.go`, embedded and parsed at startup); `-out DIR` writes static files |
+| `examples/recipes/` | ten one-file Go recipes: live (polling-ptag, sse-stream, filters-form, select-drilldown, brush-zoom) and static (static-page, sizing, theming, sparkline-table, standalone-svg); the static ones' `preview/` SVGs are rewritten by `make golden`; `README.md` indexes them |
+| `examples/python/`, `examples/node/` | Level 3 servers on Python's and Node's standard libraries (no dependencies, no `package.json`); not Go packages, so `make py` / `make nodeex` test them |
+| `examples/README.md` | the index of every example (`docs/examples_test.go` fails when one is missing) |
+| `tools/hpcheck/` | the language-neutral conformance checker (one standard-library Python file, `test_hpcheck.py`, `targets/dashboard.json`); run by `make conformance` |
 | `testdata/` | golden SVG files; `testdata/preview/` holds standalone copies of some; `testdata/conformance/` holds the wire-spec fixtures (inputs, reference output, assertions) for servers in any language |
 | `conformance_test.go`, `speccheck_test.go`, `specdom_test.go` | the fixtures' runner, the spec's universal MUSTs (`checkSpec`, also run by `FuzzRender` and on every golden), and the selector matcher |
 | `docs/` | `spec.md` (wire spec), `DESIGN.md` (implementation contract, status, roadmap), `htmx.md` (integration guide), `implementing-a-server.md` (Python server walk-through), `adr/` (decision records), and tests that check the docs (Go samples compiled, Python run, `htmx-config` tags, links, the quick start) |
@@ -54,19 +60,22 @@ servers read and write `hp` (classes, `data-hp*`, ids, parameters).
 Run Go commands from Git Bash on Windows. Each make target wraps one command.
 
 ```sh
-make test     # go test ./... && (cd client && node --test)
+make test     # go test ./..., then make client, make py, make nodeex and make conformance
 make client   # cd client && node --test  (from the root, node --test finds nothing)
+make py       # python3 -m unittest discover examples/python, then tools/hpcheck  (on Windows: make py PYTHON=python)
+make nodeex   # cd examples/node && node --test
+make conformance  # hpcheck on the Python and Node fixture output, the gallery export, and the dashboard, Python and Node servers
 make race     # go test -race ./...
 make lint     # hygiene, then gofumpt -l, go vet, staticcheck, golangci-lint run
 make hygiene  # LF line endings, zero dependencies, go mod tidy -diff
-make check    # what CI runs, on one machine: lint, race tests, goldens unchanged, benchmarks once, client, browser (needs Chrome and npm ci in client/)
+make check    # what CI runs, on one machine: lint, race tests, goldens unchanged, benchmarks once, client, py, nodeex, conformance, browser (needs Chrome and npm ci in client/)
 make fmt      # gofumpt -w .
-make golden   # go test . -run Golden -update  (then review the diff)
+make golden   # go test . -run Golden -update, then -run Preview -update on the examples with preview/  (then review the diff)
 make fuzz     # every Fuzz* target, FUZZTIME=30s each
 make bench    # benchmarks with -benchmem
 make cover    # coverage.out + cover.html
 make demo     # go run ./examples/dashboard
-make browser  # cd client && npm run test:browser  (needs Chrome, and npm ci in client/)
+make browser  # cd client && npm run test:browser  (needs Chrome, Python and npm ci in client/; examples.browser.mjs opens every example)
 ```
 
 Single package or test: `go test ./scale -run TestTicks -v`.
@@ -126,9 +135,11 @@ Rendered charts are compared byte for byte with `testdata/*.svg`, and each
 golden file is parsed with `encoding/xml` to check well-formedness.
 
 1. Change the renderer intentionally.
-2. `make golden` (that is, `go test . -run Golden -update`; the `-update` flag
-   exists only in the root package, so don't pass it to `./...`).
-3. Review every changed file: `git diff --text testdata/` (diffs are
+2. `make golden` (that is, `go test . -run Golden -update`, then the same
+   with `-run Preview` on each example package that has a `preview/`
+   directory; `-update` exists only in those packages, so don't pass it to
+   `./...`).
+3. Review every changed file: `git diff --text testdata/ examples/` (diffs are
    collapsed by `.gitattributes`). Open changed SVGs in a browser if the
    change is visual.
 4. Explain in the change summary why the output changed.

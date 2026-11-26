@@ -1,6 +1,7 @@
 // Shared set-up for the real-browser tests in this directory: it builds and
-// starts the Go dashboard (examples/dashboard), or a static test server that
-// needs no Go (startStatic), launches Chrome through playwright-core, serves
+// starts the Go dashboard (examples/dashboard), any other example server
+// (buildGo and startServer, for Go, Python or Node), or a static test server
+// that needs no Go (startStatic), launches Chrome through playwright-core, serves
 // the page's pinned htmx files from node_modules instead of the CDN (the
 // tests need no network), and cleans everything up, also when a test fails
 // or times out.
@@ -11,6 +12,7 @@
 //	HP_BROWSER_TMP  where Chrome profiles and the dashboard binary go (default: the OS temp dir)
 //	HP_REPO         the Go module to build the dashboard from (default: this repository)
 //	HP_SPEED        the dashboard's -speed, how fast simulated time runs (default 5)
+//	PYTHON          the Python interpreter for the Python example (default python3, python on Windows)
 //	HP_SHOTS        a directory to save screenshots in (default: none)
 //	HP_HEADED       set to 1 to watch the browser
 import { spawn, spawnSync } from 'node:child_process'
@@ -91,42 +93,99 @@ process.on('exit', () => {
   }
 })
 
+/** tempDir returns a new scratch directory under HP_BROWSER_TMP, removed when the test file ends. */
+export function tempDir(prefix) {
+  const dir = scratch(prefix)
+  cleanups.push((exiting) => (exiting === true ? rmSync(dir, { recursive: true, force: true }) : removeDir(dir)))
+  return dir
+}
+
+/** python is the Python interpreter: PYTHON, else `python` on Windows and `python3` elsewhere. */
+export const python = process.env.PYTHON || (win ? 'python' : 'python3')
+
+/**
+ * buildGo builds the main packages pkgs (such as './examples/dashboard')
+ * of HP_REPO with one `go build`, into a new scratch directory. It returns
+ * {bin(pkg), remove}: bin gives the path of a package's binary, named
+ * after the last element of its path, and remove deletes the directory.
+ * The directory is also removed when the test file ends.
+ */
+export function buildGo(pkgs) {
+  const dir = scratch('hp-bin-')
+  const remove = async (exiting) => (exiting === true ? rmSync(dir, { recursive: true, force: true }) : removeDir(dir))
+  cleanups.push(remove)
+  // With several packages, -o names a directory and each binary is named
+  // after its package's directory.
+  const out = pkgs.length === 1 ? join(dir, binName(pkgs[0])) : dir + '/'
+  const build = spawnSync('go', ['build', '-o', out, ...pkgs], { cwd: root, encoding: 'utf8' })
+  if (build.status !== 0) throw new Error(`go build failed:\n${build.stderr || build.error}`)
+  return { bin: (pkg) => join(dir, binName(pkg)), remove }
+}
+
+const binName = (pkg) => pkg.replace(/\/+$/, '').split('/').pop() + (win ? '.exe' : '')
+
+/**
+ * startServer runs cmd with args in HP_REPO and waits for the line every
+ * example logs when it is ready, "listening on http://…", on stdout or
+ * stderr. Pass an address of 127.0.0.1:0 in args so the server takes a
+ * free port. It returns {url, stop, log}: url has no trailing slash, stop
+ * kills the process tree and waits for it to exit, and log() returns
+ * what the server printed. The server is also stopped when the test file
+ * ends, or the process exits.
+ */
+export async function startServer(cmd, args, { name = cmd, timeout = 20000 } = {}) {
+  const child = spawn(cmd, args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: !win })
+  const exited = new Promise((r) => child.once('exit', r))
+  const stop = async (exiting) => {
+    killTree(child)
+    if (exiting !== true && child.exitCode == null && child.signalCode == null) await exited
+  }
+  cleanups.push(stop)
+  let out = ''
+  const url = await new Promise((ok, fail) => {
+    const timer = setTimeout(() => fail(new Error(`${name} did not start:\n${out}`)), timeout)
+    const read = (s) => {
+      out += s
+      const m = /listening on (http:\/\/[^\s]+)/.exec(out)
+      if (m) {
+        clearTimeout(timer)
+        ok(m[1].replace('localhost', '127.0.0.1').replace(/\/+$/, ''))
+      }
+    }
+    for (const stream of [child.stdout, child.stderr]) {
+      stream.setEncoding('utf8')
+      stream.on('data', read)
+    }
+    child.once('error', (e) => {
+      clearTimeout(timer)
+      fail(new Error(`${name} could not start: ${e.message}`))
+    })
+    child.once('exit', (code) => {
+      clearTimeout(timer)
+      fail(new Error(`${name} exited (${code}):\n${out}`))
+    })
+  }).catch(async (e) => {
+    await stop()
+    throw e
+  })
+  return { url, stop, log: () => out }
+}
+
 /**
  * startDashboard builds the dashboard from HP_REPO and runs it on a free
  * port, at the given -speed (default HP_SPEED). It returns {url, stop}.
  */
 export async function startDashboard({ speed: s = speed } = {}) {
-  const dir = scratch('hp-dashboard-')
-  const bin = join(dir, win ? 'dashboard.exe' : 'dashboard')
-  const build = spawnSync('go', ['build', '-o', bin, './examples/dashboard'], { cwd: root, encoding: 'utf8' })
-  if (build.status !== 0) throw new Error(`go build failed:\n${build.stderr || build.error}`)
+  const pkg = './examples/dashboard'
+  const build = buildGo([pkg])
   const args = ['-addr', '127.0.0.1:0']
   if (s !== 1) args.push('-speed', String(s))
-  const child = spawn(bin, args, { cwd: root, stdio: ['ignore', 'ignore', 'pipe'], detached: !win })
+  const server = await startServer(build.bin(pkg), args, { name: 'dashboard' })
   const stop = async (exiting) => {
-    killTree(child)
-    if (exiting === true) rmSync(dir, { recursive: true, force: true })
-    else {
-      if (child.exitCode == null && child.signalCode == null) await new Promise((r) => child.once('exit', r))
-      await removeDir(dir)
-    }
+    await server.stop(exiting)
+    await build.remove(exiting)
   }
-  cleanups.push(stop)
-  let log = ''
-  const url = await new Promise((ok, fail) => {
-    const timer = setTimeout(() => fail(new Error(`dashboard did not start:\n${log}`)), 15000)
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (s) => {
-      log += s
-      const m = /listening on (http:\/\/[^\s]+)/.exec(log)
-      if (m) {
-        clearTimeout(timer)
-        ok(m[1].replace('localhost', '127.0.0.1'))
-      }
-    })
-    child.once('exit', (code) => fail(new Error(`dashboard exited (${code}):\n${log}`)))
-  })
-  return { url, stop }
+  return { url: server.url, stop }
 }
 
 const client = join(here, '..')

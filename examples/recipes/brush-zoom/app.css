@@ -1,0 +1,15 @@
+/* Page layout for this recipe. */
+:root { color-scheme: light dark; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+body { margin: 0; background: Canvas; color: CanvasText }
+main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem }
+.lede { margin: 0 0 1.5rem; color: GrayText }
+.chart .hp { display: block }
+
+/* The toolbar: what the chart shows, the from/to form, Back to live. */
+.zoom-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0 0 .75rem }
+.status { flex: 1 0 100%; margin: 0; font-weight: 600 }
+.zoom-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem }
+.zoom-form label { font-size: .875rem }
+.zoom-form input, .zoom-form button { font: inherit }
+.live { font-size: .875rem }

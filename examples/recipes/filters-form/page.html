@@ -1,0 +1,73 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces the charts. The array replaces
+     htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Filters · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx loads without defer (a deferred htmx 4.0.2 can start before a
+     deferred extension has loaded). This page needs no htmx extension of
+     its own. hx-plot.js may defer: htmx waits for DOMContentLoaded, which
+     runs after deferred scripts. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+</head>
+<body>
+<main>
+  <h1>Filters</h1>
+  <p class="lede">Change the range or the regions: one request re-renders all three charts, and each region keeps its color.</p>
+  {{- /*
+    hx-get="/" + hx-trigger="change": every change sends the whole form
+    (range, region) to the page's own URL.
+    hx-target="#charts" + hx-swap="innerMorph": the charts keep their ids,
+    so htmx morphs them and the lines animate to the new data.
+    hx-push-url="true": the address bar shows the filtered view, which can
+    be bookmarked; Back returns to the previous one.
+    hx-sync="this:replace": a change made while a request is in flight
+    aborts that request and sends the form as it is now, so the last
+    change always wins. Without it htmx queues one request and drops any
+    later one, and on a slow link the charts, the summary and the URL
+    would show an earlier state than the form.
+    action="/": without script, the Apply button loads the same page.
+  */}}
+  <form id="filters" class="filters" action="/" method="get"
+        hx-get="/" hx-trigger="change" hx-target="#charts" hx-swap="innerMorph" hx-push-url="true" hx-sync="this:replace">
+    <fieldset>
+      <legend>Range</legend>
+      {{- range .Ranges}}
+      <label><input type="radio" name="range" value="{{.Key}}"{{if .Checked}} checked{{end}}> {{.Key}}</label>
+      {{- end}}
+    </fieldset>
+    <fieldset>
+      <legend>Regions</legend>
+      {{- /* Always sent, so "nothing checked" is not a first visit. */}}
+      <input type="hidden" name="region" value="">
+      {{- range .Regions}}
+      <label><input type="checkbox" name="region" value="{{.Key}}"{{if .Checked}} checked{{end}}> {{.Key}}</label>
+      {{- end}}
+    </fieldset>
+    <noscript><button type="submit">Apply</button></noscript>
+  </form>
+  {{- /*
+    Outside #charts: the filter response updates it through an
+    <hx-partial>. role="status" announces the new text.
+  */}}
+  <p id="summary" class="summary" role="status">{{.Summary}}</p>
+  <div id="charts" class="charts">{{template "charts" .}}</div>
+</main>
+</body>
+</html>
+{{- end}}
+
+{{define "charts" -}}
+<section class="card">{{.Latency}}</section>
+<section class="card">{{.Errors}}</section>
+<section class="card">{{.Volumes}}</section>
+{{- end}}

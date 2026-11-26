@@ -1,0 +1,82 @@
+{{define "page" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- noSwap: an error page never replaces a chart, and the 204 that
+     answers an ignored brush or an aged-out zoomed poll swaps nothing.
+     The array replaces htmx's default. -->
+<meta name="htmx-config" content='{"noSwap":[204,304,"4xx","5xx"]}'>
+<title>Brush to zoom · hyperplot recipe</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/hx-plot.css">
+<link rel="stylesheet" href="/static/app.css">
+<!-- htmx loads without defer (a deferred htmx 4.0.2 can start before a
+     deferred extension has loaded). This page needs no htmx extension of
+     its own. hx-plot.js and its brush companion may defer: htmx waits for
+     DOMContentLoaded, which runs after deferred scripts, in order. -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.2/dist/htmx.min.js" integrity="sha384-6NzMyCdh08UZ4b4M17SJJKQLdDijx4z2IqqKLKD0Q/PzCFQLpFuk3konY0WgqbTy" crossorigin="anonymous"></script>
+<script defer src="/static/hx-plot.js"></script>
+<script defer src="/static/hx-plot-brush.js"></script>
+</head>
+<body>
+<main>
+  <h1>Brush to zoom</h1>
+  <p class="lede">Drag across the chart to zoom into that range, or focus it, mark a range with Shift and the arrow keys and press Enter. The address bar follows: Back undoes the zoom.</p>
+  {{- /*
+    The brush (docs/spec.md §5.4).
+    hx-plot:brush: lets the reader brush the charts inside this element.
+    hx-trigger="htmx:plot:brush": the extension fires that event when a
+    brush ends and adds hp-chart, hp-x0 and hp-x1 to the request.
+    hx-target + hx-swap="outerMorph": the answer is the whole polling
+    element, because only that can change its hx-get (now with the range).
+    hx-sync="replace": a brush aborts a request already queued here.
+  */}}
+  <div class="zoom" hx-plot:brush hx-get="/charts/latency" hx-trigger="htmx:plot:brush"
+       hx-target="#latency-body" hx-swap="outerMorph" hx-sync="replace">
+    <div id="zoom-bar" class="zoom-bar">{{template "toolbar" .}}</div>
+    {{template "latency" .}}
+  </div>
+</main>
+</body>
+</html>
+{{- end}}
+
+{{define "latency" -}}
+{{- /*
+  The polling element. hx-get carries the range of a zoomed view, so its
+  polls stay zoomed. hx-sync="closest .zoom:drop": polls share the .zoom
+  element's queue, so a poll is dropped while a zoom is pending and a zoom
+  aborts a poll in flight; a late poll cannot swap the unzoomed chart back.
+*/ -}}
+<div id="latency-body" class="chart" hx-get="{{.URL}}" hx-trigger="every 5s"
+     hx-swap="innerMorph" hx-sync="closest .zoom:drop">{{.Chart}}</div>
+{{- end}}
+
+{{define "toolbar" -}}
+{{- /*
+  role="status": a polite live region. A zoom answers with this toolbar in
+  an <hx-partial>, and the morph changes the text of the same element, so
+  screen readers announce what the request did (docs/spec.md §5.5).
+*/ -}}
+<p id="zoom-status" class="status" role="status">{{.Status}}</p>
+{{- /*
+  The same zoom without a pointer (docs/spec.md §5.5): hp-x0 and hp-x1 are
+  plain form fields, and the server reads datetime-local values in the
+  chart's time zone. Without script, action="/" loads the zoomed page. The
+  form shares the .zoom queue like the brush.
+*/}}
+<form class="zoom-form" action="/" method="get" aria-label="Zoom to a time range"
+      hx-get="/charts/latency" hx-target="#latency-body" hx-swap="outerMorph" hx-sync="closest .zoom:replace">
+  <input type="hidden" name="hp-chart" value="latency">
+  <label>From <input type="datetime-local" name="hp-x0" step="1" value="{{.From}}" required></label>
+  <label>To <input type="datetime-local" name="hp-x1" step="1" value="{{.To}}" required></label>
+  <button type="submit">Zoom</button>
+</form>
+{{- if .Zoomed}}
+<a class="live" href="/" hx-get="/charts/latency?zoom=out" hx-target="#latency-body" hx-swap="outerMorph"
+   hx-sync="closest .zoom:replace">Back to live</a>
+{{- end}}
+{{- end}}

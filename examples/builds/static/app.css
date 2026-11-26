@@ -1,0 +1,450 @@
+/* Page chrome for the CI builds demo. The charts are styled by
+   /static/hx-plot.css; this file lays out the page around them. There are
+   no inline styles anywhere, so the page runs under a strict
+   Content-Security-Policy. The theme follows prefers-color-scheme unless
+   the server wrote data-theme on <html> (the theme links). */
+
+:root {
+  color-scheme: light;
+  --page: #f5f5f5;
+  --card: #ffffff;
+  --line: #e7e7e7;
+  --line-strong: #c2c2c2;
+  --ink: #191919;
+  --ink-2: #666666;
+  --wash: rgb(0 0 0 / 0.04);
+  --focus: #257de0;
+  /* Status colors: for the result column only, always with an icon and
+     a word, never for chart series. */
+  --good: #0a7d1f;
+  --bad: #c62f30;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #101010;
+    --card: #191919;
+    --line: #2b2b2b;
+    --line-strong: #474747;
+    --ink: #efefef;
+    --ink-2: #9c9c9c;
+    --wash: rgb(255 255 255 / 0.05);
+    --focus: #338ced;
+    --good: #3fc456;
+    --bad: #f07878;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #101010;
+  --card: #191919;
+  --line: #2b2b2b;
+  --line-strong: #474747;
+  --ink: #efefef;
+  --ink-2: #9c9c9c;
+  --wash: rgb(255 255 255 / 0.05);
+  --focus: #338ced;
+  --good: #3fc456;
+  --bad: #f07878;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+code {
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--wash);
+}
+
+/* ---- Header, filters ---------------------------------------------------- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.brand-name {
+  font-weight: 650;
+  font-size: 15px;
+}
+
+.brand-sub,
+.lede,
+.card-sub,
+.summary,
+.foot,
+.drill-label,
+.detail-note,
+legend,
+.field > span {
+  color: var(--ink-2);
+}
+
+.theme {
+  display: flex;
+  gap: 4px;
+}
+
+.theme a {
+  padding: 2px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.theme a[aria-current="true"] {
+  background: var(--wash);
+  font-weight: 600;
+}
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+h2,
+h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.lede {
+  margin: 4px 0 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 8px;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.seg,
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.seg-item,
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+select,
+input[type="datetime-local"],
+.btn {
+  font: inherit;
+  color: inherit;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: var(--wash);
+}
+
+.swatch {
+  flex: none;
+}
+
+.summary {
+  margin: 8px 0 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Cards -------------------------------------------------------------- */
+
+.card {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.card-sub {
+  margin: 2px 0 0;
+  max-width: 70ch;
+}
+
+.badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--wash);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.chart {
+  min-width: 0;
+}
+
+.table-view {
+  margin-top: 8px;
+}
+
+.table-view summary {
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+.table-scroll {
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+/* ---- Zoom toolbar --------------------------------------------------------- */
+
+.zoom-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.zoom-state {
+  margin: 0;
+}
+
+.zoom-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* ---- Drill-down ----------------------------------------------------------- */
+
+.day-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+}
+
+.detail-card {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tabs a {
+  padding: 2px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 1px solid var(--line);
+}
+
+.tabs a[aria-current="true"] {
+  background: var(--wash);
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+
+.builds {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.builds th,
+.builds td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.builds thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.builds .num {
+  text-align: right;
+}
+
+.result .icon {
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
+.result-pass {
+  color: var(--good);
+}
+
+.result-fail {
+  color: var(--bad);
+}
+
+.slow {
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 12px;
+}
+
+/* ---- Small multiples ------------------------------------------------------ */
+
+/* The server picks the column count from the container's width (hp-w)
+   and renders each chart to fit; the gap matches trendGap in charts.go. */
+.trends {
+  display: grid;
+  gap: 16px;
+}
+
+.trends-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trends-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.trend {
+  min-width: 0;
+}
+
+/* ---- Notes ---------------------------------------------------------------- */
+
+.notes dl {
+  margin: 0;
+}
+
+.notes dt {
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.notes dd {
+  margin: 0;
+  color: var(--ink-2);
+  max-width: 80ch;
+}
+
+.foot {
+  padding-top: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .wrap,
+  .top {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
